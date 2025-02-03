@@ -26,6 +26,7 @@ function drawUI() {
     ctx.fillText('Controls:', 10, canvas.height - 60);
     ctx.fillText('Arrow Keys - Move', 10, canvas.height - 45);
     ctx.fillText('Space - Attack', 10, canvas.height - 30);
+    ctx.fillText('D - Teleport to Friendlies', 10, canvas.height - 15);
     ctx.fillText('Health: ' + playerHealth, 10, 20);
     ctx.fillText('Sword: ' + (hasSword ? 'Yes' : 'No'), 10, 35);
 }
@@ -40,7 +41,7 @@ class Entity {
         this.damage = damage;
         this.hostile = hostile;
         this.lastMove = 0;
-        this.moveDelay = 1000;
+        this.moveDelay = hostile ? 1000 : 0; // No delay for friendlies to match player speed
         this.color = hostile ? '#FF0000' : '#4169E1';
         this.message = hostile ? '!' : 'I will help you fight!';
         this.showMessage = false;
@@ -108,9 +109,9 @@ class Entity {
                 const enemyDy = nearestEnemy.y - this.y;
                 
                 if (Math.abs(enemyDx) > Math.abs(enemyDy)) {
-                    this.x += Math.sign(enemyDx) * tileSize;
+                    this.x += Math.sign(enemyDx) * tileSize * (this.hostile ? 1 : 2); // Friendlies move 2 tiles at a time to keep up
                 } else {
-                    this.y += Math.sign(enemyDy) * tileSize;
+                    this.y += Math.sign(enemyDy) * tileSize * (this.hostile ? 1 : 2);
                 }
                 
                 // Add attack logic for friendly NPCs
@@ -129,11 +130,11 @@ class Entity {
                         if (nearestEnemy.takeDamage(damage)) { // Apply the increased damage
                             if (enemyKey) {
                                 entities.delete(enemyKey);
+                                this.showMessage = true;
+                                this.message = "Take that!";
+                                this.messageTimer = Date.now();
                             }
                         }
-                        this.showMessage = true;
-                        this.message = "Take that!";
-                        this.messageTimer = Date.now();
                     }
                     this.lastAttack = Date.now();
                 }
@@ -142,12 +143,12 @@ class Entity {
             }
             
             // Follow player when no enemies are nearby
-            if (dist > 4 * tileSize && dist < 12 * tileSize) {  // Stay between 4-12 tiles from player
+            if (dist > 2 * tileSize && dist < 8 * tileSize) {  // Stay closer to player (2-8 tiles)
                 // Move towards player
                 if (Math.abs(dx) > Math.abs(dy)) {
-                    this.x += Math.sign(dx) * tileSize;
+                    this.x += Math.sign(dx) * tileSize * 2; // Move 2 tiles at a time to match player speed
                 } else {
-                    this.y += Math.sign(dy) * tileSize;
+                    this.y += Math.sign(dy) * tileSize * 2;
                 }
             } else if (dist < 3 * tileSize) {  // Show message when very close
                 this.showMessage = true;
@@ -155,7 +156,7 @@ class Entity {
             }
             
             // Random movement only when very close to player
-            if (dist < 4 * tileSize && Math.random() < 0.3) {
+            if (dist < 2 * tileSize && Math.random() < 0.2) { // Less random movement
                 const moveRange = 2 * tileSize;
                 const newX = this.x + (Math.random() - 0.5) * moveRange;
                 const newY = this.y + (Math.random() - 0.5) * moveRange;
@@ -214,7 +215,7 @@ function spawnEntity(worldX, worldY, type, hostile = false) {
             worldX * tileSize,
             worldY * tileSize,
             type,
-            100,
+            hostile ? 150 : 100, // Increased enemy health to 150
             hostile ? 10 : 35, // Increased friendly NPC damage to 35
             hostile
         ));
@@ -253,13 +254,63 @@ const TOWN_HALL = 10;
 const MARKET = 11;
 
 let hasSword = false;
-const SOLID_TILES = [HOUSE, TREES, LAKE, SHOP, TAVERN, TOWN_HALL];
 
 // Player settings
 const playerSize = 16;
 const playerColor = '#FFD700';
 let playerX = Math.floor(viewportTilesX / 2) * tileSize;
 let playerY = Math.floor(viewportTilesY / 2) * tileSize;
+
+// Find closest group of friendlies
+function findClosestFriendlyGroup() {
+    const friendlyGroups = new Map();
+    let groupId = 0;
+
+    // Group friendlies that are close to each other
+    for (const [key, entity] of entities) {
+        if (!entity.hostile) {
+            let foundGroup = false;
+            for (const [id, group] of friendlyGroups) {
+                for (const friendly of group) {
+                    const dist = Math.hypot(entity.x - friendly.x, entity.y - friendly.y);
+                    if (dist < 5 * tileSize) { // Consider NPCs within 5 tiles as a group
+                        group.push(entity);
+                        foundGroup = true;
+                        break;
+                    }
+                }
+                if (foundGroup) break;
+            }
+            if (!foundGroup) {
+                friendlyGroups.set(groupId++, [entity]);
+            }
+        }
+    }
+
+    // Find the largest group closest to the player
+    let closestGroup = null;
+    let closestDist = Infinity;
+    let largestSize = 0;
+    const playerWorldX = playerX + worldX * tileSize;
+    const playerWorldY = playerY + worldY * tileSize;
+
+    for (const [_, group] of friendlyGroups) {
+        if (group.length >= largestSize) {
+            // Calculate average position of the group
+            const avgX = group.reduce((sum, e) => sum + e.x, 0) / group.length;
+            const avgY = group.reduce((sum, e) => sum + e.y, 0) / group.length;
+            const dist = Math.hypot(avgX - playerWorldX, avgY - playerWorldY);
+            
+            if (group.length > largestSize || dist < closestDist) {
+                closestGroup = group;
+                closestDist = dist;
+                largestSize = group.length;
+            }
+        }
+    }
+
+    return closestGroup;
+}
 
 // Town planning functions remain the same...
 function isTownCenter(worldX, worldY) {
@@ -299,8 +350,8 @@ function generateChunk(chunkX, chunkY) {
             const worldY = chunkY * chunkSize + y;
             const noiseValue = smoothNoise(worldX * 0.1, worldY * 0.1);
             
-            // Reduced spawn rates
-            if (Math.random() < 0.01 && !isMainRoad(worldX, worldY) && !isNearRoad(worldX, worldY)) {
+            // Increased enemy spawn rates and added different spawn conditions
+            if ((Math.random() < 0.03 || (noiseValue > 0.7 && Math.random() < 0.08)) && !isMainRoad(worldX, worldY) && !isNearRoad(worldX, worldY)) {
                 spawnEntity(worldX, worldY, 'enemy', true);
             }
             // Increased friendly NPC spawn rate in town centers
@@ -362,8 +413,8 @@ function gameLoop() {
     // Draw world
     for (let y = 0; y < viewportTilesY; y++) {
         for (let x = 0; x < viewportTilesX; x++) {
-            const worldTileX = x + Math.floor(worldX);
-            const worldTileY = y + Math.floor(worldY);
+            const worldTileX = Math.floor(x + worldX);
+            const worldTileY = Math.floor(y + worldY);
             const chunkX = Math.floor(worldTileX / chunkSize);
             const chunkY = Math.floor(worldTileY / chunkSize);
             const chunkKey = `${chunkX},${chunkY}`;
@@ -454,51 +505,32 @@ gameLoop();
 
 // Player movement and combat
 document.addEventListener('keydown', (e) => {
+    const moveSpeed = 1; // Use whole number for more reliable movement
     let newWorldX = worldX;
     let newWorldY = worldY;
     
     switch(e.key) {
         case 'ArrowUp':
-            newWorldY -= 1;
+            newWorldY -= moveSpeed;
             attackAngle = -Math.PI/2;
             break;
         case 'ArrowDown':
-            newWorldY += 1;
+            newWorldY += moveSpeed;
             attackAngle = Math.PI/2;
             break;
         case 'ArrowLeft':
-            newWorldX -= 1;
+            newWorldX -= moveSpeed;
             attackAngle = Math.PI;
             break;
         case 'ArrowRight':
-            newWorldX += 1;
+            newWorldX += moveSpeed;
             attackAngle = 0;
             break;
     }
     
-    // Check collision with solid tiles
     if (e.key.startsWith('Arrow')) {
-        const tileX = Math.floor(newWorldX);
-        const tileY = Math.floor(newWorldY);
-        const chunkX = Math.floor(tileX / chunkSize);
-        const chunkY = Math.floor(tileY / chunkSize);
-        const chunk = worldChunks.get(`${chunkX},${chunkY}`);
-        
-        if (chunk) {
-            const localX = ((tileX % chunkSize) + chunkSize) % chunkSize;
-            const localY = ((tileY % chunkSize) + chunkSize) % chunkSize;
-            // Check if the coordinates are within bounds
-            if (localY >= 0 && localY < chunkSize && localX >= 0 && localX < chunkSize) {
-                const nextTile = chunk[localY][localX];
-                // Only move if the next tile is not solid
-                if (!SOLID_TILES.includes(nextTile)) {
-                    worldX = newWorldX;
-                    worldY = newWorldY;
-                }
-            }
-        }
-        // Call sword pickup check after movement
-        checkSwordPickup();
+        worldX = newWorldX; // Use whole number movement
+        worldY = newWorldY; // Use whole number movement
     }
     
     switch(e.key) {
@@ -519,15 +551,18 @@ document.addEventListener('keydown', (e) => {
                 lastAttackTime = Date.now();
             }
             break;
+        case 'd':
+            const friendlyGroup = findClosestFriendlyGroup();
+            if (friendlyGroup && friendlyGroup.length > 0) {
+                // Calculate average position of the group
+                const avgX = friendlyGroup.reduce((sum, e) => sum + e.x, 0) / friendlyGroup.length;
+                const avgY = friendlyGroup.reduce((sum, e) => sum + e.y, 0) / friendlyGroup.length;
+                
+                // Set player position slightly offset from the group
+                worldX = Math.floor(avgX / tileSize) - Math.floor(viewportTilesX / 2);
+                worldY = Math.floor(avgY / tileSize) - Math.floor(viewportTilesY / 2);
+            }
+            break;
     }
 });
 
-// Pickup sword when player walks over it
-function checkSwordPickup() {
-    const tileX = Math.floor(worldX);
-    const tileY = Math.floor(worldY);
-    const chunk = worldChunks.get(`${Math.floor(tileX / chunkSize)},${Math.floor(tileY / chunkSize)}`);
-    if (chunk && chunk[tileY % chunkSize][tileX % chunkSize] === SWORD) {
-        hasSword = true;
-    }
-}
