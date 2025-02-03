@@ -1,0 +1,28 @@
+Fastest Inference Providers:
+
+1. **Cerebras**
+   - **Description**: Known for their specialized chips designed for inference.
+   - **URL**: [Cerebras Inference](https://cerebras.ai/inference)
+   - **Performance**: Offers the fastest inference processing for Llama 3.1-70B.
+
+2. **Fireworks AI**
+   - **Description**: Has one of the fastest model APIs with optimized inference engines.
+   - **URL**: [Top 10 AI Inference Platforms in 2025](https://www.helicone.ai/blog/llm-api-providers)
+   - **Performance**: Uses proprietary optimized FireAttention inference engine.
+
+3. **SambaNova**
+   - **Description**: Announced record inference performance on Llama models.
+   - **URL**: [SambaNova Cloud](https://sambanova.ai/blog/fastest-inference-best-models)
+   - **Performance**: Provides free cloud service with fast inference capabilities.
+
+4. **Together AI**
+   - **Description**: Announced the world’s fastest inference stack.
+   - **URL**: [Together Inference Engine](https://www.together.ai/blog/together-inference-engine-v1)
+   - **Performance**: Up to 3x faster than other providers, including TGI or vLLM.
+
+5. **Groq**
+   - **Description**: Specializes in hardware optimized for high-speed inference.
+   - **URL**: [Top 10 AI Inference Platforms in 2025 - DEV Community](https://dev.to/lina_lam_9ee459f98b67e9d5/top-10-ai-inference-platforms-in-2025-56kd)
+   - **Performance**: Provides up to 18x faster processing speeds for latency-critical AI applications.
+
+These providers are leading in the field of fast inference, with Together AI and Cerebras being particularly notable for their performance.
