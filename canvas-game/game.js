@@ -34,16 +34,16 @@ function update() {
     // Boundary checks
     if (player.x < 0) {
         player.x = 0;
-        player.velocity.x = 0;
+        player.velocity.x = -player.velocity.x * 0.9; // Harder bounce effect with damping
     } else if (player.x + player.width > canvas.width) {
         player.x = canvas.width - player.width;
-        player.velocity.x = 0;
+        player.velocity.x = -player.velocity.x * 0.9; // Harder bounce effect with damping
     }
 
     // Simple ground collision
     if (player.y + player.height > canvas.height) {
         player.y = canvas.height - player.height;
-        player.velocity.y = -player.velocity.y * 0.7; // Bounce effect with damping
+        player.velocity.y = -player.velocity.y * 0.7; // Reduced bounce effect with damping
     }
 }
 
@@ -63,14 +63,14 @@ gameLoop();
 document.addEventListener('keydown', (event) => {
     switch (event.key) {
         case 'ArrowLeft':
-            player.velocity.x = -5;
+            player.velocity.x = -10; // Increased horizontal velocity
             break;
         case 'ArrowRight':
-            player.velocity.x = 5;
+            player.velocity.x = 10; // Increased horizontal velocity
             break;
         case 'ArrowUp':
-            if (player.y === canvas.height - player.height) {
-                player.velocity.y = -15;
+            if (player.velocity.y > -15) { // Limit the upward velocity
+                player.velocity.y -= 5; // Add a smaller boost every time the up arrow is pressed
             }
             break;
         case 'ArrowDown':
