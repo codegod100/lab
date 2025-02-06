@@ -4,5 +4,5 @@ const plugin = await createPlugin(
     { useWasi: true }
 );
 
-let out = await plugin.call("greet", "person");
-console.log(out?.text())
+let out = await plugin.call("greet", `{"name":"yolo", "age":40}`);
+console.log(out?.json())
