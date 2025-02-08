@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@luca/flag": "npm:@jsr/luca__flag"
+  }
+}

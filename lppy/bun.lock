@@ -1,0 +1,13 @@
+{
+  "lockfileVersion": 1,
+  "workspaces": {
+    "": {
+      "dependencies": {
+        "@luca/flag": "npm:@jsr/luca__flag",
+      },
+    },
+  },
+  "packages": {
+    "@luca/flag": ["@jsr/luca__flag@1.0.1", "https://npm.jsr.io/~/11/@jsr/luca__flag/1.0.1.tgz", {}, "sha512-739AhIoEZZJQxfn1YpP8xq/M4S3J4em3JH2HRipaCGKwdySJIpKVuHixCIKmZGMeOuQi9u7GCN/gWhrQTXxLaQ=="],
+  }
+}
