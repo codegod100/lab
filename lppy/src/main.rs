@@ -1,6 +1,11 @@
 use leptos::prelude::*;
 use wasm_bindgen::prelude::*;
 use leptos_meta::*;
+
+#[server]
+pub async fn get_data()->Result<(),ServerFnError>{
+    Ok(())
+}
 stylance::import_crate_style!(style, "src/style.module.scss");
 #[wasm_bindgen(module = "/bundle.js")]
 extern "C" {
@@ -25,8 +30,11 @@ fn App() -> impl IntoView {
         <p >text</p>
         <div><button 
         on:click=move |_|{
-            printProgress();
-            setItem("foo","bar");
+            // printProgress();
+            leptos::task::spawn_local(async move{
+                let r = get_data().await;
+            });
+            // setItem("foo","bar");
         }>"Set value"</button></div>
         <div><button 
         on:click=move |_|{
