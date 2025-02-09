@@ -1,4 +1,50 @@
+// Define default light theme colors
+$background-color: #ffffff;
+$text-color: #000000;
+
+// Dark theme colors
+$dark-background-color: #333333;
+$dark-text-color: hsl(0, 0%, 82%);
+
 body {
 	font-family: sans-serif;
 	text-align: center;
+	background-color: $background-color;
+	color: $text-color;
 }
+
+@media (prefers-color-scheme: dark) {
+	body {
+	  background-color: $dark-background-color;
+	  color: $dark-text-color;
+	}
+	a {
+		color: #a6c9f5; /* A lighter blue for better contrast in dark mode */
+	  }
+	
+	  a:hover {
+		color: #d9e8fb; /* An even lighter blue on hover in dark mode */
+	  }
+  }
+
+  @media (prefers-color-scheme: light) {
+	body {
+	  background-color: $background-color;
+	  color: $text-color;
+	}
+  }
+
+
+button {
+	background-color: #222; /* Dark background */
+	color: #bbb; /* Desaturated text color */
+	border: 1px solid #555; /* Subtle border */
+	padding: 0.5em 1em;
+	border-radius: 5px;
+	text-decoration: none; /* Remove underlines from links */
+	transition: background-color 0.1s ease; /* Smooth transition for hover effect */
+  
+	&:hover {
+	  background-color: #444; /* Slightly lighter background on hover */
+	}
+  }
