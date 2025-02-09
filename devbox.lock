@@ -112,6 +112,54 @@
           "store_path": "/nix/store/1ihhq4q0ns4jc4fhhi98ccx5y25zrrr5-fish-3.7.1"
         }
       }
+    },
+    "htop@latest": {
+      "last_modified": "2025-01-19T08:16:51Z",
+      "resolved": "github:NixOS/nixpkgs/50165c4f7eb48ce82bd063e1fb8047a0f515f8ce#htop",
+      "source": "devbox-search",
+      "version": "3.3.0",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/2b3pm92abbwk3zz13qlmdc3xv8g2jp2c-htop-3.3.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/2b3pm92abbwk3zz13qlmdc3xv8g2jp2c-htop-3.3.0"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/9y14wcvb8w26810skdbs9zpibd403j2p-htop-3.3.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/9y14wcvb8w26810skdbs9zpibd403j2p-htop-3.3.0"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/ax2g5l7lbgjcf399apyfy986cb584svc-htop-3.3.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/ax2g5l7lbgjcf399apyfy986cb584svc-htop-3.3.0"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/ibjn1vysg7vz3vr5d2mdi10s8y8ziy6x-htop-3.3.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/ibjn1vysg7vz3vr5d2mdi10s8y8ziy6x-htop-3.3.0"
+        }
+      }
     }
   }
 }
