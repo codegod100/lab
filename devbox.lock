@@ -1,0 +1,117 @@
+{
+  "lockfile_version": "1",
+  "packages": {
+    "cmatrix@latest": {
+      "last_modified": "2025-01-19T08:16:51Z",
+      "resolved": "github:NixOS/nixpkgs/50165c4f7eb48ce82bd063e1fb8047a0f515f8ce#cmatrix",
+      "source": "devbox-search",
+      "version": "2.0",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/m7ddvq5clq8xjd65bi22k9n99717q51n-cmatrix-2.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/m7ddvq5clq8xjd65bi22k9n99717q51n-cmatrix-2.0"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/6n4wz99dgcl5ibnys5cpn7wps7qay20f-cmatrix-2.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/6n4wz99dgcl5ibnys5cpn7wps7qay20f-cmatrix-2.0"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/wnkdvdfwifny8vwxn4780022d0406na1-cmatrix-2.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/wnkdvdfwifny8vwxn4780022d0406na1-cmatrix-2.0"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/6p3ix8nv50gaih009vq7fbhhhn35qgja-cmatrix-2.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/6p3ix8nv50gaih009vq7fbhhhn35qgja-cmatrix-2.0"
+        }
+      }
+    },
+    "fish@latest": {
+      "last_modified": "2025-01-19T08:16:51Z",
+      "resolved": "github:NixOS/nixpkgs/50165c4f7eb48ce82bd063e1fb8047a0f515f8ce#fish",
+      "source": "devbox-search",
+      "version": "3.7.1",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/dsxx1ihv1dxi0ip377c2jcyz9kn144kd-fish-3.7.1",
+              "default": true
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/36cglfc1qq6qrw419125gqcwz1vnqbwr-fish-3.7.1-doc"
+            }
+          ],
+          "store_path": "/nix/store/dsxx1ihv1dxi0ip377c2jcyz9kn144kd-fish-3.7.1"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/b4q0i1as7d9ymjc8cap8fl6rmw4jkzl9-fish-3.7.1",
+              "default": true
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/gpmadv6ldsq9f03gwlqxmp6f71a3x45c-fish-3.7.1-doc"
+            }
+          ],
+          "store_path": "/nix/store/b4q0i1as7d9ymjc8cap8fl6rmw4jkzl9-fish-3.7.1"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/xq4kpcxkh5wmdjyyqiad6bxxlbmlvd0b-fish-3.7.1",
+              "default": true
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/2zzgxza4fq45x296dphwqnd87c6wc7xa-fish-3.7.1-doc"
+            }
+          ],
+          "store_path": "/nix/store/xq4kpcxkh5wmdjyyqiad6bxxlbmlvd0b-fish-3.7.1"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/1ihhq4q0ns4jc4fhhi98ccx5y25zrrr5-fish-3.7.1",
+              "default": true
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/52snjs1933rl8cxxnhwrmm81rl14g87q-fish-3.7.1-doc"
+            }
+          ],
+          "store_path": "/nix/store/1ihhq4q0ns4jc4fhhi98ccx5y25zrrr5-fish-3.7.1"
+        }
+      }
+    }
+  }
+}
