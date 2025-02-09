@@ -3,7 +3,10 @@
   "packages": [
     "fish@latest",
     "cmatrix@latest",
-    "htop@latest"
+    "zig@latest",
+    "htop@latest",
+    "bun@latest",
+    "deno@latest"
   ],
   "shell": {
     "init_hook": [
