@@ -10,7 +10,8 @@
     "cargo-leptos@latest",
     "cargo@latest",
     "lld@latest",
-    "sass@latest"
+    "sass@latest",
+    "jujutsu@latest"
   ],
   "shell": {
     "init_hook": [
