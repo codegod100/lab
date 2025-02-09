@@ -2,7 +2,11 @@
   "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/main/.schema/devbox.schema.json",
   "packages": [
     "fish@latest",
-    "cmatrix@latest"
+    "cmatrix@latest",
+    "zig@latest",
+    "htop@latest",
+    "bun@latest",
+    "deno@latest"
   ],
   "shell": {
     "init_hook": [
