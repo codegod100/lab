@@ -6,7 +6,11 @@
     "zig@latest",
     "htop@latest",
     "bun@latest",
-    "deno@latest"
+    "deno@latest",
+    "cargo-leptos@latest",
+    "cargo@latest",
+    "lld@latest",
+    "sass@latest"
   ],
   "shell": {
     "init_hook": [
