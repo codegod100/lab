@@ -241,6 +241,122 @@
         }
       }
     },
+    "fastfetch@latest": {
+      "last_modified": "2025-01-27T01:46:17Z",
+      "resolved": "github:NixOS/nixpkgs/88a55dffa4d44d294c74c298daf75824dc0aafb5#fastfetch",
+      "source": "devbox-search",
+      "version": "2.35.0",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/4i83f20yq5jbbxyq3xibf0hzmgj5kmid-fastfetch-2.35.0",
+              "default": true
+            },
+            {
+              "name": "man",
+              "path": "/nix/store/91hk5ahziwvl9gfhwh8rjphhnlx07m6n-fastfetch-2.35.0-man",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/4i83f20yq5jbbxyq3xibf0hzmgj5kmid-fastfetch-2.35.0"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/y3abqbky0rhrxkf49ywj5ypxka00pspm-fastfetch-2.35.0",
+              "default": true
+            },
+            {
+              "name": "man",
+              "path": "/nix/store/qgxyswbgcna8lpzdqwaidx693xd0xdcj-fastfetch-2.35.0-man",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/y3abqbky0rhrxkf49ywj5ypxka00pspm-fastfetch-2.35.0"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/xhrc3ix0pna5ck2lsl23fnx4f375fb2n-fastfetch-2.35.0",
+              "default": true
+            },
+            {
+              "name": "man",
+              "path": "/nix/store/h8l61aicggc2ffpc9fr3wjml7rr3b5s9-fastfetch-2.35.0-man",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/xhrc3ix0pna5ck2lsl23fnx4f375fb2n-fastfetch-2.35.0"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/33nr1r991sa3raxwqssx554hsjr364xv-fastfetch-2.35.0",
+              "default": true
+            },
+            {
+              "name": "man",
+              "path": "/nix/store/qn7idjj47jplmq248147w2z7fxfb1y0z-fastfetch-2.35.0-man",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/33nr1r991sa3raxwqssx554hsjr364xv-fastfetch-2.35.0"
+        }
+      }
+    },
+    "fh@latest": {
+      "last_modified": "2025-01-19T08:16:51Z",
+      "resolved": "github:NixOS/nixpkgs/50165c4f7eb48ce82bd063e1fb8047a0f515f8ce#fh",
+      "source": "devbox-search",
+      "version": "0.1.21",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/8gh54pjdlm1c351vrnfdvl7gybrys323-fh-0.1.21",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/8gh54pjdlm1c351vrnfdvl7gybrys323-fh-0.1.21"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/7jxh4bfl5d49cq048ba2vgbfl8fc94yk-fh-0.1.21",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/7jxh4bfl5d49cq048ba2vgbfl8fc94yk-fh-0.1.21"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/ahp4pqcrwyzmkspwlmsbjrwjjkhyl2y5-fh-0.1.21",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/ahp4pqcrwyzmkspwlmsbjrwjjkhyl2y5-fh-0.1.21"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/7dssxmw60wm5clnir4ly0ahdd0a5293r-fh-0.1.21",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/7dssxmw60wm5clnir4ly0ahdd0a5293r-fh-0.1.21"
+        }
+      }
+    },
     "fish@latest": {
       "last_modified": "2025-01-19T08:16:51Z",
       "resolved": "github:NixOS/nixpkgs/50165c4f7eb48ce82bd063e1fb8047a0f515f8ce#fish",
@@ -481,6 +597,54 @@
         }
       }
     },
+    "pnpm@latest": {
+      "last_modified": "2025-02-07T11:26:36Z",
+      "resolved": "github:NixOS/nixpkgs/d98abf5cf5914e5e4e9d57205e3af55ca90ffc1d#pnpm",
+      "source": "devbox-search",
+      "version": "10.2.1",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/f69kr305skrj3zf7fn96fcw3mr87dh59-pnpm-10.2.1",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/f69kr305skrj3zf7fn96fcw3mr87dh59-pnpm-10.2.1"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/qww560lnjwb20ln7gjwq9ylb2sjkbbf5-pnpm-10.2.1",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/qww560lnjwb20ln7gjwq9ylb2sjkbbf5-pnpm-10.2.1"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/xcy99hb5djnijhpm4ql1iyif7lldjw4l-pnpm-10.2.1",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/xcy99hb5djnijhpm4ql1iyif7lldjw4l-pnpm-10.2.1"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/zk7vgm4h5d5sv3wsxmwknixnc1dhmm80-pnpm-10.2.1",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/zk7vgm4h5d5sv3wsxmwknixnc1dhmm80-pnpm-10.2.1"
+        }
+      }
+    },
     "sass@latest": {
       "last_modified": "2025-01-19T08:16:51Z",
       "resolved": "github:NixOS/nixpkgs/50165c4f7eb48ce82bd063e1fb8047a0f515f8ce#sass",
@@ -526,6 +690,74 @@
             }
           ],
           "store_path": "/nix/store/8q7arknmrrqnbandaaskqsxi0vkfklkw-sass-3.7.4"
+        }
+      }
+    },
+    "vim@latest": {
+      "last_modified": "2025-02-07T11:26:36Z",
+      "resolved": "github:NixOS/nixpkgs/d98abf5cf5914e5e4e9d57205e3af55ca90ffc1d#vim",
+      "source": "devbox-search",
+      "version": "9.1.1046",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/rx2i32cjx1y09n3qr5939xxfqjpkrhsr-vim-9.1.1046",
+              "default": true
+            },
+            {
+              "name": "xxd",
+              "path": "/nix/store/kbq8w3npsqgdipxc3ml57z67s0gn95yf-vim-9.1.1046-xxd",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/rx2i32cjx1y09n3qr5939xxfqjpkrhsr-vim-9.1.1046"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/j67dghzznffvqvdg4q676ygw2pif1hw9-vim-9.1.1046",
+              "default": true
+            },
+            {
+              "name": "xxd",
+              "path": "/nix/store/0jh6sz9n3hrx7rnb44fq3xngya14ds4j-vim-9.1.1046-xxd",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/j67dghzznffvqvdg4q676ygw2pif1hw9-vim-9.1.1046"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/n4rw363dm6mmi8zrcyzd8k0yhmnyw333-vim-9.1.1046",
+              "default": true
+            },
+            {
+              "name": "xxd",
+              "path": "/nix/store/kr9p6d9ws269mq9mf0b7al60b687x862-vim-9.1.1046-xxd",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/n4rw363dm6mmi8zrcyzd8k0yhmnyw333-vim-9.1.1046"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/91af2356mvkx4km3ngqi7sgfv6kimnc7-vim-9.1.1046",
+              "default": true
+            },
+            {
+              "name": "xxd",
+              "path": "/nix/store/4n2k7vffrqzgm8pxa1a4vdky1hzfyl2d-vim-9.1.1046-xxd",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/91af2356mvkx4km3ngqi7sgfv6kimnc7-vim-9.1.1046"
         }
       }
     },

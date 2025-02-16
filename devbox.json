@@ -11,7 +11,12 @@
     "cargo@latest",
     "lld@latest",
     "sass@latest",
-    "jujutsu@latest"
+    "jujutsu@latest",
+    "fh@latest",
+    "github:alba4k/albafetch#albafetch",
+    "fastfetch@latest",
+    "vim@latest",
+    "pnpm@latest"
   ],
   "shell": {
     "init_hook": [
