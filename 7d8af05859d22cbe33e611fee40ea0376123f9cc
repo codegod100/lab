@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "08f74f42_949346e4",
+        "filename": "foo",
+        "patchSetId": 1
+      },
+      "lineNbr": 1,
+      "author": {
+        "id": 1038162
+      },
+      "writtenOn": "2025-02-17T21:00:23Z",
+      "side": 1,
+      "message": "Hello World!",
+      "revId": "7d8af05859d22cbe33e611fee40ea0376123f9cc",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735"
+    }
+  ]
+}
