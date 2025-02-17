@@ -12,5 +12,8 @@
       ]
     }
   },
-  "remoteUser": "devbox"
+  "remoteUser": "devbox",
+  "features": {
+    "ghcr.io/devcontainers/features/sshd:1": {}
+  }
 }

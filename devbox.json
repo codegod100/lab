@@ -7,16 +7,12 @@
     "htop@latest",
     "bun@latest",
     "deno@latest",
-    "cargo-leptos@latest",
     "cargo@latest",
     "lld@latest",
-    "sass@latest",
     "jujutsu@latest",
-    "fh@latest",
-    "github:alba4k/albafetch#albafetch",
-    "fastfetch@latest",
     "vim@latest",
-    "pnpm@latest"
+    "nodejs@latest",
+    "clang@latest"
   ],
   "shell": {
     "init_hook": [
