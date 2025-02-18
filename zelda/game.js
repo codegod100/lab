@@ -167,13 +167,26 @@ function drawMinimap() {
 // UI text
 function drawUI() {
   ctx.font = "12px Arial";
-  ctx.fillStyle = "white";
+  ctx.fillStyle = "#FFE4B5";
+
+  // Add text shadow for better contrast
+  ctx.shadowColor = "black";
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+
   ctx.fillText("Controls:", 10, canvas.height - 60);
   ctx.fillText("Arrow Keys - Move", 10, canvas.height - 45);
   ctx.fillText("Space - Attack", 10, canvas.height - 30);
   ctx.fillText("D - Teleport to Friendlies", 10, canvas.height - 15);
   ctx.fillText("Health: " + playerHealth, 10, 20);
   ctx.fillText("Sword: " + (hasSword ? "Yes" : "No"), 10, 35);
+
+  // Reset shadow effect after drawing text
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
 }
 
 // Entity class for NPCs and enemies
