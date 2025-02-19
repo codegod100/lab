@@ -2,12 +2,9 @@ from mcp.server import Server, stdio, models, NotificationOptions
 import mcp.types as types
 import os
 import aiohttp
-import json
-import os
 
 # Add this at the top with your other imports
 from typing import Optional
-from urllib.parse import quote
 
 BRAVE_API_KEY = os.getenv("BRAVE_API_KEY")
 BRAVE_SEARCH_URL = "https://api.search.brave.com/res/v1/web/search"
