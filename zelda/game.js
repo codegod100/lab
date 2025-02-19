@@ -22,6 +22,7 @@ let playerHealth = 1000;
 const playerDamage = 20; // Base damage without sword
 let isAttacking = false;
 let attackAngle = 0;
+let score = 0;
 
 // Add this function to draw the minimap
 function drawMinimap() {
@@ -180,8 +181,9 @@ function drawUI() {
   ctx.fillText("Space - Attack", 10, canvas.height - 30);
   ctx.fillText("D - Teleport to Friendlies", 10, canvas.height - 15);
   ctx.fillText("Health: " + playerHealth, 10, 20);
-  ctx.fillText("Sword: " + (hasSword ? "Yes" : "No"), 10, 35);
+  // ctx.fillText("Sword: " + (hasSword ? "Yes" : "No"), 10, 35);
 
+  ctx.fillText("Score: " + score, 10, 50);
   // Reset shadow effect after drawing text
   ctx.shadowColor = "transparent";
   ctx.shadowBlur = 0;
@@ -210,22 +212,6 @@ class Entity {
 
   update(playerWorldX, playerWorldY, entities) {
     if (Date.now() - this.lastMove < this.moveDelay) return;
-
-    // Find nearest enemy for friendly NPCs
-    let nearestEnemy = null;
-    let nearestDist = Infinity;
-
-    if (!this.hostile) {
-      for (const [_, entity] of entities) {
-        if (entity.hostile) {
-          const dist = Math.hypot(entity.x - this.x, entity.y - this.y);
-          if (dist < nearestDist) {
-            nearestDist = dist;
-            nearestEnemy = entity;
-          }
-        }
-      }
-    }
 
     const dx = playerWorldX - this.x;
     const dy = playerWorldY - this.y;
@@ -261,62 +247,21 @@ class Entity {
         }
       }
     } else {
-      // Friendly NPCs help fight nearby enemies
-      if (nearestEnemy && nearestDist < 8 * tileSize) {
-        const enemyDx = nearestEnemy.x - this.x;
-        const enemyDy = nearestEnemy.y - this.y;
+      // Friendly NPC behavior
+      let nearestEnemy = null;
+      let nearestDist = Infinity;
 
-        if (Math.abs(enemyDx) > Math.abs(enemyDy)) {
-          this.x += Math.sign(enemyDx) * tileSize * (this.hostile ? 1 : 2); // Friendlies move 2 tiles at a time to keep up
-        } else {
-          this.y += Math.sign(enemyDy) * tileSize * (this.hostile ? 1 : 2);
-        }
-
-        // Add attack logic for friendly NPCs
-        if (
-          nearestDist < ATTACK_RANGE &&
-          Date.now() - this.lastAttack > this.attackCooldown
-        ) {
-          if (nearestEnemy && nearestEnemy.health > 0) {
-            // Find the actual key for this enemy in the entities Map
-            let enemyKey = null;
-            const damage = 25; // Match the damage value from spawnEntity
-            for (const [key, entity] of entities) {
-              if (entity === nearestEnemy) {
-                enemyKey = key;
-                break;
-              }
-            }
-
-            if (nearestEnemy.takeDamage(damage)) {
-              // Apply the increased damage
-              if (enemyKey) {
-                entities.delete(enemyKey);
-                this.showMessage = true;
-                this.message = "Take that!";
-                this.messageTimer = Date.now();
-              }
+      // Only look for enemies if we haven't attacked recently
+      if (Date.now() - this.lastAttack > this.attackCooldown) {
+        for (const [_, entity] of entities) {
+          if (entity.hostile) {
+            const dist = Math.hypot(entity.x - this.x, entity.y - this.y);
+            if (dist < nearestDist && dist < 16 * tileSize) {
+              nearestDist = dist;
+              nearestEnemy = entity;
             }
           }
-          this.lastAttack = Date.now();
         }
-
-        return; // Skip random movement when pursuing enemy
-      }
-
-      // Follow player when no enemies are nearby
-      if (dist > 2 * tileSize && dist < 8 * tileSize) {
-        // Stay closer to player (2-8 tiles)
-        // Move towards player
-        if (Math.abs(dx) > Math.abs(dy)) {
-          this.x += Math.sign(dx) * tileSize * 2; // Move 2 tiles at a time to match player speed
-        } else {
-          this.y += Math.sign(dy) * tileSize * 2;
-        }
-      } else if (dist < 3 * tileSize) {
-        // Show message when very close
-        this.showMessage = true;
-        this.messageTimer = Date.now();
       }
 
       // Random movement only when very close to player
@@ -327,6 +272,68 @@ class Entity {
         const newY = this.y + (Math.random() - 0.5) * moveRange;
         this.x = newX;
         this.y = newY;
+      }
+
+      // If we haven't attacked recently and there's a nearby enemy
+      if (
+        nearestEnemy &&
+        nearestDist < 16 * tileSize &&
+        Date.now() - this.lastAttack > this.attackCooldown
+      ) {
+        const enemyDx = nearestEnemy.x - this.x;
+        const enemyDy = nearestEnemy.y - this.y;
+
+        if (Math.abs(enemyDx) > Math.abs(enemyDy)) {
+          this.x += Math.sign(enemyDx) * tileSize * 2;
+        } else {
+          this.y += Math.sign(enemyDy) * tileSize * 2;
+        }
+
+        if (nearestDist < ATTACK_RANGE) {
+          if (nearestEnemy && nearestEnemy.health > 0) {
+            let enemyKey = null;
+            for (const [key, entity] of entities) {
+              if (entity === nearestEnemy) {
+                enemyKey = key;
+                break;
+              }
+            }
+
+            if (nearestEnemy.takeDamage(this.damage)) {
+              if (enemyKey) {
+                entities.delete(enemyKey);
+                score += 10;
+                this.showMessage = true;
+                this.message = "Take that!";
+                this.messageTimer = Date.now();
+              }
+            }
+          }
+          this.lastAttack = Date.now();
+        }
+      } else {
+        // Return to player behavior
+        if (dist > 2 * tileSize) {
+          if (Math.abs(dx) > Math.abs(dy)) {
+            this.x += Math.sign(dx) * tileSize * 2;
+          } else {
+            this.y += Math.sign(dy) * tileSize * 2;
+          }
+        }
+
+        if (dist < 3 * tileSize) {
+          this.showMessage = true;
+          this.messageTimer = Date.now();
+        }
+
+        // Random movement when very close to player
+        if (dist < 2 * tileSize && Math.random() < 0.2) {
+          const moveRange = 2 * tileSize;
+          const newX = this.x + (Math.random() - 0.5) * moveRange;
+          const newY = this.y + (Math.random() - 0.5) * moveRange;
+          this.x = newX;
+          this.y = newY;
+        }
       }
     }
 
@@ -383,7 +390,7 @@ function spawnEntity(worldX, worldY, type, hostile = false) {
         worldY * tileSize,
         type,
         hostile ? 150 : 100, // Increased enemy health to 150
-        hostile ? 10 : 35, // Increased friendly NPC damage to 35
+        hostile ? 10 : 50, // Increased friendly NPC damage to 50
         hostile,
       ),
     );
@@ -722,8 +729,8 @@ function gameLoop() {
       playerX + tileSize / 2,
       playerY + tileSize / 2,
       ATTACK_RANGE,
-      attackAngle - Math.PI / 2,
-      attackAngle + Math.PI / 2,
+      0, // Start angle: 0
+      Math.PI * 2, // End angle: full circle
     );
     ctx.stroke();
   }
@@ -790,6 +797,7 @@ document.addEventListener("keydown", (e) => {
                 entity.takeDamage(hasSword ? playerDamage * 2 : playerDamage)
               ) {
                 entities.delete(key);
+                score += 10;
               }
             }
           }
