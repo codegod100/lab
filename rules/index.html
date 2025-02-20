@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Cellular Automaton Ruliad</title>
+        <style>
+            body {
+                margin: 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                background: #f0f0f0;
+                min-height: 100vh;
+                padding: 20px;
+            }
+            canvas {
+                background: white;
+                border: 1px solid #ccc;
+                margin-top: 20px;
+            }
+            h1 {
+                color: #333;
+                font-family: Arial, sans-serif;
+            }
+            .description {
+                margin: 20px;
+                max-width: 600px;
+                text-align: center;
+                font-family: Arial, sans-serif;
+                color: #666;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Cellular Automaton Ruliad</h1>
+        <div class="description">
+            Visualizing multiple elementary cellular automata rules
+            simultaneously. Each row shows the evolution of a different rule
+            (30, 90, 110, 184, 54, 60, 150).
+        </div>
+        <canvas id="ruliadCanvas"></canvas>
+        <script type="module">
+            import { RuliadSimulator } from "./dist/index.js";
+
+            const width = 400; // Width of the simulation
+            const simulator = new RuliadSimulator("ruliadCanvas", width);
+            simulator.animate(300); // Animate for 300 generations
+        </script>
+    </body>
+</html>
