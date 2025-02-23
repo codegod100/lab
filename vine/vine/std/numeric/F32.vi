@@ -1,0 +1,3 @@
+
+#[builtin = "F32"]
+pub mod F32 {}

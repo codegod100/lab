@@ -1,0 +1,31 @@
+{
+  "[json]": {
+    "editor.defaultFormatter": "dprint.dprint"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "dprint.dprint"
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "dprint.dprint"
+  },
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer"
+  },
+  "[toml]": {
+    "editor.defaultFormatter": "dprint.dprint"
+  },
+  "[yaml]": {
+    "editor.defaultFormatter": "dprint.dprint"
+  },
+  "vine.cli": ["cargo", "run", "--bin", "vine", "--release", "--"],
+  "vine.lspOptions": ["--no-std"],
+  "vine.entrypoints": [
+    "vine/examples/*.vi",
+    "tests/programs/*.vi",
+    "tests/programs/aoc_2024/*.vi",
+    "vine/std/std.vi"
+  ],
+  "rust-analyzer.check.command": "clippy",
+  "editor.formatOnSave": true,
+  "editor.tabSize": 2
+}

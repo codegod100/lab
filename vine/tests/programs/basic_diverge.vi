@@ -1,0 +1,16 @@
+
+pub fn main(&io: &IO) {
+  let zero_count = 0;
+  io.println(foo(0, &zero_count));
+  io.println(foo(1, &zero_count));
+  io.println(foo(0, &zero_count));
+  io.println("\nzero_count: {zero_count}");
+}
+
+fn foo(value: N32, &zero_count: &N32) -> String {
+  if value != 0 {
+    return "non-zero!";
+  }
+  zero_count += 1;
+  "zero"
+}

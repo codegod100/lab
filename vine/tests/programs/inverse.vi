@@ -1,0 +1,62 @@
+
+pub fn main(&io: &IO) {
+  refs(&io);
+  io.println("");
+  fns(&io);
+  io.println("");
+  rev(&io);
+}
+
+fn refs(&io: &IO) {
+  let x = 0;
+  inc((move x, move ~x));
+  io.println("x = {x}");
+  inc((move x, move ~x));
+  io.println("x = {x}");
+  inc((move x, move ~x));
+  io.println("x = {x}");
+}
+
+mod refs {
+  fn inc((init: N32, ~fin: ~N32)) {
+    fin = init + 1;
+  }
+}
+
+fn fns(&io: &IO) {
+  let f = do {
+    let n: N32;
+    (move ~n, n * n)
+  };
+  io.println("f(1) = {call(f, 1)}");
+  io.println("f(2) = {call(f, 2)}");
+  io.println("f(3) = {call(f, 3)}");
+}
+
+mod fns {
+  fn call(f: (~N32, N32), a: N32) -> N32 {
+    let (~i, o) = f;
+    i = a;
+    o
+  }
+}
+
+fn rev(&io: &IO) {
+  let s;
+  ~s = "0";
+  io.println("s = {~s}");
+  io.println("s = {~s}");
+  ~s = "1";
+  io.println("s = {get(&s)}");
+  io.println("s = {get(&s)}");
+  set(&s, "2");
+}
+
+mod rev {
+  fn get[T](&x: &~T) -> T {
+    ~x
+  }
+  fn set[T](&x: &~T, value: T) {
+    ~x = value
+  }
+}

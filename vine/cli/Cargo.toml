@@ -1,0 +1,26 @@
+[package]
+name = "vine-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.87"
+clap = { version = "4.5.17", features = ["derive", "env"] }
+rustyline = "14.0.0"
+
+ivm = { path = "../ivm" }
+ivy = { path = "../ivy" }
+vine = { path = "../vine", optional = true }
+vine-lsp = { path = "../lsp", optional = true }
+vine-util = { path = "../util" }
+
+[lints]
+workspace = true
+
+[features]
+vine = ["dep:vine", "dep:vine-lsp"]
+default = ["vine"]
+
+[[bin]]
+name = "vine"
+required-features = ["vine"]

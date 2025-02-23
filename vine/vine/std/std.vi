@@ -1,0 +1,19 @@
+
+pub mod data = "./data/data.vi";
+pub mod logical = "./logical/logical.vi";
+pub mod numeric = "./numeric/numeric.vi";
+pub mod rng = "./rng/rng.vi";
+pub mod ops = "./ops/ops.vi";
+pub mod unicode = "./unicode/unicode.vi";
+pub mod IO = "./IO.vi";
+
+#[builtin = "prelude"]
+pub mod prelude {
+  pub use ::std::{
+    IO,
+    data::List,
+    logical::{Bool, Option::{Option, None, Some}, Result::{Result, Err, Ok}},
+    numeric::{F32, N32},
+    unicode::{Char, String},
+  };
+}
