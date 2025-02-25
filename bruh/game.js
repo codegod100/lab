@@ -40,10 +40,15 @@ function startGame() {
   winMessage.innerHTML = `
         <h2>You did it! 🎉</h2>
         <p>You solved the puzzle in <span id="final-moves">0</span> moves!</p>
-        <button onclick="startGame()">Play Again</button>
+        <button id="play-again-button">Play Again</button>
     `;
   container.appendChild(winMessage);
   winMessage.style.display = "none"; // Hide win message initially
+
+  // Add event listener to the play again button
+  const playAgainButton = document.getElementById("play-again-button");
+  playAgainButton.addEventListener("click", startGame);
+
 
   // Rotate through the available images
   currentImage = (currentImage + 1) % images.length;
