@@ -7,7 +7,7 @@ let gameStarted = false;
 
 // Cute bunny images
 const images = [
-  "bruh/bunny.png", // Use the local image
+  "bunny.png", // Use the local image
 ];
 let currentImage = 0;
 
