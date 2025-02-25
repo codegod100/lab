@@ -47,7 +47,9 @@ function startGame() {
 
   // Add event listener to the play again button
   const playAgainButton = document.getElementById("play-again-button");
-  playAgainButton.addEventListener("click", startGame);
+  playAgainButton.addEventListener("click", () => {
+    startGame();
+  });
 
 
   // Rotate through the available images
