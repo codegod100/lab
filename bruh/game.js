@@ -84,28 +84,26 @@ function createPiece(row, col) {
 
   const piece = document.createElement("div");
   piece.className = "puzzle-piece";
-  piece.style.width = pieceWidth + "px";
-  piece.style.height = pieceHeight + "px";
   piece.style.backgroundImage = `url(${images[currentImage]})`;
-  
-   // Calculate background position using percentages
-   const xPercent = (col * pieceWidth / container.clientWidth) * -100;
-   const yPercent = (row * pieceHeight / container.clientHeight) * -100;
-   piece.style.backgroundPosition = `${xPercent}% ${yPercent}%`;
 
-   // Store original position as numbers instead of strings
-   piece.dataset.originalRow = row.toString();
-   piece.dataset.originalCol = col.toString();
+  // Calculate background position using percentages
+  const xPercent = (col / gridSize) * 100;
+  const yPercent = (row / gridSize) * 100;
+  piece.style.backgroundPosition = `${xPercent}% ${yPercent}%`;
 
-   // Position in the grid
-   movePieceTo(piece, row, col);
+  // Store original position as numbers instead of strings
+  piece.dataset.originalRow = row.toString();
+  piece.dataset.originalCol = col.toString();
 
-   // Add click event listener with passive option for better scrolling
-   piece.addEventListener("click", () => handlePieceClick(piece), { passive: true });
+  // Position in the grid
+  movePieceTo(piece, row, col);
 
-   // Add to DOM and pieces array
-   container.appendChild(piece);
-   pieces.push(piece);
+  // Add click event listener with passive option for better scrolling
+  piece.addEventListener("click", () => handlePieceClick(piece), { passive: true });
+
+  // Add to DOM and pieces array
+  container.appendChild(piece);
+  pieces.push(piece);
 }
 
 // Handle piece click with proper validation

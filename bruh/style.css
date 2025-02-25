@@ -18,8 +18,8 @@ body {
     gap: 2px;
     border: 2px solid #333;
     margin: 20px auto;
-    width: 306px;             /* Ensure container fits pieces */
-    height: 306px;            /* Ensure container fits pieces */
+    width: auto; /* Ensure container fits pieces based on grid size */
+    height: auto; /* Ensure container fits pieces based on grid size */
 }
 
 .puzzle-piece {
