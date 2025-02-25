@@ -7,7 +7,7 @@ let gameStarted = false;
 
 // Cute bunny images
 const images = [
-  "https://example.com/single-image.jpg", // Replace with the URL of the single image you want to use
+  "bruh/bunny.png", // Use the local image
 ];
 let currentImage = 0;
 
