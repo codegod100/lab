@@ -154,13 +154,14 @@ function movePieceTo(piece, row, col) {
     const leftPositionPercentage = (col * (100 / gridSize)).toFixed(2);
     const topPositionPercentage = (row * (100 / gridSize)).toFixed(2);
 
+    // Update data attributes BEFORE setting styles
+    piece.dataset.row = row.toString();
+    piece.dataset.col = col.toString();
+
     piece.style.left = `${leftPositionPercentage}%`;
     piece.style.top = `${topPositionPercentage}%`;
     piece.style.transform = `translate(0%, 0%)`; // Reset any transforms
     
-    // Update data attributes as numbers
-    piece.dataset.row = row.toString();
-    piece.dataset.col = col.toString();
 }
 
 // Shuffle puzzle with valid moves only
