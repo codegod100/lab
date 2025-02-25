@@ -140,6 +140,7 @@ function swapPieces(piece) {
 
 // Move a piece to a specific position with proper units
 function movePieceTo(piece, row, col) {
+    console.log(`movePieceTo() called: piece = ${piece}, row = ${row}, col = ${col}`);
     const container = document.getElementById("puzzle-container");
     const pieceWidthPercentage = (100 / gridSize).toFixed(2);
     const leftPositionPercentage = (col * (100 / gridSize)).toFixed(2);
