@@ -79,8 +79,8 @@ function startGame() {
 // Create a single puzzle piece
 function createPiece(row, col) {
   const container = document.getElementById("puzzle-container");
-  const pieceWidth = container.clientWidth / gridSize;
-  const pieceHeight = container.clientHeight / gridSize;
+  const pieceWidth = 100; // Fixed width
+  const pieceHeight = 100; // Fixed height
 
   const piece = document.createElement("div");
   piece.className = "puzzle-piece";
