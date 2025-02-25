@@ -70,105 +70,174 @@ function startGame() {
 
 // Create a single puzzle piece
 function createPiece(row, col) {
-  const pieceWidth = 400 / gridSize;
-  const pieceHeight = 400 / gridSize;
+  const container = document.getElementById("puzzle-container");
+  const pieceWidth = container.clientWidth / gridSize;
+  const pieceHeight = container.clientHeight / gridSize;
 
   const piece = document.createElement("div");
   piece.className = "puzzle-piece";
   piece.style.width = pieceWidth + "px";
   piece.style.height = pieceHeight + "px";
   piece.style.backgroundImage = `url(${images[currentImage]})`;
-  piece.style.backgroundPosition = `-${col * pieceWidth}px -${row * pieceHeight}px`;
+  
+   // Calculate background position using percentages
+   const xPercent = (col * pieceWidth / container.clientWidth) * -100;
+   const yPercent = (row * pieceHeight / container.clientHeight) * -100;
+   piece.style.backgroundPosition = `${xPercent}% ${yPercent}%`;
 
-  // Store the original position for checking win condition
-  piece.dataset.originalRow = row;
-  piece.dataset.originalCol = col;
+   // Store original position as numbers instead of strings
+   piece.dataset.originalRow = row.toString();
+   piece.dataset.originalCol = col.toString();
 
-  // Position in the grid
-  movePieceTo(piece, row, col);
+   // Position in the grid
+   movePieceTo(piece, row, col);
 
-  // Add click event
-  piece.addEventListener("click", () => {
+   // Add click event listener with passive option for better scrolling
+   piece.addEventListener("click", () => handlePieceClick(piece), { passive: true });
+
+   // Add to DOM and pieces array
+   container.appendChild(piece);
+   pieces.push(piece);
+}
+
+// Handle piece click with proper validation
+function handlePieceClick(piece) {
     if (!gameStarted) return;
-
+    
     const pieceRow = parseInt(piece.dataset.row);
     const pieceCol = parseInt(piece.dataset.col);
-
-    // Check if it's adjacent to the empty cell
+    
     if (isAdjacent(pieceRow, pieceCol, emptyCell.row, emptyCell.col)) {
-      // Swap positions
-      movePieceTo(piece, emptyCell.row, emptyCell.col);
-
-      // Update empty cell position
-      emptyCell.row = pieceRow;
-      emptyCell.col = pieceCol;
-
-      // Update move counter
-      moveCount++;
-      updateMoveCounter();
-
-      // Check if puzzle is solved
-      checkWin();
+        swapPieces(piece);
+        checkWin();
     }
-  });
-
-  // Add to DOM and pieces array
-  document.getElementById("puzzle-container").appendChild(piece);
-  pieces.push(piece);
 }
 
-// Move a piece to a specific position
-function movePieceTo(piece, row, col) {
-  const pieceWidth = 400 / gridSize;
-  const pieceHeight = 400 / gridSize;
-
-  piece.style.left = col * pieceWidth + "px";
-  piece.style.top = row * pieceHeight + "px";
-
-  // Update data attributes
-  piece.dataset.row = row;
-  piece.dataset.col = col;
-}
-
-// Check if two positions are adjacent
-function isAdjacent(row1, col1, row2, col2) {
-  return (
-    (row1 === row2 && Math.abs(col1 - col2) === 1) ||
-    (col1 === col2 && Math.abs(row1 - row2) === 1)
-  );
-}
-
-// Update the move counter display
-function updateMoveCounter() {
-  document.getElementById("moves").textContent = moveCount;
-}
-
-// Check if the puzzle is solved
-function checkWin() {
-    // Verify all pieces are in their original positions AND empty cell is in bottom-right corner
-    const allCorrect = pieces.every(piece => {
-        const currentRow = parseInt(piece.dataset.row);
-        const currentCol = parseInt(piece.dataset.col);
-        const originalRow = parseInt(piece.dataset.originalRow);
-        const originalCol = parseInt(piece.dataset.originalCol);
-        return currentRow === originalRow && currentCol === originalCol;
+// Swap pieces properly with animation frame
+function swapPieces(piece) {
+    const tempRow = emptyCell.row;
+    const tempCol = emptyCell.col;
+    
+    requestAnimationFrame(() => {
+        movePieceTo(piece, emptyCell.row, emptyCell.col);
+        emptyCell.row = parseInt(piece.dataset.row);
+        emptyCell.col = parseInt(piece.dataset.col);
+        
+        moveCount++;
+        updateMoveCounter();
     });
+}
 
-    const emptyCorrectPosition =
-        emptyCell.row === gridSize -1 &&
-        emptyCell.col === gridSize -1;
+// Move a piece to a specific position with proper units
+function movePieceTo(piece, row, col) {
+    const container = document.getElementById("puzzle-container");
+    const pieceWidthPercentage = (100 / gridSize).toFixed(2);
+    const leftPositionPercentage = (col * (100 / gridSize)).toFixed(2);
+    const topPositionPercentage = (row * (100 / gridSize)).toFixed(2);
 
-    if (allCorrect && emptyCorrectPosition) {
-        document.getElementById("win-message").style.display = "flex";
-        document.getElementById("final-moves").textContent = moveCount;
-        gameStarted = false;
+    piece.style.left = `${leftPositionPercentage}%`;
+    piece.style.top = `${topPositionPercentage}%`;
+    piece.style.transform = `translate(0%, 0%)`; // Reset any transforms
+    
+    // Update data attributes as numbers
+    piece.dataset.row = row.toString();
+    piece.dataset.col = col.toString();
+}
+
+// Shuffle puzzle with valid moves only
+function shufflePuzzle() {
+    // Perform random valid moves to shuffle
+    const shuffleMoves = gridSize * gridSize * Math.max(gridSize *10);
+    
+    for (let i=0; i<shuffleMoves; i++) {
+        const adjacentCells = getAdjacentCells(emptyCell.row, emptyCell.col);
+        
+        if (adjacentCells.length >0) {
+            const randomIndex=Math.floor(Math.random()*adjacentCells.length);
+            const targetCell=adjacentCells[randomIndex];
+            const targetPiece=findPieceAt(targetCell.row,targetCell.col);
+            
+            if(targetPiece) {
+                swapPieces(targetPiece);
+            }
+        }
     }
 }
 
-// Find a piece at a specific position
-function findPieceAt(row, col) {
-    return pieces.find(piece => 
-        parseInt(piece.dataset.row) === row &&
-        parseInt(piece.dataset.col) === col
+// Get valid adjacent cells helper function
+function getAdjacentCells(row,col) {
+    return [
+        {row:row-1,col:col},
+        {row:row+1,col:col},
+        {row:row,col:col-1},
+        {row:row,col:col+1}
+    ].filter(pos => 
+        pos.row >=0 && pos.row <gridSize &&
+        pos.col >=0 && pos.col <gridSize
     );
+}
+
+// Check if two positions are adjacent 
+function isAdjacent(row1,col1,row2,col2) {
+    return (
+        Math.abs(row1-row2)+Math.abs(col1-col2) ===1 
+    );
+}
+
+// Update move counter display safely
+function updateMoveCounter() {
+    const movesElement=document.getElementById("moves");
+    if(movesElement) movesElement.textContent=moveCount;
+}
+
+// Check win condition properly 
+function checkWin() {
+    let allCorrect=true;
+    
+    for(const piece of pieces){
+        const currentRow=parseInt(piece.dataset.row);
+        const currentCol=parseInt(piece.dataset.col);
+        const originalRow=parseInt(piece.dataset.originalRow);
+        const originalCol=parseInt(piece.dataset.originalCol);
+        
+        if(currentRow!==originalRow || currentCol!==originalCol){
+            allCorrect=false;
+            break;
+        }
+        
+        // Additional check for correct background position 
+        const expectedLeft=(originalCol*(100/gridSize)).toFixed(2)+"%";
+        const expectedTop=(originalRow*(100/gridSize)).toFixed(2)+"%";
+        
+        if(
+            parseFloat(piece.style.left)!==parseFloat(expectedLeft) ||
+            parseFloat(piece.style.top)!==parseFloat(expectedTop)
+        ){
+            allCorrect=false;
+            break;
+        }
+    }
+    
+     // Verify empty cell position last 
+     const emptyCorrect=
+         emptyCell.row===gridSize-1 &&
+         emptyCell.col===gridSize-1;
+
+     if(allCorrect&&emptyCorrect){
+         document.getElementById("win-message").style.display="flex";
+         document.getElementById("final-moves").textContent=moveCount;
+         gameStarted=false;
+     }
+}
+
+// Find a piece at position with validation 
+function findPieceAt(row,col){
+     return pieces.find(p=>{
+         try{
+             return parseInt(p.dataset.row)===row&&parseInt(p.dataset.col)===col;
+         }catch(e){
+             console.error("Invalid dataset values",p.dataset);
+             return false;
+         }
+     });
 }
