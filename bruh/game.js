@@ -136,9 +136,10 @@ function swapPieces(piece) {
     console.log(`swapPieces() - tempRow: ${tempRow}, tempCol: ${tempCol}`);
     
     requestAnimationFrame(() => {
-        movePieceTo(piece, emptyCell.row, emptyCell.col);
+        // Update emptyCell BEFORE moving the piece
         emptyCell.row = parseInt(piece.dataset.row);
         emptyCell.col = parseInt(piece.dataset.col);
+        movePieceTo(piece, tempRow, tempCol);
         
         moveCount++;
         updateMoveCounter();
