@@ -147,17 +147,17 @@ function movePieceTo(piece, row, col) {
 // Shuffle puzzle with valid moves only
 function shufflePuzzle() {
     // Perform random valid moves to shuffle
-    const shuffleMoves = gridSize * gridSize * Math.max(gridSize *10);
-    
-    for (let i=0; i<shuffleMoves; i++) {
+    const shuffleMoves = gridSize * gridSize * Math.max(gridSize * 10);
+
+    for (let i = 0; i < shuffleMoves; i++) {
         const adjacentCells = getAdjacentCells(emptyCell.row, emptyCell.col);
-        
-        if (adjacentCells.length >0) {
-            const randomIndex=Math.floor(Math.random()*adjacentCells.length);
-            const targetCell=adjacentCells[randomIndex];
-            const targetPiece=findPieceAt(targetCell.row,targetCell.col);
-            
-            if(targetPiece) {
+
+        if (adjacentCells.length > 0) {
+            const randomIndex = Math.floor(Math.random() * adjacentCells.length);
+            const targetCell = adjacentCells[randomIndex];
+            const targetPiece = findPieceAt(targetCell.row, targetCell.col);
+
+            if (targetPiece) {
                 swapPieces(targetPiece);
             }
         }
