@@ -145,20 +145,29 @@ function updateMoveCounter() {
 
 // Check if the puzzle is solved
 function checkWin() {
-<<<<<<< ORIGINAL
-=======
->>>>>>> UPDATED
-}
+    // Verify all pieces are in their original positions AND empty cell is in bottom-right corner
+    const allCorrect = pieces.every(piece => {
+        const currentRow = parseInt(piece.dataset.row);
+        const currentCol = parseInt(piece.dataset.col);
+        const originalRow = parseInt(piece.dataset.originalRow);
+        const originalCol = parseInt(piece.dataset.originalCol);
+        return currentRow === originalRow && currentCol === originalCol;
+    });
 
-// These functions have been replaced by the simpler direct solution in solvePuzzle
+    const emptyCorrectPosition =
+        emptyCell.row === gridSize -1 &&
+        emptyCell.col === gridSize -1;
+
+    if (allCorrect && emptyCorrectPosition) {
+        document.getElementById("win-message").style.display = "flex";
+        gameStarted = false;
+    }
+}
 
 // Find a piece at a specific position
 function findPieceAt(row, col) {
-<<<<<<< ORIGINAL
-
-// Check if puzzle is solved by verifying:
-// - All pieces are in their original positions AND 
-// - Empty cell is in its original position (bottom-right corner)
-function checkWin() {
->>>>>>> UPDATED
-
+    return pieces.find(piece => 
+        parseInt(piece.dataset.row) === row &&
+        parseInt(piece.dataset.col) === col
+    );
+}
