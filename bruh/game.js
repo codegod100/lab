@@ -34,16 +34,25 @@ function startGame() {
   const container = document.getElementById("puzzle-container");
   container.innerHTML = "";
 
-  // Add the win message back (it was cleared)
-  const winMessage = document.createElement("div");
-  winMessage.className = "win-message";
-  winMessage.id = "win-message";
-  winMessage.innerHTML = `
-        <h2>You did it! 🎉</h2>
-        <p>You solved the puzzle in <span id="final-moves">0</span> moves!</p>
-        <button id="play-again-button">Play Again</button>
-    `;
-  container.appendChild(winMessage);
+  // Set grid template size based on gridSize
+  container.style.gridTemplateColumns = `repeat(${gridSize}, 100px)`;
+  container.style.gridTemplateRows = `repeat(${gridSize}, 100px)`;
+  container.style.width = `${gridSize * 102}px`; // 100px per piece + 2px gap
+  container.style.height = `${gridSize * 102}px`; // 100px per piece + 2px gap
+
+  // Add the win message back if it doesn't exist
+  let winMessage = document.getElementById("win-message");
+  if (!winMessage) {
+    winMessage = document.createElement("div");
+    winMessage.className = "win-message";
+    winMessage.id = "win-message";
+    winMessage.innerHTML = `
+          <h2>You did it! 🎉</h2>
+          <p>You solved the puzzle in <span id="final-moves">0</span> moves!</p>
+          <button id="play-again-button">Play Again</button>
+      `;
+    container.appendChild(winMessage);
+  }
   winMessage.style.display = "none"; // Hide win message initially
 
   // Add event listener to the play again button
@@ -51,7 +60,6 @@ function startGame() {
   playAgainButton.addEventListener("click", () => {
     startGame();
   });
-
 
   // Rotate through the available images
   currentImage = (currentImage + 1) % images.length;
