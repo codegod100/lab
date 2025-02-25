@@ -24,6 +24,7 @@ function setDifficulty(size) {
 
 // Start a new game
 function startGame() {
+  console.log("startGame() called"); // Add log
   // Reset variables
   moveCount = 0;
   updateMoveCounter();
@@ -109,6 +110,7 @@ function createPiece(row, col) {
 
 // Handle piece click with proper validation
 function handlePieceClick(piece) {
+    console.log("handlePieceClick() called", piece); // Add log
     if (!gameStarted) return;
     
     const pieceRow = parseInt(piece.dataset.row);
@@ -122,6 +124,7 @@ function handlePieceClick(piece) {
 
 // Swap pieces properly with animation frame
 function swapPieces(piece) {
+  console.log("swapPieces() called", piece); // Add log
     const tempRow = emptyCell.row;
     const tempCol = emptyCell.col;
     
@@ -153,6 +156,7 @@ function movePieceTo(piece, row, col) {
 
 // Shuffle puzzle with valid moves only
 function shufflePuzzle() {
+  console.log("shufflePuzzle() called"); // Add log
     // Perform random valid moves to shuffle
     const shuffleMoves = gridSize * gridSize * Math.max(gridSize * 10);
 
@@ -199,6 +203,7 @@ function updateMoveCounter() {
 
 // Check win condition properly 
 function checkWin() {
+  console.log("checkWin() called"); // Add log
     let allCorrect=true;
     
     for(const piece of pieces){
