@@ -159,6 +159,7 @@ function shufflePuzzle() {
   console.log("shufflePuzzle() called"); // Add log
     // Perform random valid moves to shuffle
     const shuffleMoves = gridSize * gridSize * Math.max(gridSize * 10);
+    console.log(`shufflePuzzle() called: shuffleMoves = ${shuffleMoves}`);
 
     for (let i = 0; i < shuffleMoves; i++) {
         const adjacentCells = getAdjacentCells(emptyCell.row, emptyCell.col);
