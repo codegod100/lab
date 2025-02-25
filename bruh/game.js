@@ -97,7 +97,7 @@ function createPiece(row, col) {
   // Calculate background position using percentages
   const xPercent = (col / gridSize) * 100;
   const yPercent = (row / gridSize) * 100;
-  piece.style.backgroundPosition = `${xPercent}% ${yPercent}%`;
+  piece.style.backgroundPosition = `-${xPercent}% -${yPercent}%`;
 
   // Store original position as numbers instead of strings
   piece.dataset.originalRow = row.toString();
@@ -167,7 +167,8 @@ function movePieceTo(piece, row, col) {
     piece.style.left = `${leftPositionPercentage}%`;
     piece.style.top = `${topPositionPercentage}%`;
     piece.style.transform = `translate(0%, 0%)`; // Reset any transforms
-    
+    piece.style.width = `${pieceWidthPercentage}%`;
+    piece.style.height = `${pieceWidthPercentage}%`;
 }
 
 // Shuffle puzzle with valid moves only
