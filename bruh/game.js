@@ -115,10 +115,15 @@ function handlePieceClick(piece) {
     
     const pieceRow = parseInt(piece.dataset.row);
     const pieceCol = parseInt(piece.dataset.col);
+
+    console.log(`handlePieceClick() - pieceRow: ${pieceRow}, pieceCol: ${pieceCol}, emptyCell.row: ${emptyCell.row}, emptyCell.col: ${emptyCell.col}`);
     
     if (isAdjacent(pieceRow, pieceCol, emptyCell.row, emptyCell.col)) {
+        console.log("handlePieceClick() - isAdjacent is true, calling swapPieces");
         swapPieces(piece);
         checkWin();
+    } else {
+      console.log("handlePieceClick() - isAdjacent is false");
     }
 }
 
@@ -127,6 +132,8 @@ function swapPieces(piece) {
   console.log("swapPieces() called", piece); // Add log
     const tempRow = emptyCell.row;
     const tempCol = emptyCell.col;
+
+    console.log(`swapPieces() - tempRow: ${tempRow}, tempCol: ${tempCol}`);
     
     requestAnimationFrame(() => {
         movePieceTo(piece, emptyCell.row, emptyCell.col);
