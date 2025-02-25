@@ -7,7 +7,7 @@ let gameStarted = false;
 
 // Cute bunny images
 const images = [
-  "https://img.freepik.com/free-vector/cute-rabbit-with-carrot-cartoon-vector-icon-illustration_138676-7857.jpg",
+  "https://example.com/single-image.jpg", // Replace with the URL of the single image you want to use
 ];
 let currentImage = 0;
 
