@@ -43,6 +43,7 @@ function startGame() {
         <button onclick="startGame()">Play Again</button>
     `;
   container.appendChild(winMessage);
+  winMessage.style.display = "none"; // Hide win message initially
 
   // Rotate through the available images
   currentImage = (currentImage + 1) % images.length;
@@ -140,7 +141,6 @@ function isAdjacent(row1, col1, row2, col2) {
 // Update the move counter display
 function updateMoveCounter() {
   document.getElementById("moves").textContent = moveCount;
-  document.getElementById("final-moves").textContent = moveCount;
 }
 
 // Check if the puzzle is solved
@@ -160,6 +160,7 @@ function checkWin() {
 
     if (allCorrect && emptyCorrectPosition) {
         document.getElementById("win-message").style.display = "flex";
+        document.getElementById("final-moves").textContent = moveCount;
         gameStarted = false;
     }
 }
