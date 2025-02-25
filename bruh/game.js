@@ -200,10 +200,12 @@ function getAdjacentCells(row,col) {
 }
 
 // Check if two positions are adjacent 
-function isAdjacent(row1,col1,row2,col2) {
-    return (
-        Math.abs(row1-row2)+Math.abs(col1-col2) ===1 
-    );
+function isAdjacent(row1, col1, row2, col2) {
+    const rowDiff = Math.abs(row1 - row2);
+    const colDiff = Math.abs(col1 - col2);
+
+    // Check if the difference is exactly 1 in either row or column, and 0 in the other
+    return (rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1);
 }
 
 // Update move counter display safely
