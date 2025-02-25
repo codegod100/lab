@@ -35,8 +35,8 @@ function startGame() {
   container.innerHTML = "";
 
   // Set grid template size based on gridSize
-  container.style.gridTemplateColumns = `repeat(${gridSize}, 100px)`;
-  container.style.gridTemplateRows = `repeat(${gridSize}, 100px)`;
+  container.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+  container.style.gridTemplateRows = `repeat(${gridSize}, 1fr)`;
   container.style.width = `${gridSize * 102}px`; // 100px per piece + 2px gap
   container.style.height = `${gridSize * 102}px`; // 100px per piece + 2px gap
 
@@ -57,12 +57,7 @@ function startGame() {
 
   // Add event listener to the play again button
   const playAgainButton = document.getElementById("play-again-button");
-  playAgainButton.addEventListener("click", () => {
-    startGame();
-  });
-
-  // Rotate through the available images
-  currentImage = (currentImage + 1) % images.length;
+  playAgainButton.addEventListener("click", startGame);
 
   // Create new puzzle pieces
   pieces = [];
@@ -107,7 +102,7 @@ function createPiece(row, col) {
   movePieceTo(piece, row, col);
 
   // Add click event listener with passive option for better scrolling
-  piece.addEventListener("click", () => handlePieceClick(piece), { passive: true });
+  piece.addEventListener("click", () => handlePieceClick(piece));
 
   // Add to DOM and pieces array
   container.appendChild(piece);
