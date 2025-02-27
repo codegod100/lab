@@ -1,14 +1,28 @@
 use dioxus::prelude::*;
-#[cfg(feature = "server")]
-use sea_orm::{Database, DbErr};
+
+#[derive(Debug, Clone)]
+struct Person {
+    id: i32,
+    name: String,
+}
 
 #[cfg(feature = "server")]
-use once_cell::sync::Lazy;
-#[cfg(feature = "server")]
-use std::sync::Mutex;
+thread_local! {
+    pub static DB: rusqlite::Connection = {
+        let conn = rusqlite::Connection::open("sqlite.db").expect("Failed to open database");
+        println!("creating db");
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS people (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                age INTEGER NOT NULL
+            );",
+        ).unwrap();
 
-#[cfg(feature = "server")]
-static DB: Lazy<Mutex<Option<sea_orm::DatabaseConnection>>> = Lazy::new(|| Mutex::new(None));
+        // Return the connection
+        conn
+    };
+}
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
@@ -28,18 +42,36 @@ const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
 fn main() {
     dioxus::launch(App);
 }
+
 #[server]
-async fn init() -> Result<(), ServerFnError> {
-    let db_file = "sqlite:./sqlite.db?mode=rwc";
-    let db = Database::connect(db_file).await?;
-    *DB.lock().unwrap() = Some(db);
-    Ok(())
+async fn insert_person(name: String, age: i32) -> Result<String, ServerFnError> {
+    DB.with(|f| {
+        f.execute(
+            "INSERT INTO people (name, age) VALUES (?1, ?2)",
+            &[&name, &age.to_string()],
+        )
+    })?;
+    Ok("test".to_string())
 }
 
 #[server]
-async fn db_info() -> Result<String, ServerFnError> {
-    println!("Database info: {:?}", DB.lock().unwrap());
-    Ok("test".to_string())
+async fn get_person(id: i32) -> Result<String, ServerFnError> {
+    let name = DB.with(|conn| {
+        let mut stmt = conn.prepare("SELECT id, name FROM people WHERE id = ?")?;
+        let mut rows = stmt.query([id])?;
+
+        if let Some(row) = rows.next()? {
+            Ok::<String, rusqlite::Error>(row.get::<_, String>(1)?)
+        } else {
+            Ok(format!("No person found with id {}", id))
+        }
+    })?;
+
+    if name.starts_with("No person") {
+        insert_person("test".to_string(), 42).await?;
+    }
+
+    Ok(name)
 }
 
 #[component]
@@ -51,7 +83,8 @@ fn DBInfo() -> Element {
 
             button {
                 onclick: move |_| async move {
-                    if let Ok(info) = db_info().await {
+                    // insert_person("John Doe".to_string(), 30).await.unwrap();
+                    if let Ok(info) = get_person(1).await {
                         db_info_result.set(info);
                     }
                 },
@@ -65,9 +98,6 @@ fn DBInfo() -> Element {
 
 #[component]
 fn App() -> Element {
-    spawn(async move {
-        init().await.unwrap();
-    });
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: MAIN_CSS } document::Link { rel: "stylesheet", href: TAILWIND_CSS }
