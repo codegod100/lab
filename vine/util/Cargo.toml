@@ -1,0 +1,12 @@
+[package]
+name = "vine-util"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hashbrown = "0.14.5"
+logos = "0.14.0"
+nohash-hasher = "0.2.0"
+
+[lints]
+workspace = true

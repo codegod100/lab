@@ -1,0 +1,71 @@
+
+::main {
+  fn(io _)
+  ::loop = tup(io 1)
+}
+
+::end { 1_000_000 }
+
+::loop {
+  tup(io0 dup(dup(n0 n1) dup(n2 n3)))
+  n0 = @rem(3 d3)
+  n1 = @rem(5 d5)
+
+  d3 = ?(
+    tup(?(::fizzbuzz ::fizz r0) r0)
+    tup(?(::buzz ::num r1) r1)
+
+    tup(d5 tup(n2 ref(io0 io1)))
+  )
+  io1 = @io_print_byte(10 @io_flush(0 io2))
+  
+  n3 = @add(1 dup(m0 m1))
+  m0 = @lt$(::end ?(::loop _ tup(io2 m1)))
+}
+
+::fizz {
+  tup(_ ref(io0 io1))
+  io0 = @io_print_byte(70 @io_print_byte(105 @io_print_byte(122 @io_print_byte(122 io1))))
+}
+
+::buzz {
+  tup(_ ref(io0 io1))
+  io0 = @io_print_byte(66 @io_print_byte(117 @io_print_byte(122 @io_print_byte(122 io1))))
+}
+
+::fizzbuzz {
+  tup(_ ref(io0 io2))
+  ::fizz = tup(_ ref(io0 io1))
+  ::buzz = tup(_ ref(io1 io2))
+}
+
+::num {
+  tup(dup(num0 num1) ior)
+  num0 = ?(
+    ::num::zero
+    ::num::loop
+    fn(ior fn(num1 _))
+  )
+}
+
+::num::zero {
+  fn(ref(io0 io1) _)
+  io0 = @io_print_byte(48 io1)
+}
+
+::num::loop {
+  fn(ref(io0 io2) fn(dup(n0 n1) _))
+  n0 = @rem(10 @add(48 digit))
+  n1 = @div(10 dup(rest0 rest1))
+  rest0 = ?(
+    ::num::end
+    ::num::loop
+    fn(ref(io0 io1) fn(rest1 _))
+  )
+  io1 = @io_print_byte(digit io2)
+}
+
+::num::end {
+  fn(ref(io io) _)
+}
+

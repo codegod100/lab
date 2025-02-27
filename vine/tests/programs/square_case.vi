@@ -1,0 +1,17 @@
+
+pub fn main(&io: &IO) {
+  let x = 2;
+  while x < 1000 {
+    squares(&io, x);
+    x *= x;
+  }
+}
+
+fn squares(&io: &IO, len: N32) {
+  let i = 0;
+  while i < len {
+    io.print_char('□');
+    i += 1;
+  }
+  io.print_char('\n');
+}

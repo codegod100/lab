@@ -1,0 +1,76 @@
+
+use std::data::Map;
+
+pub fn main(&io: &IO) {
+  let graph = Map::empty[N32, Map[N32, _]];
+
+  while io.read_line() is Some(line) {
+    let String({ chars }) = line;
+    let a = (chars.pop_front().unwrap() - 'a') * 26 + (chars.pop_front().unwrap() - 'a');
+    chars.pop_front();
+    let b = (chars.pop_front().unwrap() - 'a') * 26 + (chars.pop_front().unwrap() - 'a');
+    if a > b {
+      (b, a) = (a, b)
+    }
+    (*graph.get_or_insert(a, Map::empty)).insert(b, ());
+  }
+
+  do {
+    let graph = graph;
+    let triangles = 0;
+    let t_triangles = 0;
+    while graph.remove_min() is Some((a, a_out)) {
+      while a_out.remove_min() is Some((b, _)) {
+        let triangle_tips = [];
+        let a_out = a_out;
+        while a_out.remove_min() is Some((c, _)) {
+          let bool = graph.get(&b) is Some(&b) && b.get(&c) is Some(&_);
+          if bool {
+            triangle_tips ++= [c];
+            triangles += 1;
+            if a / 26 == 19 || b / 26 == 19 || c / 26 == 19 {
+              t_triangles += 1;
+            }
+          }
+        }
+      }
+    }
+
+    io.println("Triangles: {triangles}");
+    io.println("Part 1: {t_triangles}");
+  }
+
+  fn extend_clique(
+    &graph: &Map[N32, Map[N32, ()]],
+    &best: &List[N32],
+    clique: List[N32],
+    tips: List[N32],
+  ) {
+    if tips.len() != 0 {
+      if clique.len() >= best.len() {
+        best = clique ++ [*tips.get(0)];
+      }
+      while tips.pop_front() is Some(x) {
+        let out = [];
+        let tips = tips;
+        while tips.pop_front() is Some(y) {
+          if graph.get(&x) is Some(&m) && m.get(&y) is Some(&_) {
+            out ++= [y];
+          }
+        }
+        extend_clique(&graph, &best, clique ++ [x], out);
+      }
+    }
+  }
+
+  let best = [];
+
+  while graph.remove_min() is Some((a, tips)) {
+    extend_clique(&graph, &best, [a], tips.to_list().map(fn((x, _)) { x }));
+  }
+
+  io.println("Part 2: " ++ best.map(fn(x: N32) {
+    let chars = ['a' + x / 26, 'a' + x % 26];
+    String({ chars })
+  }).join(","));
+}

@@ -1,0 +1,253 @@
+
+pub struct Array[T](N32, Node[T]);
+
+pub mod Array {
+  pub const empty[T]: Array[T] = Array(0, ~_);
+
+  pub fn single[T](value: T) -> Array[T] {
+    Array(1, Node::leaf(value))
+  }
+
+  pub fn new[T](len: N32, value: T) -> Array[T] {
+    Array(len, Node::new(len, value))
+  }
+
+  pub fn from_list[T](List[T](len, buf, _)) -> Array[T] {
+    Array::from_fn(
+      len,
+      &buf,
+      fn(&buf) {
+        let List::Buf(head, tail) = buf;
+        buf = tail;
+        head
+      },
+    )
+  }
+
+  pub fn .to_list[T](self: Array[T]) -> List[T] {
+    let end;
+    List(self.len(), self.fold_back(move ~end, fn(a, b) { List::Buf(b, a) }), end)
+  }
+
+  pub fn from_fn[T, S](len: N32, &state: &S, f: fn(&S) -> T) -> Array[T] {
+    if len == 0 {
+      Array::empty
+    } else {
+      let ~ins;
+      let (node, outs) = Node::unzip_with(len, move ~ins, fn(s) { (f(&s), s) });
+      let outs = Array(len, outs);
+      let end = outs.pop_back().unwrap();
+      outs.push_front(state);
+      let Array(_, outs) = outs;
+      ~ins = outs;
+      Array(len, node)
+    }
+  }
+
+  pub fn .for_each[T, S](self: Array[T], &state: &S, f: fn(&S, T)) {
+    state = self.fold_front(
+      state,
+      fn(state, value) {
+        f(&state, value);
+        state
+      },
+    )
+  }
+
+  pub fn .fold_front[T, U](Array[T](len, node), initial: U, f: fn(U, T) -> U) -> U {
+    if len == 0 {
+      initial
+    } else {
+      let ~ins;
+      let zipped = Array(len, Node::zip_with(len, move ~ins, node, f));
+      let out = zipped.pop_back().unwrap();
+      zipped.push_front(initial);
+      let Array(_, node) = zipped;
+      ~ins = node;
+      out
+    }
+  }
+
+  pub fn .fold_back[T, U](Array[T](len, node), initial: U, f: fn(U, T) -> U) -> U {
+    if len == 0 {
+      initial
+    } else {
+      let ~ins;
+      let zipped = Array(len, Node::zip_with(len, move ~ins, node, f));
+      let out = zipped.pop_front().unwrap();
+      zipped.push_back(initial);
+      let Array(_, node) = zipped;
+      ~ins = node;
+      out
+    }
+  }
+
+  pub fn .len[T](&self: &Array[T]) -> N32 {
+    self.0
+  }
+
+  pub fn .get[T](&Array[T](len, *node), i: N32) -> &T {
+    let size = len;
+    while size > 1 {
+      (node, size) = Node::half(node, size, i % 2);
+      i /= 2;
+    }
+    (*node).as_leaf()
+  }
+
+  pub fn .push_back[T](&Array[T](len, *node), value: T) {
+    if len == 0 {
+      let &node = node;
+      node = Node::leaf(value)
+    } else {
+      let size = len;
+      while size > 1 {
+        (node, size) = Node::half(node, size, size % 2);
+      }
+      let &node = node;
+      node = Node(node, Node::leaf(value));
+    }
+    len += 1;
+  }
+
+  pub fn .push_front[T](&Array[T](len, *node), value: T) {
+    if len == 0 {
+      let &node = node;
+      node = Node::leaf(value)
+    } else {
+      let size = len;
+      while size > 1 {
+        let &Node(left, right) = node;
+        (left, right) = (right, left);
+        node = &left;
+        size = size / 2;
+      }
+      let &node = node;
+      node = Node(Node::leaf(value), node);
+    }
+    len += 1;
+  }
+
+  pub fn .pop_back[T](&Array[T](len, *node)) -> Option[T] {
+    if len == 0 {
+      None
+    } else if len == 1 {
+      len = 0;
+      Some((move *node).to_leaf())
+    } else {
+      let size = len;
+      len -= 1;
+      loop {
+        let parity = (size - 1) % 2;
+        let &parent = node;
+        (node, size) = Node::half(&parent, size, parity);
+        if size == 1 {
+          let value = (move *node).to_leaf();
+          let Node(left, right) = parent;
+          parent = if parity == 0 {
+            right
+          } else {
+            left
+          };
+          return Some(value)
+        }
+      }
+    }
+  }
+
+  pub fn .pop_front[T](&Array[T](len, *node)) -> Option[T] {
+    if len == 0 {
+      None
+    } else if len == 1 {
+      len = 0;
+      Some((move *node).to_leaf())
+    } else {
+      let size = len;
+      len -= 1;
+      loop {
+        let &parent = node;
+        let &Node(left, right) = &parent;
+        (left, right) = (right, left);
+        node = &right;
+        size = (size + 1) / 2;
+        if size == 1 {
+          let value = (move *node).to_leaf();
+          parent = move left;
+          return Some(value)
+        }
+      }
+    }
+  }
+
+  pub fn .reverse[T](&Array[T](len, node)) {
+    node.reverse(len)
+  }
+
+  pub fn .reversed[T](self: Array[T]) -> Array[T] {
+    self.reverse();
+    self
+  }
+}
+
+struct Node[T](Node[T], Node[T]);
+
+mod Node {
+  pub inline_ivy! .to_leaf[T]: fn(Node[T]) -> T { fn(x x) }
+  pub inline_ivy! .as_leaf[T]: fn(&Node[T]) -> &T { fn(x x) }
+  pub inline_ivy! leaf[T]: fn(T) -> Node[T] { fn(x x) }
+
+  pub fn new[T](len: N32, value: T) -> Node[T] {
+    if len == 1 {
+      Node::leaf(value)
+    } else {
+      Node(Node::new((len + 1) / 2, value), Node::new(len / 2, value))
+    }
+  }
+
+  pub fn .half[T](&Node(l, r): &Node[T], len: N32, x: N32) -> (&Node[T], N32) {
+    if x == 0 {
+      (&l, (len + 1) / 2)
+    } else {
+      (&r, len / 2)
+    }
+  }
+
+  pub fn .swap[T](&Node(l, r): &Node[T], x: N32) {
+    if x == 0 {
+      (l, r) = (r, l);
+    }
+  }
+
+  pub fn .reverse[T](&self: &Node[T], len: N32) {
+    if len > 1 {
+      let &Node(left, right) = &self;
+      if len % 2 == 0 {
+        (left, right) = (right, left);
+      }
+      left.reverse((len + 1) / 2);
+      right.reverse(len / 2);
+    }
+  }
+
+  pub fn zip_with[T, U, V](len: N32, x: Node[T], y: Node[U], f: fn(T, U) -> V) -> Node[V] {
+    if len == 1 {
+      Node::leaf(f(x.to_leaf(), y.to_leaf()))
+    } else {
+      let Node(xl, xr) = x;
+      let Node(yl, yr) = y;
+      Node(zip_with((len + 1) / 2, xl, yl, f), zip_with(len / 2, xr, yr, f))
+    }
+  }
+
+  pub fn unzip_with[T, U, V](len: N32, x: Node[T], f: fn(T) -> (U, V)) -> (Node[U], Node[V]) {
+    if len == 1 {
+      let (u, v) = f(x.to_leaf());
+      (Node::leaf(u), Node::leaf(v))
+    } else {
+      let Node(l, r) = x;
+      let (lx, ly) = unzip_with((len + 1) / 2, l, f);
+      let (rx, ry) = unzip_with(len / 2, r, f);
+      (Node(lx, rx), Node(ly, ry))
+    }
+  }
+}

@@ -1,0 +1,7 @@
+[workspace]
+resolver = "2"
+members = ["cli", "ivm", "ivy", "lsp", "tests", "util", "vine"]
+
+[workspace.lints.clippy]
+absolute_paths = "warn"
+needless_lifetimes = "allow"
