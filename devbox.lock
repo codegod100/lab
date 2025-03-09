@@ -1,6 +1,54 @@
 {
   "lockfile_version": "1",
   "packages": {
+    "btop@latest": {
+      "last_modified": "2025-02-07T11:26:36Z",
+      "resolved": "github:NixOS/nixpkgs/d98abf5cf5914e5e4e9d57205e3af55ca90ffc1d#btop",
+      "source": "devbox-search",
+      "version": "1.4.0",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/w1ka5llp7vd92bwic4s865hzzzlv9n41-btop-1.4.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/w1ka5llp7vd92bwic4s865hzzzlv9n41-btop-1.4.0"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/syqm33j7bh48ippnkwfjgyalawj31pb4-btop-1.4.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/syqm33j7bh48ippnkwfjgyalawj31pb4-btop-1.4.0"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/rm9r87sccddm6cjn5i7m4chg1iy7zi1g-btop-1.4.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/rm9r87sccddm6cjn5i7m4chg1iy7zi1g-btop-1.4.0"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/q9ppn31f9kcis9fwjn4kv9in0fyy2b49-btop-1.4.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/q9ppn31f9kcis9fwjn4kv9in0fyy2b49-btop-1.4.0"
+        }
+      }
+    },
     "bun@latest": {
       "last_modified": "2025-02-02T17:30:19Z",
       "resolved": "github:NixOS/nixpkgs/8532db2a88ba56de9188af72134d93e39fd825f3#bun",

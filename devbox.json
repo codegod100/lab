@@ -13,7 +13,8 @@
     "vim@latest",
     "nodejs@latest",
     "clang@latest",
-    "uv@latest"
+    "uv@latest",
+    "btop@latest"
   ],
   "shell": {
     "init_hook": [
