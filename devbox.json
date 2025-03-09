@@ -12,7 +12,8 @@
     "jujutsu@latest",
     "vim@latest",
     "nodejs@latest",
-    "clang@latest"
+    "clang@latest",
+    "uv@latest"
   ],
   "shell": {
     "init_hook": [
