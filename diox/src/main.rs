@@ -92,6 +92,24 @@ fn DBInfo() -> Element {
             }
 
             p { "Database info: {db_info_result}" }
+            form {
+                onsubmit: move |event| async move {
+                    // let value = event.value();
+                    // db_info_result.set(value);
+                    insert_person(db_info_result(), 42).await.unwrap();
+                },
+
+                input {
+                    placeholder: "name",
+                    value: db_info_result(),
+                    oninput: move |event| {
+                        let value = event.value();
+                        db_info_result.set(value);
+                    }
+                }
+
+            }
+
         }
     }
 }
@@ -195,8 +213,11 @@ fn Echo() -> Element {
             input {
                 placeholder: "Type here to echo...",
                 oninput:  move |event| async move {
-                    let data = echo_server(event.value()).await.unwrap();
-                    response.set(data);
+                    let data = echo_server(event.value()).await;
+                    match data {
+                        Ok(data) => response.set(data),
+                        Err(err) => response.set(format!("Error: {:#?}", err)),
+                    }
                 },
             }
 
@@ -213,8 +234,10 @@ fn Echo() -> Element {
 /// Echo the user input on the server.
 #[server(EchoServer)]
 async fn echo_server(input: String) -> Result<String, ServerFnError> {
+    println!("dafuq");
     if input.len() > 0 {
         let out = format!("😻 {input} 😘");
+        println!("Echoed: {}", out);
         Ok(out)
     } else {
         Ok(String::new())
