@@ -4,7 +4,7 @@
     let { data }: PageProps = $props();
     import Code from "../components/Code.svelte";
     import { browser, building, dev, version } from "$app/environment";
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date().toLocaleDateString("en-CA"); // Returns YYYY-MM-DD format
     let cal = $state();
     let day = $state(today);
 </script>
