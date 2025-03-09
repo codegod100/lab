@@ -1,0 +1,1 @@
+{ "dirs" : [ "src" , "src/assets" ] , "pkgs" : [ [ "@rescript/core" , "/var/home/v/lab/scripty/node_modules/@rescript/core" ] , [ "@rescript/react" , "/var/home/v/lab/scripty/node_modules/@rescript/react" ] ] , "generated" : [] }
