@@ -40,7 +40,11 @@ function connectCallback(
         users[current.identity.toHexString()] = current;
       }
       drawDot();
-      this_user = ctx.db.user.identity.find(identity);
+      this_user = ctx.db.user.identity.find(identity) as User;
+      if(!this_user.name){
+        let name = prompt("What name do you want?") as string
+        conn.reducers.setName(name)
+      }
     })
     .subscribe("select * from user");
 
@@ -49,18 +53,18 @@ function connectCallback(
 }
 let token = localStorage.getItem("token");
 let conn = DbConnection.builder()
-  .withUri("ws://aurora:3000")
+  .withUri("wss://maincloud.spacetimedb.com")
   .withModuleName("game")
   .withToken(token || "")
   .onConnect(connectCallback)
   .build();
 
-// console.log("hello");
 conn.db.user.onUpdate((ctx, prev, current) => {
   if (prev.position !== current.position) {
-    users[current.identity.toHexString()] = current;
+    let ident_string = current.identity.toHexString()
+    users[ident_string] = current;
     console.log(
-      `User ${current.identity.toHexString()} updated position:`,
+      `User ${current.name || ident_string} updated position:`,
       prev.position,
       current.position,
     );
@@ -78,10 +82,10 @@ function drawDot() {
   for (const str in users) {
     const user = users[str] as User;
     // Processing users if needed
-    console.log(
-      `Drawing User ${user.identity.toHexString()} position:`,
-      user.position,
-    );
+    // console.log(
+    //   `Drawing User ${user.identity.toHexString()} position:`,
+    //   user.position,
+    // );
     let x = user.position.x || canvas.width / 2;
     let y = user.position.y || canvas.height / 2;
     let ballColor = user.ballColor;
