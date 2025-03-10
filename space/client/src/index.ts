@@ -13,7 +13,7 @@ import { Identity } from "@clockworklabs/spacetimedb-sdk";
 
 const users = new Map<string, User>();
 
-let this_user;
+let this_user: User;
 
 function getRandomColor() {
   const letters = "0123456789ABCDEF";
@@ -39,17 +39,21 @@ function connectCallback(
       for (const current of ctx.db.user.iter()) {
         users[current.identity.toHexString()] = current;
       }
+      // Load and display existing messages
+      for (const message of ctx.db.message.iter()) {
+        displayMessage(message);
+      }
       drawDot();
-      this_user = ctx.db.user.identity.find(identity);
+      this_user = ctx.db.user.identity.find(identity) as User;
     })
-    .subscribe("select * from user");
+    .subscribe(["select * from user", "select * from message"]);
 
   // conn.reducers.setName("tiny toons");
   //conn.reducers.getName();
 }
 let token = localStorage.getItem("token");
 let conn = DbConnection.builder()
-  .withUri("ws://aurora:3000")
+  .withUri("wss://maincloud.spacetimedb.com")
   .withModuleName("game")
   .withToken(token || "")
   .onConnect(connectCallback)
@@ -57,8 +61,8 @@ let conn = DbConnection.builder()
 
 // console.log("hello");
 conn.db.user.onUpdate((ctx, prev, current) => {
+  users[current.identity.toHexString()] = current;
   if (prev.position !== current.position) {
-    users[current.identity.toHexString()] = current;
     console.log(
       `User ${current.identity.toHexString()} updated position:`,
       prev.position,
@@ -67,6 +71,36 @@ conn.db.user.onUpdate((ctx, prev, current) => {
     drawDot();
   }
 });
+
+// Add event listener for the chat input
+document.addEventListener("DOMContentLoaded", () => {
+  const chatInput = document.getElementById("chatInput") as HTMLInputElement;
+  const sendButton = document.getElementById("sendButton") as HTMLButtonElement;
+
+  // Send message when the Send button is clicked
+  sendButton.addEventListener("click", () => {
+    sendMessage(chatInput.value);
+  });
+
+  // Send message when Enter key is pressed in the input field
+  chatInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      sendMessage(chatInput.value);
+    }
+  });
+});
+
+// Add a function to handle sending messages
+function sendMessage(message: string) {
+  if (message.trim() === "") return;
+
+  // Call the reducer to send the message
+  conn.reducers.sendMessage(message);
+
+  // Clear the input field
+  const chatInput = document.getElementById("chatInput") as HTMLInputElement;
+  chatInput.value = "";
+}
 
 const canvas = document.getElementById("myCanvas") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d")!;
@@ -95,6 +129,37 @@ function drawDot() {
   }
 }
 
+// Subscribe to message updates
+conn.db.message.onInsert((ctx, message) => {
+  console.log(`inserting message ${message.text}`);
+  //displayMessage(message);
+});
+
+// Function to display a message in the chat box
+function displayMessage(message: Message) {
+  const chatMessages = document.getElementById("chatMessages");
+  console.log(`message: ${message.text}`);
+  if (!chatMessages) return;
+
+  // Find the user who sent the message
+  const sender = users[message.sender.toHexString()] as User;
+  const senderColor = sender ? sender.ballColor : "#FFFFFF";
+
+  // Create the message element
+  const messageElement = document.createElement("div");
+  messageElement.style.marginBottom = "5px";
+
+  // Format the message with the sender's name
+  const timestamp = message.sent.toDate().toLocaleTimeString();
+  messageElement.innerHTML = `<span style="color: ${senderColor}; font-weight: bold;">${sender ? sender.name : "Unknown"}</span> <span style="color: #999; font-size: 0.8em;">[${timestamp}]</span>: ${message.text}`;
+
+  // Add the message to the chat box
+  chatMessages.appendChild(messageElement);
+
+  // Scroll to the bottom to show the latest message
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
 window.addEventListener("keydown", (e) => {
   switch (e.key) {
     case "ArrowUp":
@@ -117,5 +182,5 @@ window.addEventListener("keydown", (e) => {
       break;
   }
   conn.reducers.setPosition(this_user.position.x, this_user.position.y);
-  e.preventDefault();
+  // e.preventDefault();
 });
