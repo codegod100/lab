@@ -10,10 +10,10 @@ import { Identity } from "@clockworklabs/spacetimedb-sdk";
 // let x;
 // let y;
 // let ballColor;
-
+const name_div = document.getElementById("name") as HTMLDivElement
 const users = new Map<string, User>();
 
-let this_user;
+let this_user: User;
 
 function getRandomColor() {
   const letters = "0123456789ABCDEF";
@@ -41,6 +41,13 @@ function connectCallback(
       }
       drawDot();
       this_user = ctx.db.user.identity.find(identity) as User;
+      name_div.innerHTML = `Hello ${this_user.name} <button id="update-name">Update name</button>`
+      let button = document.getElementById("update-name") as HTMLButtonElement
+      button.addEventListener('click', ()=>{
+        let name = prompt("What name do you want?") as string
+        conn.reducers.setName(name)
+        name_div.innerHTML = `Hello ${name} <button id="update-name">Update name</button>`
+      })
       if(!this_user.name){
         let name = prompt("What name do you want?") as string
         conn.reducers.setName(name)
@@ -71,6 +78,9 @@ conn.db.user.onUpdate((ctx, prev, current) => {
     drawDot();
   }
 });
+
+
+
 
 const canvas = document.getElementById("myCanvas") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d")!;
