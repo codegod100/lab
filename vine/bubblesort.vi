@@ -1,0 +1,186 @@
+use std::IO;
+use std::data::List;
+
+pub fn main(&io: &IO) {
+  // Test case 1: Unsorted list
+  let list = [5, 3, 8, 4, 2];
+  io.println("Original list: " ++ list.to_string());
+  bubblesort(&list, &io);
+  io.println("Sorted list: " ++ list.to_string());
+}
+
+// Bubblesort implementation fully leveraging the inverse paradigm
+pub fn bubblesort(&list: &List[N32], &io: &IO) {
+  let len = list.len();
+  if len <= 1 {
+    return;
+  }
+  
+  // Use inverse paradigm for the entire sorting process
+  do {
+    // Create an inverse channel for communication
+    let message: String;
+    let ~message_inv = message;
+    
+    // Check if already sorted
+    let sorted = check_sorted(&list);
+    if sorted {
+      ~message_inv = "List was already sorted!";
+      return;
+    }
+    
+    // If not sorted, perform the improved bubble sort
+    let pass_count = sort_list(&list);
+    
+    // Set the message using inverse
+    ~message_inv = "Sorted after " ++ pass_count.to_string() ++ " passes";
+    
+    // Print the message
+    io.println(message);
+  };
+}
+
+// Function to check if a list is already sorted using the inverse paradigm
+fn check_sorted(&list: &List[N32]) -> Bool {
+  let len = list.len();
+  if len <= 1 {
+    return true;
+  }
+  
+  // Using the inverse paradigm for cleaner code
+  let result = do {
+    // Create a variable to hold our result
+    let is_sorted: Bool;
+    let ~is_sorted_inv = is_sorted;
+    
+    // Assume the list is sorted initially
+    ~is_sorted_inv = true;
+    
+    // Define a helper function to check elements in order
+    fn check_elements(idx: N32, length: N32, &check_list: &List[N32], ~is_sorted_ref: ~Bool) {
+      // Base case: reached the end
+      if idx >= length - 1 {
+        return;
+      }
+      
+      // Get values of adjacent elements
+      let a = check_list.get(idx);
+      let b = check_list.get(idx + 1);
+      
+      // If found elements out of order
+      if a > b {
+        ~is_sorted_ref = false;
+        return;
+      }
+      
+      // Continue with next pair
+      check_elements(idx + 1, length, &check_list, ~is_sorted_ref);
+    }
+    
+    // Start checking from first element
+    check_elements(0, len, &list, ~is_sorted_inv);
+    
+    // Return the result
+    is_sorted
+  };
+  
+  result
+}
+
+// Bubble sort implementation using inverse patterns
+fn sort_list(&list: &List[N32]) -> N32 {
+  let len = list.len();
+  if len <= 1 {
+    return 0;
+  }
+  
+  // Use inverse pattern to count passes
+  let result = do {
+    // Create a variable for the result and its inverse
+    let pass_count: N32;
+    let ~pass_count_inv = pass_count;
+    
+    // Tracking variable for early exit
+    let early_exit: Bool;
+    let ~early_exit_inv = early_exit;
+    ~early_exit_inv = false;
+    
+    // Define a function for a single bubble sort pass
+    fn do_bubble_pass(pass_idx: N32, length: N32, &sort_list: &List[N32], ~swap_occurred: ~Bool) {
+      // Base case: processed all pairs in this pass
+      if pass_idx >= length {
+        return;
+      }
+      
+      // Compare and swap if needed
+      let idx = pass_idx;
+      let mut swapped = false;
+      
+      // Process this pair of elements
+      let j = 0;
+      while j < length - idx - 1 {
+        // Get element values
+        let val1 = sort_list.get(j);
+        let val2 = sort_list.get(j + 1);
+        
+        // If out of order, swap them
+        if val1 > val2 {
+          // Get references to swap
+          let &ref1 = sort_list.get(j);
+          let &ref2 = sort_list.get(j + 1);
+          
+          // Do the swap
+          let temp = val1;
+          ref1 = val2;
+          ref2 = temp;
+          
+          // Mark that a swap happened
+          swapped = true;
+        }
+        
+        j = j + 1;
+      }
+      
+      // If any swaps occurred
+      if swapped {
+        ~swap_occurred = true;
+      }
+      
+      // Continue with next pass
+      do_bubble_pass(pass_idx + 1, length, &sort_list, ~swap_occurred);
+    }
+    
+    // Variable to track pass count
+    let current_pass = 1;
+    
+    // Do one pass at a time until sorted
+    while current_pass <= len - 1 {
+      // Track if any swaps happened in this pass
+      let swapped: Bool;
+      let ~swapped_inv = swapped;
+      ~swapped_inv = false;
+      
+      // Do the current pass
+      do_bubble_pass(0, len, &list, ~swapped_inv);
+      
+      // If no swaps, list is sorted
+      if !swapped {
+        ~pass_count_inv = current_pass;
+        ~early_exit_inv = true;
+        break;
+      }
+      
+      current_pass = current_pass + 1;
+    }
+    
+    // If we needed all passes
+    if !early_exit {
+      ~pass_count_inv = len - 1;
+    }
+    
+    // Return final pass count
+    pass_count
+  };
+  
+  result
+}
