@@ -6,6 +6,23 @@ import {
   SetName,
 } from "./module_bindings";
 import { Identity } from "@clockworklabs/spacetimedb-sdk";
+// let ident;
+// let x;
+// let y;
+// let ballColor;
+
+const users = new Map<string, User>();
+
+let this_user;
+
+function getRandomColor() {
+  const letters = "0123456789ABCDEF";
+  let color = "#";
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+}
 
 function connectCallback(
   conn: DbConnection,
@@ -16,7 +33,13 @@ function connectCallback(
   console.log(
     `Connected to the database! ${identity.toHexString()}, token: ${token}`,
   );
-  conn.subscriptionBuilder().subscribe("select * from user");
+  conn
+    .subscriptionBuilder()
+    .onApplied((ctx) => {
+      this_user = ctx.db.user.identity.find(identity);
+    })
+    .subscribe("select * from user");
+
   // conn.reducers.setName("tiny toons");
   //conn.reducers.getName();
 }
@@ -31,57 +54,71 @@ let conn = DbConnection.builder()
 // console.log("hello");
 conn.db.user.onUpdate((ctx, prev, current) => {
   if (prev.position !== current.position) {
+    // for (const user of users) {
+    //   if (user.identity === current.identity) {
+    //     user.position = current.position;
+    //   }
+    // }
+    //       for (const user of ctx.db.user.iter()) {
+    users[current.identity.toHexString()] = current;
+
     console.log(
-      `User ${current.name} updated position:`,
+      `User ${current.identity.toHexString()} updated position:`,
       prev.position,
       current.position,
     );
+    drawDot();
   }
 });
 
-const canvas = document.getElementById("myCanvas");
-if (canvas && canvas.getContext) {
-  const ctx = canvas.getContext("2d");
-
-  if (ctx) {
-    // Set up initial position at center of canvas
-    let x = canvas.width / 2;
-    let y = canvas.height / 2;
-    const dotRadius = 10;
-    const speed = 5;
-
-    // Draw the initial dot
-    function drawDot() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.beginPath();
-      ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
-      ctx.fillStyle = "blue";
-      ctx.fill();
-      ctx.closePath();
-    }
+const canvas = document.getElementById("myCanvas") as HTMLCanvasElement;
+const ctx = canvas.getContext("2d")!;
+const speed = 5;
+const dotRadius = 10;
+// ctx.clearRect(0, 0, canvas.width, canvas.height);
+function drawDot() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (const str in users) {
+    const user = users[str] as User;
+    // Processing users if needed
+    console.log(
+      `Drawing User ${user.identity.toHexString()} position:`,
+      user.position,
+    );
+    let x = user.position.x || canvas.width / 2;
+    let y = user.position.y || canvas.height / 2;
+    let ballColor = user.ballColor;
 
     // Initial draw
-    drawDot();
-
-    // Handle arrow key presses
-    window.addEventListener("keydown", (e) => {
-      switch (e.key) {
-        case "ArrowUp":
-          y = Math.max(dotRadius, y - speed);
-          break;
-        case "ArrowDown":
-          y = Math.min(canvas.height - dotRadius, y + speed);
-          break;
-        case "ArrowLeft":
-          x = Math.max(dotRadius, x - speed);
-          break;
-        case "ArrowRight":
-          x = Math.min(canvas.width - dotRadius, x + speed);
-          break;
-      }
-      conn.reducers.setPosition(x, y);
-      drawDot();
-      e.preventDefault();
-    });
+    ctx.beginPath();
+    ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+    ctx.fillStyle = ballColor;
+    ctx.fill();
+    ctx.closePath();
   }
 }
+
+window.addEventListener("keydown", (e) => {
+  switch (e.key) {
+    case "ArrowUp":
+      this_user.position.y = Math.max(dotRadius, this_user.position.y - speed);
+      break;
+    case "ArrowDown":
+      this_user.position.y = Math.min(
+        canvas.height - dotRadius,
+        this_user.position.y + speed,
+      );
+      break;
+    case "ArrowLeft":
+      this_user.position.x = Math.max(dotRadius, this_user.position.x - speed);
+      break;
+    case "ArrowRight":
+      this_user.position.x = Math.min(
+        canvas.width - dotRadius,
+        this_user.position.x + speed,
+      );
+      break;
+  }
+  conn.reducers.setPosition(this_user.position.x, this_user.position.y);
+  e.preventDefault();
+});
