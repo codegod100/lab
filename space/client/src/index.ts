@@ -10,7 +10,7 @@ import { Identity } from "@clockworklabs/spacetimedb-sdk";
 // let x;
 // let y;
 // let ballColor;
-
+const name_div = document.getElementById("name") as HTMLDivElement
 const users = new Map<string, User>();
 
 let this_user: User;
@@ -45,6 +45,17 @@ function connectCallback(
       }
       drawDot();
       this_user = ctx.db.user.identity.find(identity) as User;
+      name_div.innerHTML = `Hello ${this_user.name} <button id="update-name">Update name</button>`
+      let button = document.getElementById("update-name") as HTMLButtonElement
+      button.addEventListener('click', ()=>{
+        let name = prompt("What name do you want?") as string
+        conn.reducers.setName(name)
+        name_div.innerHTML = `Hello ${name} <button id="update-name">Update name</button>`
+      })
+      if(!this_user.name){
+        let name = prompt("What name do you want?") as string
+        conn.reducers.setName(name)
+      }
     })
     .subscribe(["select * from user", "select * from message"]);
 
@@ -59,12 +70,16 @@ let conn = DbConnection.builder()
   .onConnect(connectCallback)
   .build();
 
-// console.log("hello");
 conn.db.user.onUpdate((ctx, prev, current) => {
   users[current.identity.toHexString()] = current;
   if (prev.position !== current.position) {
+<<<<<<< HEAD
+=======
+    let ident_string = current.identity.toHexString()
+    users[ident_string] = current;
+>>>>>>> 67c2d6def31dc0a17aff19e3c8814323d4347433
     console.log(
-      `User ${current.identity.toHexString()} updated position:`,
+      `User ${current.name || ident_string} updated position:`,
       prev.position,
       current.position,
     );
@@ -72,6 +87,7 @@ conn.db.user.onUpdate((ctx, prev, current) => {
   }
 });
 
+<<<<<<< HEAD
 // Add event listener for the chat input
 document.addEventListener("DOMContentLoaded", () => {
   const chatInput = document.getElementById("chatInput") as HTMLInputElement;
@@ -101,6 +117,10 @@ function sendMessage(message: string) {
   const chatInput = document.getElementById("chatInput") as HTMLInputElement;
   chatInput.value = "";
 }
+=======
+
+
+>>>>>>> 67c2d6def31dc0a17aff19e3c8814323d4347433
 
 const canvas = document.getElementById("myCanvas") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d")!;
@@ -112,10 +132,10 @@ function drawDot() {
   for (const str in users) {
     const user = users[str] as User;
     // Processing users if needed
-    console.log(
-      `Drawing User ${user.identity.toHexString()} position:`,
-      user.position,
-    );
+    // console.log(
+    //   `Drawing User ${user.identity.toHexString()} position:`,
+    //   user.position,
+    // );
     let x = user.position.x || canvas.width / 2;
     let y = user.position.y || canvas.height / 2;
     let ballColor = user.ballColor;

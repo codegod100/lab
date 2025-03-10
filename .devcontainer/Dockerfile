@@ -9,7 +9,7 @@ COPY --chown=${DEVBOX_USER}:${DEVBOX_USER} devbox.json devbox.json
 COPY --chown=${DEVBOX_USER}:${DEVBOX_USER} devbox.lock devbox.lock
 
 
-ENV PATH="/home/devbox/.bun/bin:$PATH"
+ENV PATH="/home/devbox/.bun/bin:/home/devbox/.local/bin:$PATH"
 RUN devbox run -- echo "Installed Packages."
 
 RUN devbox shellenv --init-hook >> ~/.profile
