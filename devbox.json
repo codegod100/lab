@@ -14,7 +14,8 @@
     "nodejs@latest",
     "clang@latest",
     "uv@latest",
-    "btop@latest"
+    "btop@latest",
+    "curl@latest"
   ],
   "shell": {
     "init_hook": [
