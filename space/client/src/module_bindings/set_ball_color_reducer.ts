@@ -30,42 +30,32 @@ import {
   Timestamp,
   deepEqual,
 } from "@clockworklabs/spacetimedb-sdk";
-import { Position as __Position } from "./position_type";
 
-export type User = {
-  identity: Identity,
-  name: string | undefined,
-  online: boolean,
-  position: __Position,
-  ballColor: string,
+export type SetBallColor = {
+  color: string,
 };
 
 /**
  * A namespace for generated helper functions.
  */
-export namespace User {
+export namespace SetBallColor {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   export function getTypeScriptAlgebraicType(): AlgebraicType {
     return AlgebraicType.createProductType([
-      new ProductTypeElement("identity", AlgebraicType.createIdentityType()),
-      new ProductTypeElement("name", AlgebraicType.createOptionType(AlgebraicType.createStringType())),
-      new ProductTypeElement("online", AlgebraicType.createBoolType()),
-      new ProductTypeElement("position", __Position.getTypeScriptAlgebraicType()),
-      new ProductTypeElement("ballColor", AlgebraicType.createStringType()),
+      new ProductTypeElement("color", AlgebraicType.createStringType()),
     ]);
   }
 
-  export function serialize(writer: BinaryWriter, value: User): void {
-    User.getTypeScriptAlgebraicType().serialize(writer, value);
+  export function serialize(writer: BinaryWriter, value: SetBallColor): void {
+    SetBallColor.getTypeScriptAlgebraicType().serialize(writer, value);
   }
 
-  export function deserialize(reader: BinaryReader): User {
-    return User.getTypeScriptAlgebraicType().deserialize(reader);
+  export function deserialize(reader: BinaryReader): SetBallColor {
+    return SetBallColor.getTypeScriptAlgebraicType().deserialize(reader);
   }
 
 }
-
 

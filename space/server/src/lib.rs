@@ -1,4 +1,7 @@
-use spacetimedb::{reducer, table, Identity, ReducerContext, SpacetimeType, Table, Timestamp};
+use spacetimedb::{
+    rand::{self, Rng},
+    reducer, table, Identity, ReducerContext, SpacetimeType, Table, Timestamp,
+};
 
 #[derive(SpacetimeType)]
 pub struct Position {
@@ -13,6 +16,7 @@ pub struct User {
     name: Option<String>,
     online: bool,
     position: Position,
+    ball_color: String,
 }
 
 #[table(name = message, public)]
@@ -46,6 +50,18 @@ pub fn set_position(ctx: &ReducerContext, x: f64, y: f64) -> Result<(), String> 
         Ok(())
     } else {
         Err("Cannot set position for unknown user".to_string())
+    }
+}
+
+#[reducer]
+/// Set ball color of a user.
+pub fn set_ball_color(ctx: &ReducerContext, color: String) -> Result<(), String> {
+    if let Some(user) = ctx.db.user().identity().find(ctx.sender) {
+        let ball_color = color;
+        ctx.db.user().identity().update(User { ball_color, ..user });
+        Ok(())
+    } else {
+        Err("Cannot set ball color for unknown user".to_string())
     }
 }
 
@@ -98,7 +114,16 @@ pub fn client_connected(ctx: &ReducerContext) {
             identity: ctx.sender,
             online: true,
             position: Position { x: 0.0, y: 0.0 }, // enter world at origin
+            ball_color: generate_random_color(ctx),
         });
+    }
+    fn generate_random_color(ctx: &ReducerContext) -> String {
+        let mut rng = ctx.rng();
+        let r = rng.gen_range(0..256);
+        let g = rng.gen_range(0..256);
+        let b = rng.gen_range(0..256);
+
+        format!("#{:02X}{:02X}{:02X}", r, g, b)
     }
 }
 
