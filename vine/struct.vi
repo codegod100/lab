@@ -1,0 +1,18 @@
+struct Foo[T](N32,T)
+
+
+
+pub fn main(&io: &IO) {
+    let x: N32;
+    let foo = Foo(13,x);
+
+    dyn fn set_val(~x: ~N32){
+        if io.prompt("Enter a number: ") is Some(input) && N32::parse(input) is Some(n) {
+            x = n;
+        }  else {
+            x = 42;
+        }
+    }
+    set_val(~x)
+    io.println("Foo({foo.0}, {foo.1})");
+}
