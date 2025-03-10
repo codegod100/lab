@@ -36,6 +36,10 @@ function connectCallback(
   conn
     .subscriptionBuilder()
     .onApplied((ctx) => {
+      for (const current of ctx.db.user.iter()) {
+        users[current.identity.toHexString()] = current;
+      }
+      drawDot();
       this_user = ctx.db.user.identity.find(identity);
     })
     .subscribe("select * from user");
@@ -45,7 +49,7 @@ function connectCallback(
 }
 let token = localStorage.getItem("token");
 let conn = DbConnection.builder()
-  .withUri("ws://localhost:3000")
+  .withUri("ws://aurora:3000")
   .withModuleName("game")
   .withToken(token || "")
   .onConnect(connectCallback)
@@ -54,14 +58,7 @@ let conn = DbConnection.builder()
 // console.log("hello");
 conn.db.user.onUpdate((ctx, prev, current) => {
   if (prev.position !== current.position) {
-    // for (const user of users) {
-    //   if (user.identity === current.identity) {
-    //     user.position = current.position;
-    //   }
-    // }
-    //       for (const user of ctx.db.user.iter()) {
     users[current.identity.toHexString()] = current;
-
     console.log(
       `User ${current.identity.toHexString()} updated position:`,
       prev.position,
