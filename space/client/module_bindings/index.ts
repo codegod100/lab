@@ -107,32 +107,38 @@ const REMOTE_MODULE = {
   eventContextConstructor: (imp: DbConnectionImpl, event: Event<Reducer>) => {
     return {
       ...(imp as DbConnection),
-      event
-    }
+      event,
+    };
   },
   dbViewConstructor: (imp: DbConnectionImpl) => {
     return new RemoteTables(imp);
   },
-  reducersConstructor: (imp: DbConnectionImpl, setReducerFlags: SetReducerFlags) => {
+  reducersConstructor: (
+    imp: DbConnectionImpl,
+    setReducerFlags: SetReducerFlags,
+  ) => {
     return new RemoteReducers(imp, setReducerFlags);
   },
   setReducerFlagsConstructor: () => {
     return new SetReducerFlags();
-  }
-}
+  },
+};
 
 // A type representing all the possible variants of a reducer.
-export type Reducer = never
-| { name: "ClientConnected", args: ClientConnected }
-| { name: "IdentityDisconnected", args: IdentityDisconnected }
-| { name: "SendMessage", args: SendMessage }
-| { name: "SetBallColor", args: SetBallColor }
-| { name: "SetName", args: SetName }
-| { name: "SetPosition", args: SetPosition }
-;
+export type Reducer =
+  | never
+  | { name: "ClientConnected"; args: ClientConnected }
+  | { name: "IdentityDisconnected"; args: IdentityDisconnected }
+  | { name: "SendMessage"; args: SendMessage }
+  | { name: "SetBallColor"; args: SetBallColor }
+  | { name: "SetName"; args: SetName }
+  | { name: "SetPosition"; args: SetPosition };
 
 export class RemoteReducers {
-  constructor(private connection: DbConnectionImpl, private setCallReducerFlags: SetReducerFlags) {}
+  constructor(
+    private connection: DbConnectionImpl,
+    private setCallReducerFlags: SetReducerFlags,
+  ) {}
 
   onClientConnected(callback: (ctx: ReducerEventContext) => void) {
     this.connection.onReducer("client_connected", callback);
@@ -155,14 +161,20 @@ export class RemoteReducers {
     let __writer = new BinaryWriter(1024);
     SendMessage.getTypeScriptAlgebraicType().serialize(__writer, __args);
     let __argsBuffer = __writer.getBuffer();
-    this.connection.callReducer("send_message", __argsBuffer, this.setCallReducerFlags.sendMessageFlags);
+    this.connection.callReducer(
+      "send_message",
+      __argsBuffer,
+      this.setCallReducerFlags.sendMessageFlags,
+    );
   }
 
   onSendMessage(callback: (ctx: ReducerEventContext, text: string) => void) {
     this.connection.onReducer("send_message", callback);
   }
 
-  removeOnSendMessage(callback: (ctx: ReducerEventContext, text: string) => void) {
+  removeOnSendMessage(
+    callback: (ctx: ReducerEventContext, text: string) => void,
+  ) {
     this.connection.offReducer("send_message", callback);
   }
 
@@ -171,14 +183,20 @@ export class RemoteReducers {
     let __writer = new BinaryWriter(1024);
     SetBallColor.getTypeScriptAlgebraicType().serialize(__writer, __args);
     let __argsBuffer = __writer.getBuffer();
-    this.connection.callReducer("set_ball_color", __argsBuffer, this.setCallReducerFlags.setBallColorFlags);
+    this.connection.callReducer(
+      "set_ball_color",
+      __argsBuffer,
+      this.setCallReducerFlags.setBallColorFlags,
+    );
   }
 
   onSetBallColor(callback: (ctx: ReducerEventContext, color: string) => void) {
     this.connection.onReducer("set_ball_color", callback);
   }
 
-  removeOnSetBallColor(callback: (ctx: ReducerEventContext, color: string) => void) {
+  removeOnSetBallColor(
+    callback: (ctx: ReducerEventContext, color: string) => void,
+  ) {
     this.connection.offReducer("set_ball_color", callback);
   }
 
@@ -187,7 +205,11 @@ export class RemoteReducers {
     let __writer = new BinaryWriter(1024);
     SetName.getTypeScriptAlgebraicType().serialize(__writer, __args);
     let __argsBuffer = __writer.getBuffer();
-    this.connection.callReducer("set_name", __argsBuffer, this.setCallReducerFlags.setNameFlags);
+    this.connection.callReducer(
+      "set_name",
+      __argsBuffer,
+      this.setCallReducerFlags.setNameFlags,
+    );
   }
 
   onSetName(callback: (ctx: ReducerEventContext, name: string) => void) {
@@ -203,66 +225,114 @@ export class RemoteReducers {
     let __writer = new BinaryWriter(1024);
     SetPosition.getTypeScriptAlgebraicType().serialize(__writer, __args);
     let __argsBuffer = __writer.getBuffer();
-    this.connection.callReducer("set_position", __argsBuffer, this.setCallReducerFlags.setPositionFlags);
+    this.connection.callReducer(
+      "set_position",
+      __argsBuffer,
+      this.setCallReducerFlags.setPositionFlags,
+    );
   }
 
-  onSetPosition(callback: (ctx: ReducerEventContext, x: number, y: number) => void) {
+  onSetPosition(
+    callback: (ctx: ReducerEventContext, x: number, y: number) => void,
+  ) {
     this.connection.onReducer("set_position", callback);
   }
 
-  removeOnSetPosition(callback: (ctx: ReducerEventContext, x: number, y: number) => void) {
+  removeOnSetPosition(
+    callback: (ctx: ReducerEventContext, x: number, y: number) => void,
+  ) {
     this.connection.offReducer("set_position", callback);
   }
-
 }
 
 export class SetReducerFlags {
-  sendMessageFlags: CallReducerFlags = 'FullUpdate';
+  sendMessageFlags: CallReducerFlags = "FullUpdate";
   sendMessage(flags: CallReducerFlags) {
     this.sendMessageFlags = flags;
   }
 
-  setBallColorFlags: CallReducerFlags = 'FullUpdate';
+  setBallColorFlags: CallReducerFlags = "FullUpdate";
   setBallColor(flags: CallReducerFlags) {
     this.setBallColorFlags = flags;
   }
 
-  setNameFlags: CallReducerFlags = 'FullUpdate';
+  setNameFlags: CallReducerFlags = "FullUpdate";
   setName(flags: CallReducerFlags) {
     this.setNameFlags = flags;
   }
 
-  setPositionFlags: CallReducerFlags = 'FullUpdate';
+  setPositionFlags: CallReducerFlags = "FullUpdate";
   setPosition(flags: CallReducerFlags) {
     this.setPositionFlags = flags;
   }
-
 }
 
 export class RemoteTables {
   constructor(private connection: DbConnectionImpl) {}
 
   get message(): MessageTableHandle {
-    return new MessageTableHandle(this.connection.clientCache.getOrCreateTable<Message>(REMOTE_MODULE.tables.message));
+    return new MessageTableHandle(
+      this.connection.clientCache.getOrCreateTable<Message>(
+        REMOTE_MODULE.tables.message,
+      ),
+    );
   }
 
   get user(): UserTableHandle {
-    return new UserTableHandle(this.connection.clientCache.getOrCreateTable<User>(REMOTE_MODULE.tables.user));
+    return new UserTableHandle(
+      this.connection.clientCache.getOrCreateTable<User>(
+        REMOTE_MODULE.tables.user,
+      ),
+    );
   }
 }
 
-export class SubscriptionBuilder extends SubscriptionBuilderImpl<RemoteTables, RemoteReducers, SetReducerFlags> { }
+export class SubscriptionBuilder extends SubscriptionBuilderImpl<
+  RemoteTables,
+  RemoteReducers,
+  SetReducerFlags
+> {}
 
-export class DbConnection extends DbConnectionImpl<RemoteTables, RemoteReducers, SetReducerFlags> {
-  static builder = (): DbConnectionBuilder<DbConnection, ErrorContext, SubscriptionEventContext> => {
-    return new DbConnectionBuilder<DbConnection, ErrorContext, SubscriptionEventContext>(REMOTE_MODULE, (imp: DbConnectionImpl) => imp as DbConnection);
-  }
+export class DbConnection extends DbConnectionImpl<
+  RemoteTables,
+  RemoteReducers,
+  SetReducerFlags
+> {
+  static builder = (): DbConnectionBuilder<
+    DbConnection,
+    ErrorContext,
+    SubscriptionEventContext
+  > => {
+    return new DbConnectionBuilder<
+      DbConnection,
+      ErrorContext,
+      SubscriptionEventContext
+    >(REMOTE_MODULE, (imp: DbConnectionImpl) => imp as DbConnection);
+  };
   subscriptionBuilder = (): SubscriptionBuilder => {
     return new SubscriptionBuilder(this);
-  }
+  };
 }
 
-export type EventContext = EventContextInterface<RemoteTables, RemoteReducers, SetReducerFlags, Reducer>;
-export type ReducerEventContext = ReducerEventContextInterface<RemoteTables, RemoteReducers, SetReducerFlags, Reducer>;
-export type SubscriptionEventContext = SubscriptionEventContextInterface<RemoteTables, RemoteReducers, SetReducerFlags>;
-export type ErrorContext = ErrorContextInterface<RemoteTables, RemoteReducers, SetReducerFlags>;
+export type EventContext = EventContextInterface<
+  RemoteTables,
+  RemoteReducers,
+  SetReducerFlags,
+  Reducer
+>;
+export type ReducerEventContext = ReducerEventContextInterface<
+  RemoteTables,
+  RemoteReducers,
+  SetReducerFlags,
+  Reducer
+>;
+export type SubscriptionEventContext = SubscriptionEventContextInterface<
+  RemoteTables,
+  RemoteReducers,
+  SetReducerFlags
+>;
+export type ErrorContext = ErrorContextInterface<
+  RemoteTables,
+  RemoteReducers,
+  SetReducerFlags
+>;

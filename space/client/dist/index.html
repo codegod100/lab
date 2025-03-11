@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Canvas Example</title>
+        <style>
+            canvas {
+                border: 1px solid #000;
+                display: block;
+                margin: 0 auto;
+            }
+            body {
+                text-align: center;
+                font-family: Arial, sans-serif;
+                padding: 20px;
+            }
+        </style>
+    <script type="module" crossorigin src="./index-a9s2k7zn.js"></script></head>
+    <body>
+        <h1>The Game</h1>
+        <canvas id="canvas" width="600" height="400">
+            Your browser does not support the HTML5 canvas element.
+        </canvas>
+        <div
+            id="chatContainer"
+            style="position: absolute; bottom: 10px; left: 10px; width: 400px"
+        >
+            <div
+                id="chatMessages"
+                style="
+                    height: 150px;
+                    overflow-y: auto;
+                    background-color: rgba(0, 0, 0, 0.2);
+                    color: black;
+                    border-radius: 5px;
+                    padding: 10px;
+                    margin-bottom: 5px;
+                "
+            ></div>
+            <div style="display: flex">
+                <input
+                    type="text"
+                    id="chatInput"
+                    style="
+                        flex-grow: 1;
+                        padding: 5px;
+                        border-radius: 5px 0 0 5px;
+                        border: none;
+                    "
+                    placeholder="Type a message..."
+                />
+                <button
+                    id="sendButton"
+                    style="
+                        background-color: #4caf50;
+                        color: white;
+                        border: none;
+                        border-radius: 0 5px 5px 0;
+                        padding: 5px 10px;
+                        cursor: pointer;
+                        margin-left: 5px;
+                    "
+                >
+                    Send
+                </button>
+            </div>
+        </div>
+
+        <div id="name"></div>
+        
+    </body>
+</html>
