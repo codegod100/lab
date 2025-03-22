@@ -15,6 +15,7 @@ export default component$(() => {
     /* Override Prism theme with Catppuccin theme colors */
     :root {
       --code-background: var(--surface0);
+      --code-block-background: var(--mantle); /* Using mantle for more contrast */
       --code-text: var(--text);
       --code-comment: var(--overlay1);
       --code-keyword: var(--mauve);
@@ -52,16 +53,16 @@ export default component$(() => {
       margin: 1em 0;
       overflow: auto;
       border-radius: 10px;
-      background: var(--code-background) !important;
-      border: 1px solid var(--surface1);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      background: var(--code-block-background) !important;
+      border: 1px solid var(--crust);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     }
 
     :not(pre) > code[class*="language-"] {
       padding: 0.2em 0.4em;
       border-radius: 0.3em;
       white-space: normal;
-      background: var(--code-background);
+      background: var(--code-block-background);
     }
 
     .token.comment,
@@ -173,7 +174,7 @@ export default component$(() => {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: var(--surface1);
+      background: var(--crust);
       border-top-left-radius: 10px;
       border-top-right-radius: 10px;
       padding: 0.5rem 1rem;
@@ -978,15 +979,22 @@ echo "All commands completed"`
     // Dynamically import Prism and themes
     const Prism = await import('prismjs');
     
-    // Import language components
+    // Import base language components first
+    await import('prismjs/components/prism-javascript');
+    await import('prismjs/components/prism-typescript');
+    
+    // Then import dependent languages
+    await import('prismjs/components/prism-jsx');
+    
+    // Import remaining languages
     await Promise.all([
-      import('prismjs/components/prism-typescript'),
-      import('prismjs/components/prism-jsx'),
-      import('prismjs/components/prism-tsx'),
       import('prismjs/components/prism-json'),
       import('prismjs/components/prism-css'),
       import('prismjs/components/prism-bash')
     ]);
+    
+    // Define TSX grammar manually since the TSX component seems to be causing issues
+    Prism.default.languages.tsx = Prism.default.languages.typescript;
     
     // Import theme CSS
     const linkElement = document.createElement('link');
@@ -997,14 +1005,46 @@ echo "All commands completed"`
     // Pre-highlight all code examples
     const highlighted: Record<string, string> = {};
     
+    // Helper function to safely highlight code
+    const safeHighlight = (code, language) => {
+      try {
+        // Map languages that might cause issues
+        let lang = language;
+        let grammar = Prism.default.languages[lang];
+        
+        // Fallbacks for specific languages
+        if (!grammar) {
+          if (lang === 'tsx') {
+            grammar = Prism.default.languages.typescript;
+            lang = 'typescript';
+          } else if (lang === 'jsx') {
+            grammar = Prism.default.languages.javascript;
+            lang = 'javascript';
+          } else {
+            // Default fallback
+            grammar = Prism.default.languages.javascript;
+            lang = 'javascript';
+          }
+          console.log(`Using ${lang} grammar instead of ${language}`);
+        }
+        
+        return Prism.default.highlight(code, grammar, lang);
+      } catch (error) {
+        console.error(`Error highlighting ${language}: ${error}`);
+        // Escape HTML for safety when used with dangerouslySetInnerHTML
+        return code
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+    };
+    
+    // Process all examples
     for (const category in codeExamples) {
       for (const example of codeExamples[category]) {
-        const html = Prism.default.highlight(
-          example.code,
-          Prism.default.languages[example.language],
-          example.language
-        );
-        highlighted[example.id] = html;
+        highlighted[example.id] = safeHighlight(example.code, example.language);
       }
     }
     
