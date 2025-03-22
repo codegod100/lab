@@ -227,16 +227,13 @@ export default component$(() => {
       width: 1.2rem;
       height: 1.2rem;
       border-radius: 50%;
-      background: var(--overlay2);
       transition: all 0.3s ease;
-    }
-
-    .dark-theme .toggle-button:before {
-      background: var(--yellow);
       transform: translateX(0);
+      background: var(--yellow);
     }
-
-    .light-theme .toggle-button:before {
+    
+    /* Use the isDarkMode signal directly for the toggle position */
+    .toggle-button.light:before {
       background: var(--blue);
       transform: translateX(1.5rem);
     }
@@ -265,13 +262,16 @@ export default component$(() => {
             <Link href="/playground/" class="nav-link">
               Playground
             </Link>
+            <Link href="/playground/card-demo" class="nav-link">
+              Card Demo
+            </Link>
             <Link href="/code-examples/" class="nav-link">
               Code Examples
             </Link>
             <div class="theme-toggle">
               <span class="toggle-icon">{isDarkMode.value ? '🌙' : '☀️'}</span>
               <button 
-                class="toggle-button"
+                class={isDarkMode.value ? "toggle-button" : "toggle-button light"}
                 onClick$={() => {
                   isDarkMode.value = !isDarkMode.value;
                 }}

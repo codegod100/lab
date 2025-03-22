@@ -68,6 +68,15 @@ export default component$(() => {
       transform: translateY(-5px);
       box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
     }
+    
+    .team-member-img {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin: 0 auto 10px;
+      border: 2px solid var(--sapphire);
+    }
 
     .team-member h3 {
       margin: 10px 0 5px;
@@ -137,18 +146,38 @@ export default component$(() => {
         <h2>Our Team</h2>
         <div class="team-grid">
           <div class="team-member">
+            <img 
+              src="https://upload.wikimedia.org/wikipedia/commons/a/a8/Professional_headshot_of_Lisa_Guerrero_1.jpg" 
+              alt="Jane Doe" 
+              class="team-member-img" 
+            />
             <h3>Jane Doe</h3>
             <p>Founder & CEO</p>
           </div>
           <div class="team-member">
+            <img 
+              src="https://upload.wikimedia.org/wikipedia/commons/e/ee/Tim_Sweeney%2C_GDCA_2017_%28portrait_crop%29.jpg" 
+              alt="John Smith" 
+              class="team-member-img" 
+            />
             <h3>John Smith</h3>
             <p>Lead Developer</p>
           </div>
           <div class="team-member">
+            <img 
+              src="https://upload.wikimedia.org/wikipedia/commons/3/3d/Industrial_Designer_Jessica_Corr.jpg" 
+              alt="Emily Johnson" 
+              class="team-member-img" 
+            />
             <h3>Emily Johnson</h3>
             <p>UX Designer</p>
           </div>
           <div class="team-member">
+            <img 
+              src="https://upload.wikimedia.org/wikipedia/commons/1/13/Akira_Yamaoka_-_Game_Developers_Conference_2010_-_Day_3.jpg" 
+              alt="Michael Chen" 
+              class="team-member-img" 
+            />
             <h3>Michael Chen</h3>
             <p>Frontend Engineer</p>
           </div>
@@ -173,6 +202,10 @@ export default component$(() => {
           <p><strong>Phone:</strong> (123) 456-7890</p>
           <p><strong>Address:</strong> 123 Web Dev Lane, Digital City</p>
         </div>
+      </div>
+      
+      <div class="about-section" style="font-size: 0.8rem; color: var(--overlay0); text-align: center; margin-top: 3rem;">
+        <p>All team member images are sourced from Wikimedia Commons and are either in the public domain or under Creative Commons licenses.</p>
       </div>
     </div>
   );

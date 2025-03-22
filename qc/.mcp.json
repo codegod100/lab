@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "wikipedia-image-search": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/home/v/wikipedia-mcp-image-crawler/build/index.js"
+      ],
+      "env": {}
+    },
+    "21st-magic": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@21st-dev/magic-mcp",
+        "--config",
+        "{\"TWENTY_FIRST_API_KEY\":\"1ecd3b85193abf3ec8b54a430aa07528a6e4a60b614678eda3442c334aa58514\"}"
+      ],
+      "env": {}
+    }
+  }
+}
