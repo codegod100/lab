@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import './app.css';
 
 export function App() {
   const mountRef = useRef<HTMLDivElement>(null);
+  const [health, setHealth] = useState<number>(100);
 
   useEffect(() => {
     console.log('useEffect triggered');
@@ -371,11 +372,21 @@ export function App() {
       camera.position.set(0, 15, 15);
       const controls = new OrbitControls(camera, renderer.domElement);
 
-      // Tank movement
+      // Tank movement and player state
       const moveSpeed = 0.1;
       const rotateSpeed = 0.02;
       const keys: { [key: string]: boolean } = {};
       const projectiles: { mesh: THREE.Mesh, direction: { x: number, z: number } }[] = [];
+      
+      // Player health system
+      const playerState = {
+        health: 100,
+        maxHealth: 100,
+        isDead: false,
+        lastHitTime: 0,
+        hitCooldown: 500, // 500ms invulnerability after being hit
+        respawnTime: 3000 // 3 seconds to respawn
+      };
 
       const respawnTargets = () => {
         // Remove existing targets
@@ -495,7 +506,7 @@ export function App() {
       const handleKeyDown = (event: KeyboardEvent) => {
         console.log('Key pressed:', event.code);
         keys[event.code] = true;
-        if (event.code === 'Space') {
+        if (event.code === 'Space' && !playerState.isDead) {
           console.log('Space key pressed - attempting to fire');
           createProjectile();
         } else if (event.code === 'KeyR') {
@@ -531,6 +542,11 @@ export function App() {
         }
         
         // No fancy lighting updates needed
+        
+        // Don't allow movement when player is dead
+        if (playerState.isDead) {
+          return;
+        }
 
         // Enemy tank movement and firing behavior
         const currentTime = Date.now();
@@ -631,25 +647,74 @@ export function App() {
           }
 
           // Check for collisions with player tank (only enemy projectiles can hit player)
-          if (mesh.position.distanceTo(tank.position) < 2.5 && mesh.userData.fromPlayer === false) {
-            // Simple explosion effect
-            const impactPos = mesh.position.clone();
-            
-            // Show explosion
-            explosion.position.copy(impactPos);
-            explosion.position.y += 1;
-            explosion.visible = true;
-            
-            setTimeout(() => {
-              explosion.visible = false;
-            }, 300);
-            
-            // Remove projectile
-            scene.remove(mesh);
-            projectiles.splice(i, 1);
-            
-            // No need to remove player, just show hit effect
-            console.log("Player hit!");
+          if (mesh.position.distanceTo(tank.position) < 2.5 && mesh.userData.fromPlayer === false && !playerState.isDead) {
+            // Check if invulnerability has worn off
+            const currentTime = Date.now();
+            if (currentTime - playerState.lastHitTime > playerState.hitCooldown) {
+              // Simple explosion effect
+              const impactPos = mesh.position.clone();
+              
+              // Show explosion
+              explosion.position.copy(impactPos);
+              explosion.position.y += 1;
+              explosion.visible = true;
+              
+              setTimeout(() => {
+                explosion.visible = false;
+              }, 300);
+              
+              // Remove projectile
+              scene.remove(mesh);
+              projectiles.splice(i, 1);
+              
+              // Decrease player health
+              playerState.health -= 20; // Each hit takes 20 health
+              playerState.lastHitTime = currentTime;
+              
+              // Update React state for health display
+              setHealth(playerState.health);
+              
+              console.log("Player hit! Health:", playerState.health);
+              
+              // Check if player is dead
+              if (playerState.health <= 0 && !playerState.isDead) {
+                playerState.isDead = true;
+                playerState.health = 0;
+                
+                // Create large explosion
+                const bigExplosion = explosion.clone();
+                bigExplosion.scale.set(3, 3, 3);
+                bigExplosion.position.copy(tank.position);
+                bigExplosion.position.y += 1;
+                bigExplosion.visible = true;
+                scene.add(bigExplosion);
+                
+                // Hide the tank when dead
+                tank.visible = false;
+                
+                console.log("Player tank destroyed!");
+                
+                // Auto-respawn after delay
+                setTimeout(() => {
+                  // Reset player state
+                  playerState.health = playerState.maxHealth;
+                  playerState.isDead = false;
+                  
+                  // Update React state for health display
+                  setHealth(playerState.maxHealth);
+                  
+                  // Reset tank position
+                  tank.position.set(0, 0, 0);
+                  tank.rotation.y = 0;
+                  tank.visible = true;
+                  
+                  // Remove explosion effect
+                  scene.remove(bigExplosion);
+                  
+                  console.log("Player respawned!");
+                }, playerState.respawnTime);
+              }
+            }
             
             continue;
           }
@@ -747,6 +812,27 @@ export function App() {
         <div>D: Turn Right</div>
         <div>Space: Fire</div>
         <div>R: Respawn Targets</div>
+      </div>
+      
+      {/* Health bar */}
+      <div style={{
+        position: 'absolute',
+        bottom: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '300px',
+        height: '20px',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        borderRadius: '10px',
+        overflow: 'hidden',
+        zIndex: 1000
+      }}>
+        <div style={{
+          width: `${health}%`,
+          height: '100%',
+          backgroundColor: health > 60 ? '#44ff44' : health > 30 ? '#ffff44' : '#ff4444',
+          transition: 'width 0.3s, background-color 0.3s'
+        }} />
       </div>
     </div>
   );
