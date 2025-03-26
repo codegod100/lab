@@ -692,9 +692,13 @@ export function App() {
 
       // Handle window resizing
       const handleResize = () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
+        if (mountRef.current) {
+          const width = window.innerWidth;
+          const height = window.innerHeight;
+          camera.aspect = width / height;
+          camera.updateProjectionMatrix();
+          renderer.setSize(width, height, false);
+        }
       };
 
       window.addEventListener('resize', handleResize);
@@ -724,7 +728,7 @@ export function App() {
   }, []);
 
   return (
-    <div ref={mountRef} style={{ position: 'relative' }}>
+    <div ref={mountRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
       <div style={{
         position: 'absolute',
         top: '10px',
@@ -733,7 +737,8 @@ export function App() {
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         padding: '5px',
         borderRadius: '5px',
-        fontSize: '12px'
+        fontSize: '12px',
+        zIndex: 1000
       }}>
         <div>Controls:</div>
         <div>W: Move Forward</div>
