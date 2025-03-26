@@ -19,25 +19,16 @@ export function App() {
       // Scene, Camera, Renderer
       const scene = new THREE.Scene();
       
-      // Add fog for depth and atmosphere
-      scene.fog = new THREE.FogExp2(0x87CEEB, 0.005); // Reduced blue fog density for better visibility
-      
       const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
       const renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        powerPreference: "high-performance"
+        antialias: true
       });
 
-      // Enable shadows and improve renderer quality
+      // Enable basic shadows
       renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadow edges
       
-      // Note: Using compatible properties for this version of Three.js
-      renderer.toneMapping = THREE.ACESFilmicToneMapping; // Better contrast
-      renderer.toneMappingExposure = 1.3; // Increased exposure for brighter scene
-      
-      // Set clear color to a slightly lighter blue for better ambient lighting
-      renderer.setClearColor(0x87CEEB, 0.8); // Light sky blue with some transparency
+      // Set clear color to a more neutral gray
+      renderer.setClearColor(0x444444, 1.0); // Dark gray
 
       renderer.setSize(window.innerWidth, window.innerHeight);
       mountRef.current.appendChild(renderer.domElement);
@@ -46,55 +37,23 @@ export function App() {
       console.log('Three.js initialized successfully');
       console.log('WebGL renderer:', renderer.getContext().getParameter(renderer.getContext().VERSION));
 
-      // Lighting
-      // Brighter ambient light for better overall illumination
-      const ambientLight = new THREE.AmbientLight(0x808080); // Increased from 0x404040 to 0x808080
-      // scene.add(ambientLight);
+      // Simple lighting setup
+      // Brighter ambient light for better visibility
+      const ambientLight = new THREE.AmbientLight(0xCCCCCC); 
+      scene.add(ambientLight);
 
-      // Enhanced main directional light (sun-like)
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8); // Increased intensity from 0.5 to 0.8
-      directionalLight.position.set(1, 3, 1);
-      directionalLight.castShadow = true; // Enable shadows for depth
+      // Stronger directional light (sun-like)
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+      directionalLight.position.set(1, 5, 2);
+      directionalLight.castShadow = true;
       
-      // Configure shadow properties for better quality
-      directionalLight.shadow.mapSize.width = 2048;
-      directionalLight.shadow.mapSize.height = 2048;
+      // Basic shadow settings
+      directionalLight.shadow.mapSize.width = 1024;
+      directionalLight.shadow.mapSize.height = 1024;
       directionalLight.shadow.camera.near = 0.5;
       directionalLight.shadow.camera.far = 50;
-      directionalLight.shadow.camera.left = -20;
-      directionalLight.shadow.camera.right = 20;
-      directionalLight.shadow.camera.top = 20;
-      directionalLight.shadow.camera.bottom = -20;
-      directionalLight.shadow.bias = -0.0005;
       
-      // scene.add(directionalLight);
-      
-      // Add a secondary directional light from the opposite direction for fill lighting
-      const fillLight = new THREE.DirectionalLight(0xffffcc, 0.4); // Slight yellow tint
-      fillLight.position.set(-1, 2, -1);
-      // scene.add(fillLight);
-      
-      // Add a hemisphere light to simulate sky and ground reflected light
-      const hemisphereLight = new THREE.HemisphereLight(0x87CEEB, 0x8B7355, 0.8); // Sky blue and ground color
-      scene.add(hemisphereLight);
-      
-      // Add a spotlight that follows the player's tank for dramatic effect
-      const spotlight = new THREE.SpotLight(0xffffff, 1.5);
-      spotlight.position.set(0, 15, 0);
-      spotlight.angle = Math.PI / 6; // Narrow beam
-      spotlight.penumbra = 0.3; // Soft edges
-      spotlight.decay = 1.5;
-      spotlight.distance = 30;
-      spotlight.castShadow = true;
-      spotlight.shadow.mapSize.width = 1024;
-      spotlight.shadow.mapSize.height = 1024;
-      // scene.add(spotlight);
-      
-      // Add a subtle point light to simulate light bouncing off the ground
-      const groundLight = new THREE.PointLight(0xffffcc, 0.3);
-      groundLight.position.set(0, 0.2, 0);
-      groundLight.distance = 10;
-      // scene.add(groundLight);
+      scene.add(directionalLight);
 
       // Tank and Arena
       // Create a tank group to hold all tank parts
@@ -191,13 +150,7 @@ export function App() {
       hatch.position.set(0, 0.3, 0.5);
       turret.add(hatch);
 
-      // Add tank markings (star on the side)
-      const starGeometry = new THREE.CircleGeometry(0.3, 5);
-      const starMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      const star = new THREE.Mesh(starGeometry, starMaterial);
-      star.position.set(-1.01, 0.6, -0.5);
-      star.rotation.y = Math.PI / 2;
-      tank.add(star);
+      // No tank markings
 
       // Add the entire tank to the scene
       scene.add(tank);
@@ -208,7 +161,7 @@ export function App() {
       // Base ground
       const arenaGeometry = new THREE.PlaneGeometry(arenaSize, arenaSize, 20, 20);
       const arenaMaterial = new THREE.MeshLambertMaterial({
-        color: 0x8B7355, // Sandy brown color
+        color: 0xA9A9A9, // Medium gray for terrain
         wireframe: false
       });
       const arena = new THREE.Mesh(arenaGeometry, arenaMaterial);
@@ -254,7 +207,7 @@ export function App() {
       // Add some obstacles (rocks and barriers)
       const addRock = (x: number, z: number, scale: number) => {
         const rockGeometry = new THREE.DodecahedronGeometry(1, 0);
-        const rockMaterial = new THREE.MeshLambertMaterial({ color: 0x555555 });
+        const rockMaterial = new THREE.MeshLambertMaterial({ color: 0x888888 });
         const rock = new THREE.Mesh(rockGeometry, rockMaterial);
         rock.position.set(x, scale / 2, z);
         rock.scale.set(scale, scale, scale);
@@ -281,7 +234,7 @@ export function App() {
       // Add some concrete barriers
       const addBarrier = (x: number, z: number, rotation: number) => {
         const barrierGeometry = new THREE.BoxGeometry(0.6, 1, 3);
-        const barrierMaterial = new THREE.MeshLambertMaterial({ color: 0xcccccc });
+        const barrierMaterial = new THREE.MeshLambertMaterial({ color: 0xDDDDDD });
         const barrier = new THREE.Mesh(barrierGeometry, barrierMaterial);
         barrier.position.set(x, 0.5, z);
         barrier.rotation.y = rotation;
@@ -304,8 +257,14 @@ export function App() {
         }
       }
 
-      // Add enemy tanks as targets
-      const targets: THREE.Group[] = [];
+      // Add enemy tanks as targets with movement and firing behavior
+      const targets: { 
+        tank: THREE.Group; 
+        moveDirection: { x: number; z: number }; 
+        speed: number;
+        lastFired: number;
+        fireRate: number;
+      }[] = [];
 
       // Function to create an enemy tank
       const createEnemyTank = () => {
@@ -375,18 +334,41 @@ export function App() {
       // Create enemy tanks
       for (let i = 0; i < 5; i++) {
         const enemyTank = createEnemyTank();
+        // Spawn tanks further away from the player's starting position
+        let x, z;
+        do {
+          x = Math.random() * 40 - 20;
+          z = Math.random() * 40 - 20;
+        } while (Math.sqrt(x*x + z*z) < 15); // Ensure at least 15 units away from center
+        
         enemyTank.position.set(
-          Math.random() * 30 - 15,
+          x,
           0, // Place on the ground
-          Math.random() * 30 - 15
+          z
         );
-        // Random rotation
-        enemyTank.rotation.y = Math.random() * Math.PI * 2;
+        // Random rotation (tank front should face movement direction)
+        const initialAngle = Math.random() * Math.PI * 2;
+        enemyTank.rotation.y = initialAngle + Math.PI;
         scene.add(enemyTank);
-        targets.push(enemyTank);
+        
+        // Add tank with movement and firing properties
+        const angle = Math.random() * Math.PI * 2;
+        targets.push({
+          tank: enemyTank,
+          moveDirection: { 
+            x: Math.sin(angle), 
+            z: Math.cos(angle) 
+          },
+          speed: 0.03 + Math.random() * 0.02, // Random speed
+          lastFired: 0,
+          fireRate: 3000 + Math.random() * 4000, // Random time between shots (3-7 seconds)
+          isAiming: false,
+          aimStartTime: 0,
+          originalDirection: null
+        });
       }
 
-      camera.position.set(0, 10, 10);
+      camera.position.set(0, 15, 15);
       const controls = new OrbitControls(camera, renderer.domElement);
 
       // Tank movement
@@ -397,136 +379,88 @@ export function App() {
 
       const respawnTargets = () => {
         // Remove existing targets
-        targets.forEach(target => scene.remove(target));
+        targets.forEach(target => scene.remove(target.tank));
         targets.length = 0;
 
         // Create new enemy tanks
         for (let i = 0; i < 5; i++) {
           const enemyTank = createEnemyTank();
+          // Spawn tanks further away from the player's starting position
+          let x, z;
+          do {
+            x = Math.random() * 40 - 20;
+            z = Math.random() * 40 - 20;
+          } while (Math.sqrt(x*x + z*z) < 15); // Ensure at least 15 units away from center
+          
           enemyTank.position.set(
-            Math.random() * 30 - 15,
+            x,
             0, // Place on the ground
-            Math.random() * 30 - 15
+            z
           );
-          // Random rotation
-          enemyTank.rotation.y = Math.random() * Math.PI * 2;
+          // Random rotation (tank front should face movement direction)
+          const initialAngle = Math.random() * Math.PI * 2;
+          enemyTank.rotation.y = initialAngle + Math.PI;
           scene.add(enemyTank);
-          targets.push(enemyTank);
+          
+          // Add tank with movement and firing properties
+          const angle = Math.random() * Math.PI * 2;
+          targets.push({
+            tank: enemyTank,
+            moveDirection: { 
+              x: Math.sin(angle), 
+              z: Math.cos(angle) 
+            },
+            speed: 0.03 + Math.random() * 0.02, // Random speed
+            lastFired: 0,
+            fireRate: 3000 + Math.random() * 4000, // Random time between shots (3-7 seconds)
+            isAiming: false,
+            aimStartTime: 0,
+            originalDirection: null
+          });
         }
       };
 
-      // Create enhanced muzzle flash with glow effect
-      const muzzleFlashGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+      // Simple muzzle flash
+      const muzzleFlashGeometry = new THREE.SphereGeometry(0.3, 8, 8);
       const muzzleFlashMaterial = new THREE.MeshBasicMaterial({
-        color: 0xffff00,
-        transparent: true,
-        opacity: 0.8
+        color: 0xffff00
       });
       const muzzleFlash = new THREE.Mesh(muzzleFlashGeometry, muzzleFlashMaterial);
       muzzleFlash.visible = false;
       scene.add(muzzleFlash);
-      
-      // Add a point light for the muzzle flash glow
-      const muzzleLight = new THREE.PointLight(0xffff00, 3, 5);
-      muzzleLight.visible = false;
-      scene.add(muzzleLight);
 
       // Create projectile function
       const createProjectile = () => {
         try {
           console.log('Creating projectile');
           
-          // Debug the tank structure
-          console.log('Tank children count:', tank.children.length);
-          tank.children.forEach((child, index) => {
-            console.log(`Tank child ${index}:`, child.type, child);
-          });
-          
-          // Find the cannon directly in the tank's children
-          let cannon: THREE.Object3D | null = null;
-          let cannonIndex = -1;
-          
-          for (let i = 0; i < tank.children.length; i++) {
-            const child = tank.children[i];
-            if (child.type === 'Mesh' &&
-                (child as THREE.Mesh).geometry.type === 'CylinderGeometry' &&
-                Math.abs((child as THREE.Mesh).position.z + 3.0) < 0.5) { // Check if position matches main cannon
-              console.log(`Found cannon at index ${i}`);
-              cannon = child;
-              cannonIndex = i;
-              break;
-            }
-          }
-          
-          if (!cannon) {
-            console.error('Cannon not found in tank children');
-            
-            // Create a temporary cannon tip position based on the tank's position
-            const cannonTip = new THREE.Vector3();
-            tank.getWorldPosition(cannonTip);
-            cannonTip.z -= 4.0; // Position at the front of the tank
-            
-            // Create projectile at this position
-            const projectileGeometry = new THREE.SphereGeometry(0.2, 16, 16);
-            const projectileMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-            const projectile = new THREE.Mesh(projectileGeometry, projectileMaterial);
-            
-            // Position projectile at approximate cannon tip
-            projectile.position.copy(cannonTip);
-            
-            // Calculate direction based on tank rotation
-            const direction = {
-              x: -Math.sin(tank.rotation.y),
-              z: -Math.cos(tank.rotation.y)
-            };
-            
-            // Show muzzle flash with glow effect
-            muzzleFlash.position.copy(cannonTip);
-            muzzleFlash.visible = true;
-            // Position and show the muzzle light for glow effect
-            muzzleLight.position.copy(cannonTip);
-            muzzleLight.visible = true;
-            setTimeout(() => {
-              muzzleFlash.visible = false;
-              muzzleLight.visible = false;
-            }, 100);
-            
-            scene.add(projectile);
-            projectiles.push({ mesh: projectile, direction });
-            console.log('Projectile created at approximate position');
-            return;
-          }
-          
-          console.log(`Using cannon at index ${cannonIndex}:`, cannon);
-
           // Create projectile
           const projectileGeometry = new THREE.SphereGeometry(0.2, 16, 16);
           const projectileMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
           const projectile = new THREE.Mesh(projectileGeometry, projectileMaterial);
+          
+          // Mark as from player for collision detection
+          projectile.userData.fromPlayer = true;
 
           // Calculate direction based on tank rotation
           const direction = {
             x: -Math.sin(tank.rotation.y),
             z: -Math.cos(tank.rotation.y)
           };
-
-          // Get the world position of the cannon tip at the front of the tank
-          const cannonTip = new THREE.Vector3(0, 0, -1.5); // Half the length of the cannon
-          cannon.localToWorld(cannonTip);
+          
+          // Create projectile at the cannon tip position
+          const cannonTip = new THREE.Vector3(0, 0.4, -4.2); // Position at the end of the cannon/muzzle
+          tank.localToWorld(cannonTip); // Convert to world space
           console.log('Cannon tip position:', cannonTip);
 
           // Position projectile at cannon tip
           projectile.position.copy(cannonTip);
 
-          // Show muzzle flash at cannon tip with glow effect
+          // Show simple muzzle flash
           muzzleFlash.position.copy(cannonTip);
           muzzleFlash.visible = true;
-          // Position and show the muzzle light for glow effect
-          muzzleLight.position.copy(cannonTip);
-          muzzleLight.visible = true;
           setTimeout(() => {
             muzzleFlash.visible = false;
-            muzzleLight.visible = false;
           }, 100);
 
           // Add recoil effect
@@ -546,65 +480,16 @@ export function App() {
         }
       };
 
-      // Mega boom explosion system
-      const particleCount = 1000;
-      const particles = new THREE.BufferGeometry();
-      const particlePositions = new Float32Array(particleCount * 3);
-      const particleSizes = new Float32Array(particleCount);
-      const particleColors = new Float32Array(particleCount * 3);
-
-      for (let i = 0; i < particleCount; i++) {
-        particlePositions[i * 3] = 0;
-        particlePositions[i * 3 + 1] = 0;
-        particlePositions[i * 3 + 2] = 0;
-        particleSizes[i] = Math.random() * 1.5 + 0.5;
-
-        // Fiery colors with more variation
-        const color = new THREE.Color(
-          Math.random() * 0.7 + 0.3,  // R
-          Math.random() * 0.4,        // G
-          Math.random() * 0.1         // B
-        );
-        color.toArray(particleColors, i * 3);
-      }
-
-      particles.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
-      particles.setAttribute('size', new THREE.BufferAttribute(particleSizes, 1));
-      particles.setAttribute('color', new THREE.BufferAttribute(particleColors, 3));
-
-      const particleMaterial = new THREE.PointsMaterial({
-        size: 0.5,
-        vertexColors: true,
-        transparent: true,
-        opacity: 1.0,
-        blending: THREE.AdditiveBlending
-      });
-
-      const particleSystem = new THREE.Points(particles, particleMaterial);
-      particleSystem.visible = false;
-      scene.add(particleSystem);
-
-      // Intense flash light for explosions
-      const flashLight = new THREE.PointLight(0xff5500, 8, 30); // Increased intensity and range
-      flashLight.visible = false;
-      scene.add(flashLight);
-      
-      // Secondary explosion light for more dramatic effect
-      const explosionLight = new THREE.PointLight(0xff8800, 4, 15);
-      explosionLight.visible = false;
-      scene.add(explosionLight);
-
-      // Shockwave sphere
-      const shockwaveGeometry = new THREE.SphereGeometry(1, 16, 16);
-      const shockwaveMaterial = new THREE.MeshBasicMaterial({
+      // Simple explosion sphere
+      const explosionGeometry = new THREE.SphereGeometry(2, 8, 8);
+      const explosionMaterial = new THREE.MeshBasicMaterial({
         color: 0xff8800,
         transparent: true,
-        opacity: 0.7,
-        wireframe: true
+        opacity: 0.7
       });
-      const shockwave = new THREE.Mesh(shockwaveGeometry, shockwaveMaterial);
-      shockwave.visible = false;
-      scene.add(shockwave);
+      const explosion = new THREE.Mesh(explosionGeometry, explosionMaterial);
+      explosion.visible = false;
+      scene.add(explosion);
 
       // Event listeners
       const handleKeyDown = (event: KeyboardEvent) => {
@@ -645,90 +530,148 @@ export function App() {
           tank.rotation.y -= rotateSpeed;
         }
         
-        // Update spotlight position to follow the tank
-        spotlight.position.set(tank.position.x, 15, tank.position.z);
-        spotlight.target = tank;
-        
-        // Update ground light to follow the tank
-        groundLight.position.set(tank.position.x, 0.2, tank.position.z);
+        // No fancy lighting updates needed
 
+        // Enemy tank movement and firing behavior
+        const currentTime = Date.now();
+        for (let i = 0; i < targets.length; i++) {
+          const target = targets[i];
+          const enemyTank = target.tank;
+          
+          // Make tank face direction of movement (rotate 180 degrees so front is forward)
+          enemyTank.rotation.y = Math.atan2(target.moveDirection.x, target.moveDirection.z) + Math.PI;
+          
+          // Move enemy tank in the direction it's facing
+          enemyTank.position.x += target.moveDirection.x * target.speed;
+          enemyTank.position.z += target.moveDirection.z * target.speed;
+          
+          // Boundary check - change direction if hitting edge or about to fall off
+          if (Math.abs(enemyTank.position.x) > arenaSize/2 - 5 || Math.abs(enemyTank.position.z) > arenaSize/2 - 5) {
+            // Bounce off the edge with a new random direction
+            const newAngle = Math.random() * Math.PI * 2;
+            target.moveDirection.x = Math.sin(newAngle);
+            target.moveDirection.z = Math.cos(newAngle);
+          }
+          
+          // Check if it's time to fire
+          if (currentTime - target.lastFired > target.fireRate) {
+            // Calculate distance to player tank
+            const distanceToPlayer = enemyTank.position.distanceTo(tank.position);
+            
+            // Only fire if in range
+            if (distanceToPlayer < 25) {
+              // Calculate direction toward player tank
+              const dirToPlayer = new THREE.Vector3();
+              dirToPlayer.subVectors(tank.position, enemyTank.position).normalize();
+              
+              // Set aiming mode - stop moving and track player
+              if (!target.isAiming) {
+                target.isAiming = true;
+                target.aimStartTime = currentTime;
+                target.originalDirection = { ...target.moveDirection };
+                target.moveDirection = { x: 0, z: 0 }; // Stop moving while aiming
+              }
+              
+              // Turn to face player before firing (rotate 180 degrees so front faces player)
+              enemyTank.rotation.y = Math.atan2(dirToPlayer.x, dirToPlayer.z) + Math.PI;
+              
+              // Only fire after aiming for a moment (gives player time to see it aiming)
+              if (currentTime - target.aimStartTime > 800) { // 800ms aiming delay
+                // Fire projectile toward player
+                const projectileGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+                const projectileMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                const projectile = new THREE.Mesh(projectileGeometry, projectileMaterial);
+                
+                // Mark as from enemy for collision detection
+                projectile.userData.fromPlayer = false;
+                
+                // Position at enemy tank cannon
+                const enemyCannonTip = new THREE.Vector3(0, 0.4, -4.2);
+                enemyTank.localToWorld(enemyCannonTip);
+                projectile.position.copy(enemyCannonTip);
+                
+                // Direction toward player
+                const direction = {
+                  x: dirToPlayer.x,
+                  z: dirToPlayer.z
+                };
+                
+                scene.add(projectile);
+                projectiles.push({ mesh: projectile, direction });
+                
+                // Update last fired time
+                target.lastFired = currentTime;
+                
+                // Reset to movement mode
+                target.isAiming = false;
+                target.moveDirection = target.originalDirection;
+              }
+            } else if (target.isAiming) {
+              // If no longer in range but was aiming, reset to movement mode
+              target.isAiming = false;
+              target.moveDirection = target.originalDirection || { 
+                x: Math.sin(Math.random() * Math.PI * 2),
+                z: Math.cos(Math.random() * Math.PI * 2)
+              };
+            }
+          }
+        }
+        
         // Projectile movement and collision detection
         for (let i = projectiles.length - 1; i >= 0; i--) {
           const { mesh, direction } = projectiles[i];
           mesh.position.x += direction.x * 0.5;
           mesh.position.z += direction.z * 0.5;
+          
+          // Remove projectiles that go too far
+          if (Math.abs(mesh.position.x) > arenaSize/2 || Math.abs(mesh.position.z) > arenaSize/2) {
+            scene.remove(mesh);
+            projectiles.splice(i, 1);
+            continue;
+          }
+
+          // Check for collisions with player tank (only enemy projectiles can hit player)
+          if (mesh.position.distanceTo(tank.position) < 2.5 && mesh.userData.fromPlayer === false) {
+            // Simple explosion effect
+            const impactPos = mesh.position.clone();
+            
+            // Show explosion
+            explosion.position.copy(impactPos);
+            explosion.position.y += 1;
+            explosion.visible = true;
+            
+            setTimeout(() => {
+              explosion.visible = false;
+            }, 300);
+            
+            // Remove projectile
+            scene.remove(mesh);
+            projectiles.splice(i, 1);
+            
+            // No need to remove player, just show hit effect
+            console.log("Player hit!");
+            
+            continue;
+          }
 
           // Check for collisions with enemy tanks
           for (let j = targets.length - 1; j >= 0; j--) {
-            const enemyTank = targets[j];
+            const enemyTank = targets[j].tank;
             // Use a more accurate collision detection for the tank
             // Check distance to the center of the enemy tank with a slightly larger radius
-            if (mesh.position.distanceTo(enemyTank.position) < 2.5) {
-              // Mega boom explosion effect
+            if (mesh.position.distanceTo(enemyTank.position) < 2.5 && mesh.userData.fromPlayer === true) {
+              // Simple explosion effect
               const impactPos = enemyTank.position.clone();
-
-              // Position all effects at impact point
-              particleSystem.position.copy(impactPos);
-              shockwave.position.copy(impactPos);
-              shockwave.scale.set(0.1, 0.1, 0.1);
-
-              // Animate particles outward with more force
-              const positions = particles.attributes.position.array as Float32Array;
-              for (let k = 0; k < particleCount; k++) {
-                const angle = Math.random() * Math.PI * 2;
-                const speed = Math.random() * 0.5 + 0.3; // Faster particles
-                positions[k * 3] = Math.cos(angle) * speed;
-                positions[k * 3 + 1] = Math.random() * 0.5 - 0.1; // More upward spread
-                positions[k * 3 + 2] = Math.sin(angle) * speed;
-              }
-              particles.attributes.position.needsUpdate = true;
-              particleSystem.visible = true;
-
-              // Show shockwave
-              shockwave.visible = true;
-              const shockwaveStartTime = Date.now();
-              const shockwaveInterval = setInterval(() => {
-                const elapsed = Date.now() - shockwaveStartTime;
-                const progress = elapsed / 300; // 300ms duration
-                if (progress >= 1) {
-                  clearInterval(shockwaveInterval);
-                  shockwave.visible = false;
-                } else {
-                  shockwave.scale.set(progress * 10, progress * 10, progress * 10);
-                  shockwaveMaterial.opacity = 0.7 * (1 - progress);
-                }
-              }, 16);
-
-              // Intense flash with dual lights for more dramatic effect
-              flashLight.position.copy(impactPos);
-              flashLight.position.y += 1; // Position slightly above the ground
-              flashLight.visible = true;
               
-              // Position secondary explosion light slightly offset for more dynamic lighting
-              explosionLight.position.copy(impactPos);
-              explosionLight.position.y += 0.5;
-              explosionLight.visible = true;
+              // Show basic explosion sphere
+              explosion.position.copy(impactPos);
+              explosion.position.y += 1; // Position slightly above the ground
+              explosion.visible = true;
               
-              // Fade out lights with different timings
+              // Hide explosion after a short delay
               setTimeout(() => {
-                flashLight.visible = false;
-              }, 150);
-              
-              setTimeout(() => {
-                explosionLight.visible = false;
+                explosion.visible = false;
               }, 300);
-
-              // Camera shake
-              const originalCamPos = camera.position.clone();
-              const shakeIntensity = 0.5;
-              const shakeInterval = setInterval(() => {
-                camera.position.x = originalCamPos.x + (Math.random() - 0.5) * shakeIntensity;
-                camera.position.y = originalCamPos.y + (Math.random() - 0.5) * shakeIntensity;
-              }, 50);
-              setTimeout(() => {
-                clearInterval(shakeInterval);
-                camera.position.copy(originalCamPos);
-              }, 200);
 
               // Remove enemy tank and projectile
               scene.remove(enemyTank);
@@ -736,10 +679,6 @@ export function App() {
               scene.remove(mesh);
               projectiles.splice(i, 1);
 
-              // Hide particles after delay
-              setTimeout(() => {
-                particleSystem.visible = false;
-              }, 500);
               break;
             }
           }
