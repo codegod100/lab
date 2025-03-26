@@ -18,11 +18,26 @@ export function App() {
 
       // Scene, Camera, Renderer
       const scene = new THREE.Scene();
+      
+      // Add fog for depth and atmosphere
+      scene.fog = new THREE.FogExp2(0x87CEEB, 0.005); // Reduced blue fog density for better visibility
+      
       const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
       const renderer = new THREE.WebGLRenderer({
         antialias: true,
         powerPreference: "high-performance"
       });
+
+      // Enable shadows and improve renderer quality
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadow edges
+      
+      // Note: Using compatible properties for this version of Three.js
+      renderer.toneMapping = THREE.ACESFilmicToneMapping; // Better contrast
+      renderer.toneMappingExposure = 1.3; // Increased exposure for brighter scene
+      
+      // Set clear color to a slightly lighter blue for better ambient lighting
+      renderer.setClearColor(0x87CEEB, 0.8); // Light sky blue with some transparency
 
       renderer.setSize(window.innerWidth, window.innerHeight);
       mountRef.current.appendChild(renderer.domElement);
@@ -32,36 +47,81 @@ export function App() {
       console.log('WebGL renderer:', renderer.getContext().getParameter(renderer.getContext().VERSION));
 
       // Lighting
-      const ambientLight = new THREE.AmbientLight(0x404040);
-      scene.add(ambientLight);
+      // Brighter ambient light for better overall illumination
+      const ambientLight = new THREE.AmbientLight(0x808080); // Increased from 0x404040 to 0x808080
+      // scene.add(ambientLight);
 
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-      directionalLight.position.set(1, 1, 1);
-      scene.add(directionalLight);
+      // Enhanced main directional light (sun-like)
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8); // Increased intensity from 0.5 to 0.8
+      directionalLight.position.set(1, 3, 1);
+      directionalLight.castShadow = true; // Enable shadows for depth
+      
+      // Configure shadow properties for better quality
+      directionalLight.shadow.mapSize.width = 2048;
+      directionalLight.shadow.mapSize.height = 2048;
+      directionalLight.shadow.camera.near = 0.5;
+      directionalLight.shadow.camera.far = 50;
+      directionalLight.shadow.camera.left = -20;
+      directionalLight.shadow.camera.right = 20;
+      directionalLight.shadow.camera.top = 20;
+      directionalLight.shadow.camera.bottom = -20;
+      directionalLight.shadow.bias = -0.0005;
+      
+      // scene.add(directionalLight);
+      
+      // Add a secondary directional light from the opposite direction for fill lighting
+      const fillLight = new THREE.DirectionalLight(0xffffcc, 0.4); // Slight yellow tint
+      fillLight.position.set(-1, 2, -1);
+      // scene.add(fillLight);
+      
+      // Add a hemisphere light to simulate sky and ground reflected light
+      const hemisphereLight = new THREE.HemisphereLight(0x87CEEB, 0x8B7355, 0.8); // Sky blue and ground color
+      scene.add(hemisphereLight);
+      
+      // Add a spotlight that follows the player's tank for dramatic effect
+      const spotlight = new THREE.SpotLight(0xffffff, 1.5);
+      spotlight.position.set(0, 15, 0);
+      spotlight.angle = Math.PI / 6; // Narrow beam
+      spotlight.penumbra = 0.3; // Soft edges
+      spotlight.decay = 1.5;
+      spotlight.distance = 30;
+      spotlight.castShadow = true;
+      spotlight.shadow.mapSize.width = 1024;
+      spotlight.shadow.mapSize.height = 1024;
+      // scene.add(spotlight);
+      
+      // Add a subtle point light to simulate light bouncing off the ground
+      const groundLight = new THREE.PointLight(0xffffcc, 0.3);
+      groundLight.position.set(0, 0.2, 0);
+      groundLight.distance = 10;
+      // scene.add(groundLight);
 
       // Tank and Arena
       // Create a tank group to hold all tank parts
       const tank = new THREE.Group();
 
-      // Tank body (hull)
-      const tankBodyGeometry = new THREE.BoxGeometry(2, 0.8, 3);
+      // Tank body (hull) - lower profile
+      const tankBodyGeometry = new THREE.BoxGeometry(2, 0.6, 3);
       const tankBodyMaterial = new THREE.MeshLambertMaterial({ color: 0x4d5d53 }); // Olive drab (military green)
       const tankBody = new THREE.Mesh(tankBodyGeometry, tankBodyMaterial);
-      tankBody.position.y = 0.4; // Half of its height
+      tankBody.position.y = 0.3; // Half of its height
+      tankBody.castShadow = true; // Cast shadows
       tank.add(tankBody);
-
-      // Add armor plates to the front of the tank (angled)
-      const frontArmorGeometry = new THREE.BoxGeometry(1.8, 0.6, 0.3);
-      const frontArmor = new THREE.Mesh(frontArmorGeometry, tankBodyMaterial);
-      frontArmor.position.set(0, 0.5, -1.5);
-      frontArmor.rotation.x = Math.PI / 6; // Angle slightly
-      tank.add(frontArmor);
+      
+      // Main gun housing that extends from the front of the tank
+      const gunHousingGeometry = new THREE.BoxGeometry(0.8, 0.4, 1.2);
+      const gunHousingMaterial = new THREE.MeshLambertMaterial({ color: 0x3d4d43 }); // Darker green
+      const gunHousing = new THREE.Mesh(gunHousingGeometry, gunHousingMaterial);
+      gunHousing.position.set(0, 0.4, -1.8); // Position at the front of the tank
+      gunHousing.castShadow = true;
+      tank.add(gunHousing);
 
       // Tank tracks (left)
       const trackLeftGeometry = new THREE.BoxGeometry(0.4, 0.5, 3.2);
       const trackMaterial = new THREE.MeshLambertMaterial({ color: 0x222222 }); // Dark gray/black
       const trackLeft = new THREE.Mesh(trackLeftGeometry, trackMaterial);
       trackLeft.position.set(-0.9, 0.25, 0);
+      trackLeft.castShadow = true; // Cast shadows
       tank.add(trackLeft);
 
       // Track wheels (left)
@@ -70,6 +130,7 @@ export function App() {
         const wheel = new THREE.Mesh(wheelGeometry, trackMaterial);
         wheel.rotation.z = Math.PI / 2;
         wheel.position.set(-0.9, 0.2, i * 1.0);
+        wheel.castShadow = true; // Cast shadows
         tank.add(wheel);
       }
 
@@ -77,6 +138,7 @@ export function App() {
       const trackRightGeometry = new THREE.BoxGeometry(0.4, 0.5, 3.2);
       const trackRight = new THREE.Mesh(trackRightGeometry, trackMaterial);
       trackRight.position.set(0.9, 0.25, 0);
+      trackRight.castShadow = true; // Cast shadows
       tank.add(trackRight);
 
       // Track wheels (right)
@@ -85,31 +147,35 @@ export function App() {
         const wheel = new THREE.Mesh(wheelGeometry, trackMaterial);
         wheel.rotation.z = Math.PI / 2;
         wheel.position.set(0.9, 0.2, i * 1.0);
+        wheel.castShadow = true; // Cast shadows
         tank.add(wheel);
       }
 
-      // Tank turret (rotating part)
-      const turretGeometry = new THREE.CylinderGeometry(0.8, 0.9, 0.5, 16);
-      const turretMaterial = new THREE.MeshLambertMaterial({ color: 0x3d4d43 }); // Darker green for turret
-      const turret = new THREE.Mesh(turretGeometry, turretMaterial);
-      turret.position.set(0, 1.05, 0); // Position on top of the body
-      turret.rotation.x = Math.PI / 2; // Rotate to lie flat
-      tank.add(turret);
-
-      // Tank cannon
-      const cannonGeometry = new THREE.CylinderGeometry(0.2, 0.2, 2, 16);
+      // Main cannon - positioned horizontally at the front of the tank
+      const cannonGeometry = new THREE.CylinderGeometry(0.15, 0.15, 2.5, 16);
       const cannonMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
       const cannon = new THREE.Mesh(cannonGeometry, cannonMaterial);
-      cannon.position.set(0, 0, -1.5); // Position extending from the turret
-      cannon.rotation.x = Math.PI / 2; // Align with turret
-      turret.add(cannon); // Add to turret so it rotates with it
-
+      cannon.position.set(0, 0.4, -3.0); // Position extending from the front of the tank
+      cannon.rotation.x = Math.PI / 2; // Rotate to point forward (parallel to ground)
+      cannon.castShadow = true;
+      tank.add(cannon);
+      
       // Add a muzzle brake to the cannon
-      const muzzleBrakeGeometry = new THREE.CylinderGeometry(0.25, 0.25, 0.3, 8);
+      const muzzleBrakeGeometry = new THREE.CylinderGeometry(0.2, 0.2, 0.3, 8);
       const muzzleBrake = new THREE.Mesh(muzzleBrakeGeometry, cannonMaterial);
-      muzzleBrake.position.set(0, 0, -2.1);
-      muzzleBrake.rotation.x = Math.PI / 2;
-      turret.add(muzzleBrake);
+      muzzleBrake.position.set(0, 0.4, -4.2); // Position at the end of the cannon
+      muzzleBrake.rotation.x = Math.PI / 2; // Match cannon rotation
+      muzzleBrake.castShadow = true;
+      tank.add(muzzleBrake);
+      
+      // Small turret on top (smaller than before)
+      const turretGeometry = new THREE.CylinderGeometry(0.6, 0.6, 0.3, 16);
+      const turretMaterial = new THREE.MeshLambertMaterial({ color: 0x3d4d43 }); // Darker green for turret
+      const turret = new THREE.Mesh(turretGeometry, turretMaterial);
+      turret.position.set(0, 0.75, 0.5); // Position on top of the body, toward the back
+      turret.rotation.x = Math.PI / 2; // Rotate to lie flat
+      turret.castShadow = true; // Cast shadows
+      tank.add(turret);
 
       // Add a machine gun on top of the turret
       const mgGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.8, 8);
@@ -147,6 +213,7 @@ export function App() {
       });
       const arena = new THREE.Mesh(arenaGeometry, arenaMaterial);
       arena.rotation.x = -Math.PI / 2;
+      arena.receiveShadow = true; // Make the ground receive shadows
       scene.add(arena);
 
       // Add some terrain variation (hills and craters)
@@ -196,6 +263,8 @@ export function App() {
           Math.random() * Math.PI,
           Math.random() * Math.PI
         );
+        rock.castShadow = true; // Cast shadows
+        rock.receiveShadow = true; // Also receive shadows from other rocks
         scene.add(rock);
       };
 
@@ -216,6 +285,8 @@ export function App() {
         const barrier = new THREE.Mesh(barrierGeometry, barrierMaterial);
         barrier.position.set(x, 0.5, z);
         barrier.rotation.y = rotation;
+        barrier.castShadow = true; // Cast shadows
+        barrier.receiveShadow = true; // Also receive shadows
         scene.add(barrier);
       };
 
@@ -241,41 +312,62 @@ export function App() {
         // Create a tank group to hold all tank parts
         const enemyTank = new THREE.Group();
 
-        // Tank body (hull)
-        const tankBodyGeometry = new THREE.BoxGeometry(2, 0.8, 3);
+        // Tank body (hull) - lower profile
+        const tankBodyGeometry = new THREE.BoxGeometry(2, 0.6, 3);
         const tankBodyMaterial = new THREE.MeshLambertMaterial({ color: 0x8B0000 }); // Dark red
         const tankBody = new THREE.Mesh(tankBodyGeometry, tankBodyMaterial);
-        tankBody.position.y = 0.4; // Half of its height
+        tankBody.position.y = 0.3; // Half of its height
+        tankBody.castShadow = true; // Cast shadows
         enemyTank.add(tankBody);
+        
+        // Main gun housing that extends from the front of the tank
+        const gunHousingGeometry = new THREE.BoxGeometry(0.8, 0.4, 1.2);
+        const gunHousingMaterial = new THREE.MeshLambertMaterial({ color: 0x990000 }); // Darker red
+        const gunHousing = new THREE.Mesh(gunHousingGeometry, gunHousingMaterial);
+        gunHousing.position.set(0, 0.4, -1.8); // Position at the front of the tank
+        gunHousing.castShadow = true;
+        enemyTank.add(gunHousing);
 
         // Tank tracks (left)
         const trackLeftGeometry = new THREE.BoxGeometry(0.4, 0.5, 3.2);
         const trackMaterial = new THREE.MeshLambertMaterial({ color: 0x222222 }); // Dark gray/black
         const trackLeft = new THREE.Mesh(trackLeftGeometry, trackMaterial);
         trackLeft.position.set(-0.9, 0.25, 0);
+        trackLeft.castShadow = true; // Cast shadows
         enemyTank.add(trackLeft);
 
         // Tank tracks (right)
         const trackRightGeometry = new THREE.BoxGeometry(0.4, 0.5, 3.2);
         const trackRight = new THREE.Mesh(trackRightGeometry, trackMaterial);
         trackRight.position.set(0.9, 0.25, 0);
+        trackRight.castShadow = true; // Cast shadows
         enemyTank.add(trackRight);
 
-        // Tank turret (rotating part)
-        const turretGeometry = new THREE.CylinderGeometry(0.8, 0.8, 0.5, 16);
-        const turretMaterial = new THREE.MeshLambertMaterial({ color: 0x990000 }); // Slightly lighter red
-        const turret = new THREE.Mesh(turretGeometry, turretMaterial);
-        turret.position.set(0, 1.05, 0); // Position on top of the body
-        turret.rotation.x = Math.PI / 2; // Rotate to lie flat
-        enemyTank.add(turret);
-
-        // Tank cannon
-        const cannonGeometry = new THREE.CylinderGeometry(0.2, 0.2, 2, 16);
+        // Main cannon - positioned horizontally at the front of the tank
+        const cannonGeometry = new THREE.CylinderGeometry(0.15, 0.15, 2.5, 16);
         const cannonMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
         const cannon = new THREE.Mesh(cannonGeometry, cannonMaterial);
-        cannon.position.set(0, 0, -1.5); // Position extending from the turret
-        cannon.rotation.x = Math.PI / 2; // Align with turret
-        turret.add(cannon); // Add to turret so it rotates with it
+        cannon.position.set(0, 0.4, -3.0); // Position extending from the front of the tank
+        cannon.rotation.x = Math.PI / 2; // Rotate to point forward (parallel to ground)
+        cannon.castShadow = true;
+        enemyTank.add(cannon);
+        
+        // Add a muzzle brake to the cannon
+        const muzzleBrakeGeometry = new THREE.CylinderGeometry(0.2, 0.2, 0.3, 8);
+        const muzzleBrake = new THREE.Mesh(muzzleBrakeGeometry, cannonMaterial);
+        muzzleBrake.position.set(0, 0.4, -4.2); // Position at the end of the cannon
+        muzzleBrake.rotation.z = Math.PI / 2;
+        muzzleBrake.castShadow = true;
+        enemyTank.add(muzzleBrake);
+        
+        // Small turret on top (smaller than before)
+        const turretGeometry = new THREE.CylinderGeometry(0.6, 0.6, 0.3, 16);
+        const turretMaterial = new THREE.MeshLambertMaterial({ color: 0x990000 }); // Slightly lighter red
+        const turret = new THREE.Mesh(turretGeometry, turretMaterial);
+        turret.position.set(0, 0.75, 0.5); // Position on top of the body, toward the back
+        turret.rotation.x = Math.PI / 2; // Rotate to lie flat
+        turret.castShadow = true; // Cast shadows
+        enemyTank.add(turret);
 
         return enemyTank;
       };
@@ -323,7 +415,7 @@ export function App() {
         }
       };
 
-      // Create muzzle flash
+      // Create enhanced muzzle flash with glow effect
       const muzzleFlashGeometry = new THREE.SphereGeometry(0.3, 16, 16);
       const muzzleFlashMaterial = new THREE.MeshBasicMaterial({
         color: 0xffff00,
@@ -333,47 +425,125 @@ export function App() {
       const muzzleFlash = new THREE.Mesh(muzzleFlashGeometry, muzzleFlashMaterial);
       muzzleFlash.visible = false;
       scene.add(muzzleFlash);
+      
+      // Add a point light for the muzzle flash glow
+      const muzzleLight = new THREE.PointLight(0xffff00, 3, 5);
+      muzzleLight.visible = false;
+      scene.add(muzzleLight);
 
       // Create projectile function
       const createProjectile = () => {
-        // Get the turret and cannon from the tank
-        const turret = tank.children[3] as THREE.Mesh;
-        const cannon = turret.children[0] as THREE.Mesh;
+        try {
+          console.log('Creating projectile');
+          
+          // Debug the tank structure
+          console.log('Tank children count:', tank.children.length);
+          tank.children.forEach((child, index) => {
+            console.log(`Tank child ${index}:`, child.type, child);
+          });
+          
+          // Find the cannon directly in the tank's children
+          let cannon: THREE.Object3D | null = null;
+          let cannonIndex = -1;
+          
+          for (let i = 0; i < tank.children.length; i++) {
+            const child = tank.children[i];
+            if (child.type === 'Mesh' &&
+                (child as THREE.Mesh).geometry.type === 'CylinderGeometry' &&
+                Math.abs((child as THREE.Mesh).position.z + 3.0) < 0.5) { // Check if position matches main cannon
+              console.log(`Found cannon at index ${i}`);
+              cannon = child;
+              cannonIndex = i;
+              break;
+            }
+          }
+          
+          if (!cannon) {
+            console.error('Cannon not found in tank children');
+            
+            // Create a temporary cannon tip position based on the tank's position
+            const cannonTip = new THREE.Vector3();
+            tank.getWorldPosition(cannonTip);
+            cannonTip.z -= 4.0; // Position at the front of the tank
+            
+            // Create projectile at this position
+            const projectileGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+            const projectileMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const projectile = new THREE.Mesh(projectileGeometry, projectileMaterial);
+            
+            // Position projectile at approximate cannon tip
+            projectile.position.copy(cannonTip);
+            
+            // Calculate direction based on tank rotation
+            const direction = {
+              x: -Math.sin(tank.rotation.y),
+              z: -Math.cos(tank.rotation.y)
+            };
+            
+            // Show muzzle flash with glow effect
+            muzzleFlash.position.copy(cannonTip);
+            muzzleFlash.visible = true;
+            // Position and show the muzzle light for glow effect
+            muzzleLight.position.copy(cannonTip);
+            muzzleLight.visible = true;
+            setTimeout(() => {
+              muzzleFlash.visible = false;
+              muzzleLight.visible = false;
+            }, 100);
+            
+            scene.add(projectile);
+            projectiles.push({ mesh: projectile, direction });
+            console.log('Projectile created at approximate position');
+            return;
+          }
+          
+          console.log(`Using cannon at index ${cannonIndex}:`, cannon);
 
-        // Create projectile
-        const projectileGeometry = new THREE.SphereGeometry(0.2, 16, 16);
-        const projectileMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-        const projectile = new THREE.Mesh(projectileGeometry, projectileMaterial);
+          // Create projectile
+          const projectileGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+          const projectileMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+          const projectile = new THREE.Mesh(projectileGeometry, projectileMaterial);
 
-        // Calculate direction based on tank rotation
-        const direction = {
-          x: -Math.sin(tank.rotation.y),
-          z: -Math.cos(tank.rotation.y)
-        };
+          // Calculate direction based on tank rotation
+          const direction = {
+            x: -Math.sin(tank.rotation.y),
+            z: -Math.cos(tank.rotation.y)
+          };
 
-        // Get the world position of the cannon tip
-        const cannonTip = new THREE.Vector3(0, 0, -2);
-        cannon.localToWorld(cannonTip);
+          // Get the world position of the cannon tip at the front of the tank
+          const cannonTip = new THREE.Vector3(0, 0, -1.5); // Half the length of the cannon
+          cannon.localToWorld(cannonTip);
+          console.log('Cannon tip position:', cannonTip);
 
-        // Position projectile at cannon tip
-        projectile.position.copy(cannonTip);
+          // Position projectile at cannon tip
+          projectile.position.copy(cannonTip);
 
-        // Show muzzle flash at cannon tip
-        muzzleFlash.position.copy(cannonTip);
-        muzzleFlash.visible = true;
-        setTimeout(() => {
-          muzzleFlash.visible = false;
-        }, 100);
+          // Show muzzle flash at cannon tip with glow effect
+          muzzleFlash.position.copy(cannonTip);
+          muzzleFlash.visible = true;
+          // Position and show the muzzle light for glow effect
+          muzzleLight.position.copy(cannonTip);
+          muzzleLight.visible = true;
+          setTimeout(() => {
+            muzzleFlash.visible = false;
+            muzzleLight.visible = false;
+          }, 100);
 
-        // Add recoil effect
-        const originalCannonPos = cannon.position.z;
-        cannon.position.z += 0.2; // Move cannon back
-        setTimeout(() => {
-          cannon.position.z = originalCannonPos; // Return to original position
-        }, 100);
+          // Add recoil effect
+          if (cannon.position && cannon.position.z !== undefined) {
+            const originalCannonPos = cannon.position.z;
+            cannon.position.z += 0.2; // Move cannon back
+            setTimeout(() => {
+              cannon.position.z = originalCannonPos; // Return to original position
+            }, 100);
+          }
 
-        scene.add(projectile);
-        projectiles.push({ mesh: projectile, direction });
+          scene.add(projectile);
+          projectiles.push({ mesh: projectile, direction });
+          console.log('Projectile created and added to scene');
+        } catch (error) {
+          console.error('Error creating projectile:', error);
+        }
       };
 
       // Mega boom explosion system
@@ -414,10 +584,15 @@ export function App() {
       particleSystem.visible = false;
       scene.add(particleSystem);
 
-      // Intense flash light
-      const flashLight = new THREE.PointLight(0xff5500, 5, 20);
+      // Intense flash light for explosions
+      const flashLight = new THREE.PointLight(0xff5500, 8, 30); // Increased intensity and range
       flashLight.visible = false;
       scene.add(flashLight);
+      
+      // Secondary explosion light for more dramatic effect
+      const explosionLight = new THREE.PointLight(0xff8800, 4, 15);
+      explosionLight.visible = false;
+      scene.add(explosionLight);
 
       // Shockwave sphere
       const shockwaveGeometry = new THREE.SphereGeometry(1, 16, 16);
@@ -433,10 +608,13 @@ export function App() {
 
       // Event listeners
       const handleKeyDown = (event: KeyboardEvent) => {
+        console.log('Key pressed:', event.code);
         keys[event.code] = true;
         if (event.code === 'Space') {
+          console.log('Space key pressed - attempting to fire');
           createProjectile();
         } else if (event.code === 'KeyR') {
+          console.log('R key pressed - respawning targets');
           respawnTargets();
         }
       };
@@ -466,6 +644,13 @@ export function App() {
         if (keys['KeyD']) {
           tank.rotation.y -= rotateSpeed;
         }
+        
+        // Update spotlight position to follow the tank
+        spotlight.position.set(tank.position.x, 15, tank.position.z);
+        spotlight.target = tank;
+        
+        // Update ground light to follow the tank
+        groundLight.position.set(tank.position.x, 0.2, tank.position.z);
 
         // Projectile movement and collision detection
         for (let i = projectiles.length - 1; i >= 0; i--) {
@@ -514,12 +699,24 @@ export function App() {
                 }
               }, 16);
 
-              // Intense flash
+              // Intense flash with dual lights for more dramatic effect
               flashLight.position.copy(impactPos);
+              flashLight.position.y += 1; // Position slightly above the ground
               flashLight.visible = true;
+              
+              // Position secondary explosion light slightly offset for more dynamic lighting
+              explosionLight.position.copy(impactPos);
+              explosionLight.position.y += 0.5;
+              explosionLight.visible = true;
+              
+              // Fade out lights with different timings
               setTimeout(() => {
                 flashLight.visible = false;
-              }, 100);
+              }, 150);
+              
+              setTimeout(() => {
+                explosionLight.visible = false;
+              }, 300);
 
               // Camera shake
               const originalCamPos = camera.position.clone();
