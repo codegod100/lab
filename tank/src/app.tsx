@@ -385,7 +385,7 @@ export function App() {
         isDead: false,
         lastHitTime: 0,
         hitCooldown: 500, // 500ms invulnerability after being hit
-        respawnTime: 3000 // 3 seconds to respawn
+        respawnTime: 0 // Immediate respawn
       };
 
       const respawnTargets = () => {
