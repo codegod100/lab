@@ -81,11 +81,18 @@ h1 {
 }
 
 .upgrades {
-    display: grid; /* Use grid for columns */
-    grid-template-columns: repeat(2, 1fr); /* Create two equal columns */
+    display: flex;
+    flex-wrap: wrap;
     gap: 1rem;
-    justify-items: center; /* Center items within their grid cell */
+    justify-content: center;
     margin-top: 0.75rem;
+}
+
+.upgrades > * {
+    flex: 1 1 calc(50% - 0.5rem); /* Two items per row with gap accounted for */
+    min-width: 0; /* Prevent flex items from overflowing */
+    display: flex; /* Make internal divs side by side */
+    gap: 0.5rem;
 }
 
 .upgrade-item {
@@ -145,16 +152,13 @@ button:disabled {
 
     .pizza-container {
         grid-area: pizza;
-        align-self: center;
+        align-self: start; /* Changed from center to start */
         justify-self: center;
         width: 300px;
         height: 300px;
     }
 
-    .upgrades {
-        grid-area: upgrades;
-        align-self: start;
-    }
+
 }
 
 @media (max-width: 480px) {
