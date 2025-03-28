@@ -1,0 +1,11 @@
+Model Information:
+* title:	Airspeeder
+* source:	https://sketchfab.com/3d-models/airspeeder-b9750cb9f120484a9c0bd9e85e0af6e6
+* author:	dylanheyes (https://sketchfab.com/dylanheyes)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Airspeeder" (https://sketchfab.com/3d-models/airspeeder-b9750cb9f120484a9c0bd9e85e0af6e6) by dylanheyes (https://sketchfab.com/dylanheyes) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
