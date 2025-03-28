@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // Scene setup
@@ -16,14 +17,58 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// Ground plane
+// Mouse controls
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.screenSpacePanning = false;
+controls.maxPolarAngle = Math.PI * 0.9;
+controls.minDistance = 15;
+controls.maxDistance = 50;
+
+// Save/Load camera state
+let savedCameraState = null;
+
+function toggleCameraControl() {
+    controls.enabled = !controls.enabled;
+    if (controls.enabled && savedCameraState) {
+        camera.position.copy(savedCameraState.position);
+        controls.target.copy(savedCameraState.target);
+    } else {
+        savedCameraState = {
+            position: camera.position.clone(),
+            target: controls.target.clone()
+        };
+    }
+}
+
+// Toggle with 'C' key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'c' || e.key === 'C') {
+        toggleCameraControl();
+    }
+});
+
+// Ground plane with boundary markers
 const groundGeometry = new THREE.PlaneGeometry(100, 100);
 const groundMaterial = new THREE.MeshStandardMaterial({
-    color: 0x222222, // Dark grey
+    color: 0x222222,
     metalness: 0.6,
     roughness: 0.4,
     side: THREE.DoubleSide
 });
+
+// Add boundary edges
+const edges = new THREE.EdgesGeometry(groundGeometry);
+const lineMaterial = new THREE.LineBasicMaterial({
+    color: 0x00ffff,
+    transparent: true,
+    opacity: 0.5
+});
+const boundary = new THREE.LineSegments(edges, lineMaterial);
+boundary.rotation.x = -Math.PI / 2;
+boundary.position.y = -0.95;
+scene.add(boundary);
 const ground = new THREE.Mesh(groundGeometry, groundMaterial);
 ground.rotation.x = -Math.PI / 2; // Rotate to be horizontal
 ground.position.y = -1; // Position slightly below the origin
@@ -198,58 +243,33 @@ for (let i = 0; i < 20; i++) {
 }
 
 
-// Airplane Model (Group of Meshes)
-const airplaneGroup = new THREE.Group();
-const fuselageGeometry = new THREE.BoxGeometry(0.6, 0.5, 3);
-const wingGeometry = new THREE.BoxGeometry(3, 0.1, 0.8);
-const tailFinGeometry = new THREE.BoxGeometry(0.1, 0.8, 0.5);
-const tailWingGeometry = new THREE.BoxGeometry(1, 0.1, 0.4);
-const planeBodyMaterial = new THREE.MeshStandardMaterial({
-    color: 0x444455, // Dark blue-grey
-    metalness: 0.8,
-    roughness: 0.3
+// Load TRON Commander-ship Model
+const aircraftPath = './models/tron_ship_extracted/scene.gltf';
+let aircraftModel = null;
+
+gltfLoader.load(aircraftPath, (gltf) => {
+    aircraftModel = gltf.scene;
+    
+    // Scale the model appropriately
+    const box = new THREE.Box3().setFromObject(aircraftModel);
+    const size = box.getSize(new THREE.Vector3());
+    const scale = 0.3; // Smaller scale for this model
+    aircraftModel.scale.set(scale, scale, scale);
+    
+    // Position the model slightly above ground
+    aircraftModel.position.set(0, 2, 0); // Higher starting position
+    
+    // Add to scene
+    scene.add(aircraftModel);
+    
+    // Third-person camera setup
+    camera.position.set(0, 3, 10); // Position behind and above aircraft
+    camera.lookAt(0, 0, 0);
+    
+    // Don't parent camera to aircraft - we'll update position manually
+}, undefined, (error) => {
+    console.error('Error loading airspeeder:', error);
 });
-const planeEmissiveMaterial = new THREE.MeshStandardMaterial({
-    color: 0x00ffff, // Cyan
-    emissive: 0x00ffff,
-    emissiveIntensity: 1.5
-});
-
-// Fuselage
-const fuselage = new THREE.Mesh(fuselageGeometry, planeBodyMaterial);
-airplaneGroup.add(fuselage);
-
-// Wings (centered on fuselage)
-const wing = new THREE.Mesh(wingGeometry, planeBodyMaterial);
-wing.position.y = 0; // Align vertically with fuselage center
-wing.position.z = -0.3; // Position slightly back from the front
-airplaneGroup.add(wing);
-
-// Tail Fin (Vertical)
-const tailFin = new THREE.Mesh(tailFinGeometry, planeBodyMaterial);
-tailFin.position.y = 0.5; // Position on top rear of fuselage
-tailFin.position.z = 1.2; // Position at the back
-airplaneGroup.add(tailFin);
-
-// Tail Wings (Horizontal)
-const tailWing = new THREE.Mesh(tailWingGeometry, planeBodyMaterial);
-tailWing.position.y = 0.1; // Position slightly above fuselage center at the back
-tailWing.position.z = 1.3; // Position at the very back
-airplaneGroup.add(tailWing);
-
-// Add some emissive details to wings
-const wingLightGeometry = new THREE.SphereGeometry(0.1);
-const leftWingLight = new THREE.Mesh(wingLightGeometry, planeEmissiveMaterial);
-leftWingLight.position.set(-1.4, 0.05, -0.3); // Tip of left wing
-airplaneGroup.add(leftWingLight);
-const rightWingLight = new THREE.Mesh(wingLightGeometry, planeEmissiveMaterial);
-rightWingLight.position.set(1.4, 0.05, -0.3); // Tip of right wing
-airplaneGroup.add(rightWingLight);
-
-// Position the whole airplane group
-airplaneGroup.position.set(0, 1, 0); // Start slightly above the ground
-scene.add(airplaneGroup);
-
 
 // Lighting (Cyberpunk Style)
 const ambientLight = new THREE.AmbientLight(0x4040ff, 0.2); // Dim blue ambient light
@@ -265,19 +285,33 @@ const movement = {
     turn: 0,    // -1: left, 0: straight, 1: right
     climb: 0,   // -1: down, 0: level, 1: up
 };
-const speed = 0.3; // Increased speed
-const turnSpeed = 0.05; // Increased turn speed
-const climbSpeed = 0.2; // Further increased climb speed
+let autopilot = false;
+const speed = 0.3;
+const turnSpeed = 0.05;
+const climbSpeed = 0.2;
+
+// UI Elements
+const controlsDisplay = document.getElementById('controls');
+const autopilotDisplay = document.getElementById('autopilot');
+
+function updateUI() {
+    autopilotDisplay.textContent = `AUTOPILOT: ${autopilot ? 'ENGAGED' : 'STANDBY'}`;
+    autopilotDisplay.style.color = autopilot ? '#00ff00' : '#ff00ff';
+    autopilotDisplay.style.textShadow = autopilot ? '0 0 10px #00ff00' : '0 0 10px #ff00ff';
+    autopilotDisplay.style.fontWeight = 'bold';
+    autopilotDisplay.style.animation = autopilot ? 'pulse 1s infinite' : 'none';
+}
 
 // Keyboard controls
 document.addEventListener('keydown', (event) => {
     switch (event.key) {
-        case 'w': case 'ArrowUp':    movement.forward = 1; break;
-        case 's': case 'ArrowDown':  movement.forward = -1; break;
+        case 'w': case 'ArrowUp':    movement.forward = -1; break;
+        case 's': case 'ArrowDown':  movement.forward = 1; break;
         case 'a': case 'ArrowLeft':  movement.turn = 1; break;
         case 'd': case 'ArrowRight': movement.turn = -1; break;
         case 'q':                    movement.climb = 1; break;
         case 'e':                    movement.climb = -1; break;
+        case 'p': case 'P':          autopilot = !autopilot; updateUI(); break;
     }
 });
 
@@ -304,31 +338,80 @@ window.addEventListener('resize', () => {
 function animate() {
     requestAnimationFrame(animate);
 
-    // Update airplane rotation
-    airplaneGroup.rotation.y += movement.turn * turnSpeed;
-    // airplaneGroup.rotation.x += movement.climb * climbSpeed; // Simple pitch for now
+    if (aircraftModel) {
+        if (autopilot) {
+            // Meandering autopilot behavior
+            const time = Date.now() * 0.001;
+            
+            // Gentle random turns and altitude changes
+            aircraftModel.rotation.y += (Math.sin(time * 0.3) * 0.02);
+            aircraftModel.position.y = 15 + Math.sin(time * 0.5) * 3;
+            aircraftModel.rotation.z = Math.sin(time * 0.4) * 0.3;
+            
+            // Move forward with slight speed variations
+            const direction = new THREE.Vector3();
+            aircraftModel.getWorldDirection(direction);
+            const speedVariation = 1 + Math.sin(time * 0.2) * 0.3;
+            aircraftModel.position.addScaledVector(direction, speed * 1.2 * speedVariation);
+            
+            // Proactive boundary avoidance
+            const boundaryMargin = 40; // Start turning 5 units before boundary
+            const turnIntensity = 0.15; // More aggressive turn when near edge
+            
+            // Calculate distance to nearest boundary
+            const xDist = boundaryMargin - Math.abs(aircraftModel.position.x);
+            const zDist = boundaryMargin - Math.abs(aircraftModel.position.z);
+            
+            if (xDist < 5 || zDist < 5) {
+                // Determine turn direction (away from nearest boundary)
+                const turnDirection = (xDist < zDist)
+                    ? -Math.sign(aircraftModel.position.x)
+                    : -Math.sign(aircraftModel.position.z);
+                    
+                // Apply turn with intensity based on proximity to boundary
+                const turnAmount = turnIntensity * (1 - Math.min(xDist, zDist)/5);
+                aircraftModel.rotation.y += turnDirection * turnAmount;
+                
+                // Reduce speed near boundaries
+                const speedFactor = 0.5 + (Math.min(xDist, zDist)/10);
+                aircraftModel.position.addScaledVector(direction, speed * speedFactor);
+            }
+        } else {
+            // Manual control
+            aircraftModel.rotation.z += movement.turn * turnSpeed;
+            aircraftModel.position.y += movement.climb * climbSpeed;
+            
+            const direction = new THREE.Vector3();
+            aircraftModel.getWorldDirection(direction);
+            aircraftModel.position.addScaledVector(direction, movement.forward * speed);
 
-    // Update airplane position based on its direction
-    const direction = new THREE.Vector3();
-    airplaneGroup.getWorldDirection(direction);
-    // Negate movement.forward to align W/Up with forward movement
-    airplaneGroup.position.addScaledVector(direction, -movement.forward * speed);
-
-    // Update altitude
-    airplaneGroup.position.y += movement.climb * climbSpeed;
-    // Keep plane above ground
-    if (airplaneGroup.position.y < 0) {
-        airplaneGroup.position.y = 0;
+            if (aircraftModel.position.y < 0) {
+                aircraftModel.position.y = 0;
+            }
+        }
     }
 
-    // Update camera position to follow the plane
-    const relativeCameraOffset = new THREE.Vector3(0, 3, 7); // Offset behind and slightly above
-    const cameraOffset = relativeCameraOffset.applyMatrix4(airplaneGroup.matrixWorld);
-
-    camera.position.lerp(cameraOffset, 0.1); // Smooth camera movement
-    camera.lookAt(airplaneGroup.position); // Always look at the airplane
-
+    // Only auto-position camera if controls aren't enabled
+    if (aircraftModel && !controls.enabled) {
+        const cameraOffset = new THREE.Vector3(0, 5, -25);
+        cameraOffset.applyMatrix4(aircraftModel.matrixWorld);
+        camera.position.copy(cameraOffset);
+        
+        const lookAtPoint = new THREE.Vector3(0, 0, 0);
+        lookAtPoint.applyMatrix4(aircraftModel.matrixWorld);
+        camera.lookAt(lookAtPoint);
+    }
+    
+    // Always update controls if enabled
+    if (controls.enabled) {
+        controls.target.copy(aircraftModel.position);
+        controls.update();
+    }
+    
     renderer.render(scene, camera);
 }
+
+// Initialize UI
+updateUI();
 
 animate();
