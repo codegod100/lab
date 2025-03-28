@@ -247,20 +247,157 @@ for (let i = 0; i < 20; i++) {
 const aircraftPath = './models/tron_ship_extracted/scene.gltf';
 let aircraftModel = null;
 
+// Load aircraft model with error handling
 gltfLoader.load(aircraftPath, (gltf) => {
-    aircraftModel = gltf.scene;
-    
-    // Scale the model appropriately
-    const box = new THREE.Box3().setFromObject(aircraftModel);
-    const size = box.getSize(new THREE.Vector3());
-    const scale = 0.3; // Smaller scale for this model
-    aircraftModel.scale.set(scale, scale, scale);
-    
-    // Position the model slightly above ground
-    aircraftModel.position.set(0, 2, 0); // Higher starting position
-    
-    // Add to scene
-    scene.add(aircraftModel);
+    try {
+        aircraftModel = gltf.scene;
+        
+        // Scale the model appropriately
+        const box = new THREE.Box3().setFromObject(aircraftModel);
+        const size = box.getSize(new THREE.Vector3());
+        const scale = 0.3; // Smaller scale for this model
+        aircraftModel.scale.set(scale, scale, scale);
+        
+        // Position the model slightly above ground
+        aircraftModel.position.set(0, 2, 0); // Higher starting position
+        
+        // Add spotlight to aircraft
+        const spotlight = new THREE.SpotLight(0x00ffff, 5, 30, Math.PI/6, 0.5, 1);
+        spotlight.position.set(0, -1, -1); // Position under and behind aircraft
+        spotlight.target.position.set(0, -5, -5); // Point downward and forward
+        aircraftModel.add(spotlight);
+        aircraftModel.add(spotlight.target);
+        
+        // Add to scene
+        scene.add(aircraftModel);
+        
+        // Initialize follow mode variables
+        let followMode = false;
+        let targetVehicle = null;
+        
+        // Load ground vehicles after aircraft is ready
+        const vehiclePath = './models/ground_vehicle_extracted/scene.gltf';
+        const vehicleCount = 5;
+        const groundVehicles = [];
+        const vehicleSpeed = 0.3; // Increased from 0.1 to 0.3
+        
+        gltfLoader.load(vehiclePath, (gltf) => {
+            const vehicleModel = gltf.scene;
+            
+            for (let i = 0; i < vehicleCount; i++) {
+                const vehicle = vehicleModel.clone();
+                // Start vehicles in center area (60x60 instead of 80x80)
+                vehicle.position.set(
+                    (Math.random() - 0.5) * 60,
+                    0,
+                    (Math.random() - 0.5) * 60
+                );
+                vehicle.rotation.y = Math.random() * Math.PI * 2;
+                // Scale up vehicles 5x
+                vehicle.scale.set(2.5, 2.5, 2.5);
+                scene.add(vehicle);
+                groundVehicles.push(vehicle);
+            }
+            
+            // Add vehicle movement to animation loop
+            function animateVehicles() {
+                const time = Date.now() * 0.001;
+                
+                groundVehicles.forEach((vehicle, index) => {
+                    // Meandering behavior similar to aircraft autopilot
+                    const vehicleTimeOffset = time + index * 5; // Offset pattern per vehicle
+                    
+                    // Gentle random turns
+                    vehicle.rotation.y += (Math.sin(vehicleTimeOffset * 0.2) * 0.015);
+                    
+                    // Move forward with slight speed variations
+                    const direction = new THREE.Vector3();
+                    vehicle.getWorldDirection(direction);
+                    const speedVariation = 1 + Math.sin(vehicleTimeOffset * 0.15) * 0.2;
+                    vehicle.position.addScaledVector(direction, vehicleSpeed * speedVariation);
+                    
+                    // Enhanced boundary avoidance (35 unit boundary)
+                    const boundary = 35;
+                    const xDist = boundary - Math.abs(vehicle.position.x);
+                    const zDist = boundary - Math.abs(vehicle.position.z);
+                    
+                    if (xDist < 5 || zDist < 5) {
+                        const turnDirection = (xDist < zDist)
+                            ? -Math.sign(vehicle.position.x)
+                            : -Math.sign(vehicle.position.z);
+                        vehicle.rotation.y += turnDirection * 0.1;
+                        
+                        // Slow down near boundaries
+                        const slowFactor = Math.min(xDist, zDist)/5;
+                        // Apply slowdown by reducing the added vector length
+                        vehicle.position.addScaledVector(direction, vehicleSpeed * (slowFactor - speedVariation)); // Adjust speed based on slowFactor
+                    }
+                    
+                    // Hard boundary limits
+                    vehicle.position.x = THREE.MathUtils.clamp(vehicle.position.x, -boundary, boundary);
+                    vehicle.position.z = THREE.MathUtils.clamp(vehicle.position.z, -boundary, boundary);
+                });
+            }
+            
+            // Modify existing animate function
+            const originalAnimate = animate;
+            animate = function() {
+                originalAnimate();
+                animateVehicles();
+                
+                // Follow mode logic
+                if (followMode && targetVehicle) {
+                    // Get target position with some randomness
+                    const targetPos = new THREE.Vector3();
+                    targetVehicle.getWorldPosition(targetPos);
+                    
+                    // Add some variation to following (5-15 units above, 5-15 units behind)
+                    targetPos.y += 10 + Math.sin(Date.now() * 0.001) * 5;
+                    targetPos.z += -10 + Math.cos(Date.now() * 0.0015) * 5;
+                    
+                    // More relaxed following
+                    aircraftModel.position.lerp(targetPos, 0.02);
+                    
+                    // Face general direction with some variation
+                    const direction = new THREE.Vector3();
+                    targetVehicle.getWorldDirection(direction);
+                    const targetYaw = Math.atan2(direction.x, direction.z);
+                    aircraftModel.rotation.y += (targetYaw - aircraftModel.rotation.y) * 0.05;
+                    
+                    // Add slight banking when turning
+                    const bankAmount = (targetYaw - aircraftModel.rotation.y) * 0.3;
+                    aircraftModel.rotation.z = THREE.MathUtils.lerp(
+                        aircraftModel.rotation.z,
+                        bankAmount,
+                        0.1
+                    );
+                }
+            };
+            
+            // Add keybind to toggle follow mode (F key)
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'f' && groundVehicles.length > 0) {
+                    followMode = !followMode;
+                    if (followMode) {
+                        // Pick random vehicle to follow
+                        targetVehicle = groundVehicles[Math.floor(Math.random() * groundVehicles.length)];
+                    }
+                }
+            });
+            
+        }, undefined, (error) => {
+            console.error('Error loading ground vehicles:', error);
+        });
+        
+    } catch (error) {
+        console.error('Error initializing aircraft:', error);
+        // Create simple placeholder if model fails to load
+        aircraftModel = new THREE.Mesh(
+            new THREE.BoxGeometry(2, 1, 4),
+            new THREE.MeshStandardMaterial({color: 0x444455})
+        );
+        scene.add(aircraftModel);
+    }
     
     // Third-person camera setup
     camera.position.set(0, 3, 10); // Position behind and above aircraft
@@ -305,8 +442,8 @@ function updateUI() {
 // Keyboard controls
 document.addEventListener('keydown', (event) => {
     switch (event.key) {
-        case 'w': case 'ArrowUp':    movement.forward = -1; break;
-        case 's': case 'ArrowDown':  movement.forward = 1; break;
+        case 'w': case 'ArrowUp':    movement.forward = 1; break;
+        case 's': case 'ArrowDown':  movement.forward = -1; break;
         case 'a': case 'ArrowLeft':  movement.turn = 1; break;
         case 'd': case 'ArrowRight': movement.turn = -1; break;
         case 'q':                    movement.climb = 1; break;
@@ -403,7 +540,7 @@ function animate() {
     }
     
     // Always update controls if enabled
-    if (controls.enabled) {
+    if (aircraftModel && controls.enabled) {
         controls.target.copy(aircraftModel.position);
         controls.update();
     }
