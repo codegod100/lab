@@ -7,49 +7,17 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a0a2a); // Dark purple background
 scene.fog = new THREE.Fog(0x1a0a2a, 10, 80); // Add fog matching background, start 10, end 80
 
-// Camera setup
+// Camera setup (Fixed Overview)
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 5, 10); // Position camera slightly above and behind the plane
-camera.lookAt(0, 0, 0);
+camera.position.set(0, 50, 0); // High overhead view
+camera.lookAt(0, 0, 0); // Centered on map
 
 // Renderer setup
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
-
-// Mouse controls
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.05;
-controls.screenSpacePanning = false;
-controls.maxPolarAngle = Math.PI * 0.9;
-controls.minDistance = 15;
-controls.maxDistance = 50;
-
-// Save/Load camera state
-let savedCameraState = null;
-
-function toggleCameraControl() {
-    controls.enabled = !controls.enabled;
-    if (controls.enabled && savedCameraState) {
-        camera.position.copy(savedCameraState.position);
-        controls.target.copy(savedCameraState.target);
-    } else {
-        savedCameraState = {
-            position: camera.position.clone(),
-            target: controls.target.clone()
-        };
-    }
-}
-
-// Toggle with 'C' key
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'c' || e.key === 'C') {
-        toggleCameraControl();
-    }
-});
-
 // Ground plane with boundary markers
+
 const groundGeometry = new THREE.PlaneGeometry(100, 100);
 const groundMaterial = new THREE.MeshStandardMaterial({
     color: 0x222222,
@@ -399,11 +367,14 @@ gltfLoader.load(aircraftPath, (gltf) => {
         scene.add(aircraftModel);
     }
     
-    // Third-person camera setup
-    camera.position.set(0, 3, 10); // Position behind and above aircraft
-    camera.lookAt(0, 0, 0);
+    // Fixed overhead camera setup
+    camera.position.set(0, 50, 0); // High overhead view
+    camera.lookAt(0, 0, 0); // Centered on map
     
-    // Don't parent camera to aircraft - we'll update position manually
+    // Initialize OrbitControls for rotation and zoom
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.25;
 }, undefined, (error) => {
     console.error('Error loading airspeeder:', error);
 });
@@ -531,12 +502,14 @@ function animate() {
     // Only auto-position camera if controls aren't enabled
     if (aircraftModel && !controls.enabled) {
         const cameraOffset = new THREE.Vector3(0, 5, -25);
-        cameraOffset.applyMatrix4(aircraftModel.matrixWorld);
-        camera.position.copy(cameraOffset);
+        // Camera position remains fixed (commented out following code)
+        // cameraOffset.applyMatrix4(aircraftModel.matrixWorld);
+        // camera.position.copy(cameraOffset);
         
-        const lookAtPoint = new THREE.Vector3(0, 0, 0);
-        lookAtPoint.applyMatrix4(aircraftModel.matrixWorld);
-        camera.lookAt(lookAtPoint);
+        // Camera remains fixed looking at center (commented out aircraft tracking)
+        // const lookAtPoint = new THREE.Vector3(0, 0, 0);
+        // lookAtPoint.applyMatrix4(aircraftModel.matrixWorld);
+        // camera.lookAt(lookAtPoint);
     }
     
     // Always update controls if enabled
