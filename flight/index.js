@@ -3,6 +3,10 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const loader = new GLTFLoader();
 let pedestrianAvatar;
+let controls; // Declare OrbitControls globally
+const avatarSpeed = 0.05; // Speed for avatar movement
+let avatarDirection = new THREE.Vector3(1, 0, 0); // Initial direction
+const cameraFollowOffset = new THREE.Vector3(0, 4, 8); // Camera offset: y=up, z=behind avatar (relative to avatar's facing direction)
 
 // Scene setup
 const scene = new THREE.Scene();
@@ -12,7 +16,7 @@ scene.fog = new THREE.Fog(0x1a0a2a, 10, 80); // Add fog matching background, sta
 // Camera setup (Fixed Overview)
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(0, 50, 0); // High overhead view
-camera.lookAt(0, 0, 0); // Centered on map
+// camera.lookAt(0, 0, 0); // OrbitControls will handle the target
 
 // Renderer setup
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -264,7 +268,7 @@ gltfLoader.load(aircraftPath, (gltf) => {
                 );
                 vehicle.rotation.y = Math.random() * Math.PI * 2;
                 // Scale up vehicles 5x
-                vehicle.scale.set(2.5, 2.5, 2.5);
+                vehicle.scale.set(8.0 ,8.0, 8.0);
                 scene.add(vehicle);
                 groundVehicles.push(vehicle);
             }
@@ -371,13 +375,12 @@ gltfLoader.load(aircraftPath, (gltf) => {
     
     // Load pedestrian avatar
     const avatarLoader = new GLTFLoader();
-    
-    avatarLoader.load('models/pedestrian_avatar',
+    avatarLoader.load('models/walking.glb',
         (gltf) => {
             try {
                 pedestrianAvatar = gltf.scene;
                 pedestrianAvatar.position.set(0, 0, 0);
-                pedestrianAvatar.scale.set(0.5, 0.5, 0.5);
+                pedestrianAvatar.scale.set(2.5, 2.5, 2.5); // Scaled up 5x
                 scene.add(pedestrianAvatar);
             } catch (e) {
                 console.error('Avatar setup error:', e);
@@ -395,87 +398,23 @@ gltfLoader.load(aircraftPath, (gltf) => {
         }
     );
 
-    // Ground-level walkthrough setup
-    camera.position.set(0, 1.8, 0); // Standard eye height
+    // Camera position will be managed by OrbitControls relative to the avatar
+    // camera.position.set(0, 1.8, 0); // Removed fixed ground-level position
 
-    camera.lookAt(0, 1.8, -5); // Looking slightly forward at ground level
+    // camera.lookAt(0, 1.8, -5); // Removed fixed ground-level lookAt
 
 
     // Initialize OrbitControls for rotation and zoom
-    const controls = new OrbitControls(camera, renderer.domElement);
+    controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.25;
+    controls.enabled = true; // Ensure controls are always enabled
 
 }, undefined, (error) => {
     console.error('Error loading airspeeder:', error);
 });
 
-// Walkthrough system
-const walkthrough = {
-    active: true,
-
-    // Spacebar toggle
-    initControls: function() {
-        document.addEventListener('keydown', (e) => {
-            if (e.key === ' ') {
-                this.active = !this.active;
-                controls.enabled = !this.active;
-                if (!this.active) {
-                    controls.target.copy(new THREE.Vector3(0, 1.8, 0));
-                }
-            }
-        });
-    },
-    path: (() => {
-        const points = [];
-        const stepLength = 1.5; // Realistic step length in meters
-        const turnFrequency = 8; // Steps between turns
-        
-        // Start at street level
-        let currentPos = new THREE.Vector3(-40, 2, 0);
-        let direction = new THREE.Vector3(1, 0, 0);
-        
-        for (let i = 0; i < 100; i++) { // More steps for longer walk
-            // Natural turning pattern
-            if (i % turnFrequency === 0) {
-                // Gradual turns (22.5 degrees instead of 90)
-                const angle = Math.PI/8;
-                direction.set(
-                    direction.x * Math.cos(angle) - direction.z * Math.sin(angle),
-                    0,
-                    direction.x * Math.sin(angle) + direction.z * Math.cos(angle)
-                ).normalize();
-            }
-            
-            // Realistic walking pace
-            currentPos.add(direction.clone().multiplyScalar(stepLength));
-            
-            // Keep firmly on ground level within bounds
-            currentPos.x = THREE.MathUtils.clamp(currentPos.x, -80, 80);
-            currentPos.z = THREE.MathUtils.clamp(currentPos.z, -80, 80);
-            currentPos.y = 1.8; // Standard human eye height above ground
-            
-            // Natural walking gaze (slightly ahead and downward)
-            const lookAt = currentPos.clone().add(direction.clone().multiplyScalar(5));
-            lookAt.y = 1.6; // Natural eye level looking slightly forward
-            
-            points.push({
-                position: currentPos.clone(),
-                lookAt: lookAt
-            });
-        }
-        
-        // Add collision boxes to all buildings
-        scene.children.forEach(obj => {
-            if (obj.name && obj.name.includes('building')) {
-                obj.userData.collisionBox = new THREE.Box3().setFromObject(obj);
-            }
-        });
-        return points;
-    })(),
-    currentTarget: 0,
-    speed: 0.005
-};
+// Walkthrough system removed - OrbitControls will handle camera
 
 // Lighting (Cyberpunk Style)
 const ambientLight = new THREE.AmbientLight(0x4040ff, 0.2); // Dim blue ambient light
@@ -597,85 +536,74 @@ function animate() {
         }
     }
 
-    // Only auto-position camera if controls aren't enabled
-    if (aircraftModel && !controls.enabled) {
-        const cameraOffset = new THREE.Vector3(0, 5, -25);
-        // Camera position remains fixed (commented out following code)
-        // cameraOffset.applyMatrix4(aircraftModel.matrixWorld);
-        // camera.position.copy(cameraOffset);
-        
-        // Camera remains fixed looking at center (commented out aircraft tracking)
-        // const lookAtPoint = new THREE.Vector3(0, 0, 0);
-        // lookAtPoint.applyMatrix4(aircraftModel.matrixWorld);
-        // camera.lookAt(lookAtPoint);
+    // Removed camera logic for when controls were disabled (now always enabled)
+
+    // Walkthrough logic removed
+
+    // --- Pedestrian Avatar Meandering ---
+    if (pedestrianAvatar) {
+        const time = Date.now() * 0.001;
+
+        // Gentle random turns using the global avatarDirection
+        const turnAngle = Math.sin(time * 0.4 + pedestrianAvatar.id) * 0.02; // Use avatar ID for variation
+        avatarDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), turnAngle);
+        avatarDirection.normalize(); // Keep direction as a unit vector
+
+        // Move forward
+        pedestrianAvatar.position.addScaledVector(avatarDirection, avatarSpeed);
+
+        // Boundary avoidance (similar to vehicles, maybe simpler)
+        const boundary = 45; // Keep slightly within the ground plane edges
+        const turnIntensity = 0.1;
+        let needsTurn = false;
+
+        if (Math.abs(pedestrianAvatar.position.x) > boundary) {
+            avatarDirection.x = -Math.sign(pedestrianAvatar.position.x) * Math.abs(avatarDirection.x); // Reflect x
+            needsTurn = true;
+        }
+        if (Math.abs(pedestrianAvatar.position.z) > boundary) {
+            avatarDirection.z = -Math.sign(pedestrianAvatar.position.z) * Math.abs(avatarDirection.z); // Reflect z
+            needsTurn = true;
+        }
+
+        if (needsTurn) {
+            // Apply a stronger turn if hitting boundary
+            const turnAwayAngle = Math.sign(turnAngle || 0.01) * turnIntensity; // Turn away consistently
+            avatarDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), turnAwayAngle);
+            avatarDirection.normalize();
+        }
+
+        // Clamp position just in case
+        pedestrianAvatar.position.x = THREE.MathUtils.clamp(pedestrianAvatar.position.x, -boundary, boundary);
+        pedestrianAvatar.position.z = THREE.MathUtils.clamp(pedestrianAvatar.position.z, -boundary, boundary);
+        pedestrianAvatar.position.y = 0; // Keep firmly on the ground
+
+        // Make avatar face the direction it's moving
+        const lookAtTarget = pedestrianAvatar.position.clone().add(avatarDirection);
+        pedestrianAvatar.lookAt(lookAtTarget);
+
+        // --- Camera Following Logic ---
+        // Calculate desired camera position based on avatar's position and orientation + offset
+        const desiredCameraPosition = pedestrianAvatar.position.clone();
+        const offsetRotated = cameraFollowOffset.clone().applyQuaternion(pedestrianAvatar.quaternion);
+        desiredCameraPosition.add(offsetRotated);
+
+        // Smoothly move camera towards the desired position
+        // Adjust the lerp factor (0.05) for faster/slower following
+        // camera.position.lerp(desiredCameraPosition, 0.05); // Disabled for free camera control
+        // --- End Camera Following Logic ---
+
+    }
+    // --- End Pedestrian Avatar Meandering ---
+
+    // Update OrbitControls target unconditionally if avatar exists
+    if (pedestrianAvatar) {
+        controls.target.copy(pedestrianAvatar.position);
     }
 
-    // Pedestrian walkthrough with collision detection
-    if (walkthrough.active && walkthrough.path.length > 0) {
-        const target = walkthrough.path[walkthrough.currentTarget];
-        
-        // Check for nearby buildings
-        const nearbyBuildings = scene.children.filter(obj =>
-            obj.userData.collisionBox &&
-            obj.userData.collisionBox.distanceToPoint(camera.position) < 10
-        );
-        
-        // Adjust speed based on proximity to buildings
-        const collisionSpeed = nearbyBuildings.length > 0
-            ? walkthrough.speed * 0.3  // Slow down near buildings
-            : walkthrough.speed;
-        
-        // Smooth camera and avatar movement
-        camera.position.lerp(target.position, collisionSpeed);
-        if (pedestrianAvatar) {
-            // Smooth position transition
-            const targetPos = new THREE.Vector3().copy(target.position);
-            targetPos.y = 0; // Keep on ground
-            pedestrianAvatar.position.lerp(targetPos, collisionSpeed * 2);
-            
-            // Calculate direction vector
-            const direction = new THREE.Vector3().subVectors(
-                target.lookAt,
-                target.position
-            ).normalize();
-            
-            // Only rotate if moving significantly
-            if (direction.length() > 0.1) {
-                const targetQuat = new THREE.Quaternion().setFromUnitVectors(
-                    new THREE.Vector3(0, 0, 1), // Default forward
-                    direction
-                );
-                pedestrianAvatar.quaternion.slerp(targetQuat, collisionSpeed * 2);
-            }
-        }
-        
-        // Smooth look at movement
-        const lookDirection = new THREE.Vector3().subVectors(target.lookAt, camera.position);
-        camera.quaternion.slerp(
-            new THREE.Quaternion().setFromUnitVectors(
-                new THREE.Vector3(0, 0, -1),
-                lookDirection.clone().normalize()
-            ),
-            collisionSpeed
-        );
-        
-        // Progress to next point when close
-        if (camera.position.distanceTo(target.position) < 2) {
-            walkthrough.currentTarget = (walkthrough.currentTarget + 1) % walkthrough.path.length;
-        }
-        const direction = new THREE.Vector3().subVectors(target.lookAt, camera.position);
-        camera.quaternion.slerp(
-            new THREE.Quaternion().setFromUnitVectors(
-                new THREE.Vector3(0, 0, -1),
-                direction.clone().normalize()
-            ),
-            walkthrough.speed
-        );
-        
-        // Check if reached current target
-        if (camera.position.distanceTo(target.position) < 5) {
-            walkthrough.currentTarget = (walkthrough.currentTarget + 1) % walkthrough.path.length;
-        }
+    // Update controls only when enabled (needed for damping, user input, and applying target changes)
+    if (controls.enabled) {
+        controls.update();
     }
 
     renderer.render(scene, camera);
