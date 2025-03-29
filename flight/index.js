@@ -1,6 +1,8 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const loader = new GLTFLoader();
+let pedestrianAvatar;
 
 // Scene setup
 const scene = new THREE.Scene();
@@ -367,17 +369,113 @@ gltfLoader.load(aircraftPath, (gltf) => {
         scene.add(aircraftModel);
     }
     
-    // Fixed overhead camera setup
-    camera.position.set(0, 50, 0); // High overhead view
-    camera.lookAt(0, 0, 0); // Centered on map
+    // Load pedestrian avatar
+    const avatarLoader = new GLTFLoader();
     
+    avatarLoader.load('models/pedestrian_avatar',
+        (gltf) => {
+            try {
+                pedestrianAvatar = gltf.scene;
+                pedestrianAvatar.position.set(0, 0, 0);
+                pedestrianAvatar.scale.set(0.5, 0.5, 0.5);
+                scene.add(pedestrianAvatar);
+            } catch (e) {
+                console.error('Avatar setup error:', e);
+                // Create simple cube as fallback
+                pedestrianAvatar = new THREE.Mesh(
+                    new THREE.BoxGeometry(1, 1.8, 0.5),
+                    new THREE.MeshBasicMaterial({color: 0x00ff00})
+                );
+                scene.add(pedestrianAvatar);
+            }
+        },
+        undefined,
+        (error) => {
+            console.error('Avatar load error:', error);
+        }
+    );
+
+    // Ground-level walkthrough setup
+    camera.position.set(0, 1.8, 0); // Standard eye height
+
+    camera.lookAt(0, 1.8, -5); // Looking slightly forward at ground level
+
+
     // Initialize OrbitControls for rotation and zoom
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.25;
+
 }, undefined, (error) => {
     console.error('Error loading airspeeder:', error);
 });
+
+// Walkthrough system
+const walkthrough = {
+    active: true,
+
+    // Spacebar toggle
+    initControls: function() {
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ') {
+                this.active = !this.active;
+                controls.enabled = !this.active;
+                if (!this.active) {
+                    controls.target.copy(new THREE.Vector3(0, 1.8, 0));
+                }
+            }
+        });
+    },
+    path: (() => {
+        const points = [];
+        const stepLength = 1.5; // Realistic step length in meters
+        const turnFrequency = 8; // Steps between turns
+        
+        // Start at street level
+        let currentPos = new THREE.Vector3(-40, 2, 0);
+        let direction = new THREE.Vector3(1, 0, 0);
+        
+        for (let i = 0; i < 100; i++) { // More steps for longer walk
+            // Natural turning pattern
+            if (i % turnFrequency === 0) {
+                // Gradual turns (22.5 degrees instead of 90)
+                const angle = Math.PI/8;
+                direction.set(
+                    direction.x * Math.cos(angle) - direction.z * Math.sin(angle),
+                    0,
+                    direction.x * Math.sin(angle) + direction.z * Math.cos(angle)
+                ).normalize();
+            }
+            
+            // Realistic walking pace
+            currentPos.add(direction.clone().multiplyScalar(stepLength));
+            
+            // Keep firmly on ground level within bounds
+            currentPos.x = THREE.MathUtils.clamp(currentPos.x, -80, 80);
+            currentPos.z = THREE.MathUtils.clamp(currentPos.z, -80, 80);
+            currentPos.y = 1.8; // Standard human eye height above ground
+            
+            // Natural walking gaze (slightly ahead and downward)
+            const lookAt = currentPos.clone().add(direction.clone().multiplyScalar(5));
+            lookAt.y = 1.6; // Natural eye level looking slightly forward
+            
+            points.push({
+                position: currentPos.clone(),
+                lookAt: lookAt
+            });
+        }
+        
+        // Add collision boxes to all buildings
+        scene.children.forEach(obj => {
+            if (obj.name && obj.name.includes('building')) {
+                obj.userData.collisionBox = new THREE.Box3().setFromObject(obj);
+            }
+        });
+        return points;
+    })(),
+    currentTarget: 0,
+    speed: 0.005
+};
 
 // Lighting (Cyberpunk Style)
 const ambientLight = new THREE.AmbientLight(0x4040ff, 0.2); // Dim blue ambient light
@@ -511,13 +609,75 @@ function animate() {
         // lookAtPoint.applyMatrix4(aircraftModel.matrixWorld);
         // camera.lookAt(lookAtPoint);
     }
-    
-    // Always update controls if enabled
-    if (aircraftModel && controls.enabled) {
-        controls.target.copy(aircraftModel.position);
-        controls.update();
+
+    // Pedestrian walkthrough with collision detection
+    if (walkthrough.active && walkthrough.path.length > 0) {
+        const target = walkthrough.path[walkthrough.currentTarget];
+        
+        // Check for nearby buildings
+        const nearbyBuildings = scene.children.filter(obj =>
+            obj.userData.collisionBox &&
+            obj.userData.collisionBox.distanceToPoint(camera.position) < 10
+        );
+        
+        // Adjust speed based on proximity to buildings
+        const collisionSpeed = nearbyBuildings.length > 0
+            ? walkthrough.speed * 0.3  // Slow down near buildings
+            : walkthrough.speed;
+        
+        // Smooth camera and avatar movement
+        camera.position.lerp(target.position, collisionSpeed);
+        if (pedestrianAvatar) {
+            // Smooth position transition
+            const targetPos = new THREE.Vector3().copy(target.position);
+            targetPos.y = 0; // Keep on ground
+            pedestrianAvatar.position.lerp(targetPos, collisionSpeed * 2);
+            
+            // Calculate direction vector
+            const direction = new THREE.Vector3().subVectors(
+                target.lookAt,
+                target.position
+            ).normalize();
+            
+            // Only rotate if moving significantly
+            if (direction.length() > 0.1) {
+                const targetQuat = new THREE.Quaternion().setFromUnitVectors(
+                    new THREE.Vector3(0, 0, 1), // Default forward
+                    direction
+                );
+                pedestrianAvatar.quaternion.slerp(targetQuat, collisionSpeed * 2);
+            }
+        }
+        
+        // Smooth look at movement
+        const lookDirection = new THREE.Vector3().subVectors(target.lookAt, camera.position);
+        camera.quaternion.slerp(
+            new THREE.Quaternion().setFromUnitVectors(
+                new THREE.Vector3(0, 0, -1),
+                lookDirection.clone().normalize()
+            ),
+            collisionSpeed
+        );
+        
+        // Progress to next point when close
+        if (camera.position.distanceTo(target.position) < 2) {
+            walkthrough.currentTarget = (walkthrough.currentTarget + 1) % walkthrough.path.length;
+        }
+        const direction = new THREE.Vector3().subVectors(target.lookAt, camera.position);
+        camera.quaternion.slerp(
+            new THREE.Quaternion().setFromUnitVectors(
+                new THREE.Vector3(0, 0, -1),
+                direction.clone().normalize()
+            ),
+            walkthrough.speed
+        );
+        
+        // Check if reached current target
+        if (camera.position.distanceTo(target.position) < 5) {
+            walkthrough.currentTarget = (walkthrough.currentTarget + 1) % walkthrough.path.length;
+        }
     }
-    
+
     renderer.render(scene, camera);
 }
 
