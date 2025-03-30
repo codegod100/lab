@@ -44,10 +44,11 @@ class Player {
 
 // Could be renamed to Entity or have a base Entity class
 class Obstacle {
-    constructor(position, health = 3) { // Default health to 3 hits
+    constructor(position, health = 3, size = 1.0) { // Default health to 3 hits, size 1.0
         this.position = position;
         this.maxHealth = health;
         this.currentHealth = health;
+        this.size = size; // Scale factor
         this.mesh = null; // Reference to the THREE.Mesh
     }
 
@@ -61,5 +62,30 @@ class Obstacle {
     }
 }
 
+// Procedural generation utilities
+export function generateTreePositions(count = 20, areaSize = 40) {
+    const positions = [];
+    const halfSize = areaSize / 2;
+
+    for (let i = 0; i < count; i++) {
+        let x, z;
+        do {
+            x = (Math.random() - 0.5) * areaSize;
+            z = (Math.random() - 0.5) * areaSize;
+        } while (Math.abs(x) < 5 && Math.abs(z) < 5);
+
+        if (Math.random() > 0.7 && i > 0) {
+            const refIndex = Math.floor(Math.random() * i);
+            x += (Math.random() - 0.5) * 5;
+            z += (Math.random() - 0.5) * 5;
+        }
+
+        positions.push({ x, y: 0, z });
+    }
+
+    return positions;
+}
+
+
 // Export using ES Modules
-export { World, Player, Obstacle };
+export { World, Player, Obstacle, generateTreePositions };

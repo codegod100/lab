@@ -1,6 +1,6 @@
 // index.js
 import * as THREE from './node_modules/three/build/three.module.js';
-import { World, Player, Obstacle } from './game.js'; // Import game logic classes
+import { World, Player, Obstacle, generateTreePositions } from './game.js'; // Import game logic classes
 
 // Scene setup
 const scene = new THREE.Scene();
@@ -102,25 +102,41 @@ const treeLeavesMaterial = new THREE.MeshStandardMaterial({ color: 0x006400 }); 
 const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.3, 1.5, 8); // radiusTop, radiusBottom, height, radialSegments
 const leavesGeometry = new THREE.ConeGeometry(1, 2, 8); // radius, height, radialSegments
 
-function createTree(position) {
+export function createTree(position, size = 1.0, health = 3) {
     const tree = new THREE.Group();
 
-    // Trunk
+    // Apply random size variation (0.8 to 1.5 scale)
+    const treeSize = size * (0.8 + Math.random() * 0.7);
+
+    // Random health (1-5 hits)
+    const treeHealth = health || Math.floor(1 + Math.random() * 5);
+
+    // Random color variation for leaves
+    const leavesHue = 0.3 + Math.random() * 0.2; // Green hue range
+    const leavesColor = new THREE.Color().setHSL(leavesHue, 0.8, 0.3);
+    const leavesMaterial = new THREE.MeshStandardMaterial({
+        color: leavesColor,
+        flatShading: true
+    });
+
+    // Trunk with size scaling
     const trunk = new THREE.Mesh(trunkGeometry, treeTrunkMaterial);
-    trunk.position.y = 0.75; // Position trunk relative to the group base (y=0)
+    trunk.scale.set(treeSize, treeSize, treeSize);
+    trunk.position.y = 0.75 * treeSize; // Position trunk relative to size
     tree.add(trunk);
 
-    // Leaves
-    const leaves = new THREE.Mesh(leavesGeometry, treeLeavesMaterial);
-    leaves.position.y = 1.5 + 1; // Position leaves on top of the trunk (trunk_height/2 + leaves_height/2)
+    // Leaves with size scaling
+    const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
+    leaves.scale.set(treeSize, treeSize, treeSize);
+    leaves.position.y = (1.5 + 1) * treeSize; // Position scaled leaves
     tree.add(leaves);
 
     // Position the whole tree group
     tree.position.set(position.x, position.y, position.z);
     scene.add(tree);
 
-    // Create a logical obstacle for collision detection (optional, using Obstacle class for now)
-    const treeObstacle = new Obstacle(position); // Use the base position for logic, default health = 3
+    // Create obstacle with health and size
+    const treeObstacle = new Obstacle(position, treeHealth, treeSize);
     treeObstacle.mesh = tree; // Link the mesh group to the logical object
     treeObstacle.initialRotation = tree.quaternion.clone(); // Store initial rotation
     world.addEntity(treeObstacle);
@@ -128,11 +144,29 @@ function createTree(position) {
     return tree; // Return the group if needed
 }
 
-// Add some trees
-createTree({ x: 5, y: 0, z: 0 });
-createTree({ x: -3, y: 0, z: -5 });
-createTree({ x: 8, y: 0, z: -10 });
-createTree({ x: -7, y: 0, z: 8 });
+// Procedurally generate trees
+export function generateTrees(count = 20, areaSize = 40) {
+    const positions = generateTreePositions(count, areaSize);
+    positions.forEach(pos => {
+        let size = 1.0;
+        let health = null;
+
+        if (Math.random() > 0.9) {
+            if (Math.random() > 0.5) {
+                size = 1.5 + Math.random() * 0.5;
+                health = 5 + Math.floor(Math.random() * 3);
+            } else {
+                size = 0.5 + Math.random() * 0.3;
+                health = 1 + Math.floor(Math.random() * 2);
+            }
+        }
+
+        createTree(pos, size, health);
+    });
+}
+
+// Generate initial trees
+generateTrees(30, 50);
 
 
 // Camera position (Top-down / Isometric-ish)
@@ -312,8 +346,8 @@ function handlePlayerAttack() {
                 // Remove entity from world logic
                 world.entities.splice(i, 1);
 
-                // Spawn critters
-                const critterCount = 5; // Number of critters to spawn
+                // Spawn critters proportional to tree size
+                const critterCount = Math.max(3, Math.floor(entity.size * 5)); // 3-8 critters based on size
                 const spawnPosition = entity.position; // Spawn near the tree base
                 for (let j = 0; j < critterCount; j++) {
                     const critterMesh = new THREE.Mesh(critterGeometry, critterMaterial);
