@@ -1,0 +1,152 @@
+@import "tailwindcss";
+@plugin '@tailwindcss/forms';
+@plugin '@tailwindcss/typography';
+
+:root {
+    /* Catppuccin Mocha color palette */
+    --ctp-rosewater: #f5e0dc;
+    --ctp-flamingo: #f2cdcd;
+    --ctp-pink: #f5c2e7;
+    --ctp-mauve: #cba6f7;
+    --ctp-red: #f38ba8;
+    --ctp-maroon: #eba0ac;
+    --ctp-peach: #fab387;
+    --ctp-yellow: #f9e2af;
+    --ctp-green: #a6e3a1;
+    --ctp-teal: #94e2d5;
+    --ctp-sky: #89dceb;
+    --ctp-sapphire: #74c7ec;
+    --ctp-blue: #89b4fa;
+    --ctp-lavender: #b4befe;
+    --ctp-text: #cdd6f4;
+    --ctp-subtext1: #bac2de;
+    --ctp-subtext0: #a6adc8;
+    --ctp-overlay2: #9399b2;
+    --ctp-overlay1: #7f849c;
+    --ctp-overlay0: #6c7086;
+    --ctp-surface2: #585b70;
+    --ctp-surface1: #45475a;
+    --ctp-surface0: #313244;
+    --ctp-base: #1e1e2e;
+    --ctp-mantle: #181825;
+    --ctp-crust: #11111b;
+}
+
+body {
+    @apply bg-[#1e1e2e] text-[#cdd6f4];
+}
+
+/* Editor component styles */
+.tiptap {
+    @apply w-full border-0 rounded-md focus:ring-0 focus:outline-none;
+    min-height: 120px;
+    color: var(--ctp-text);
+    background-color: var(--ctp-base);
+}
+
+.tiptap p {
+    @apply my-2;
+}
+
+.tiptap h1 {
+    @apply text-2xl font-bold mb-4 mt-6;
+    color: var(--ctp-lavender);
+}
+
+.tiptap h2 {
+    @apply text-xl font-bold mb-3 mt-5;
+    color: var(--ctp-blue);
+}
+
+.tiptap h3 {
+    @apply text-lg font-bold mb-2 mt-4;
+    color: var(--ctp-sapphire);
+}
+
+.tiptap ul, .tiptap ol {
+    @apply pl-6 my-3;
+}
+
+.tiptap li {
+    @apply my-1;
+}
+
+.tiptap blockquote {
+    @apply pl-4 italic my-4;
+    border-left: 4px solid var(--ctp-surface2);
+    color: var(--ctp-subtext0);
+}
+
+.tiptap a {
+    color: var(--ctp-sky);
+    text-decoration: underline;
+}
+
+/* Code block styling */
+.tiptap code {
+    background-color: var(--ctp-surface0);
+    color: var(--ctp-pink);
+    @apply rounded px-1.5 py-0.5 font-mono text-sm;
+}
+
+/* Editor container and components */
+.editor-container {
+    border: 1px solid var(--ctp-surface1);
+    background-color: var(--ctp-mantle);
+    @apply rounded-lg shadow-md overflow-hidden;
+}
+
+.editor-toolbar {
+    background-color: var(--ctp-surface0);
+    border-bottom: 1px solid var(--ctp-surface1);
+    @apply px-3 py-2 flex items-center;
+}
+
+.editor-content {
+    @apply p-4;
+}
+
+/* JSON display */
+.json-display {
+    background-color: var(--ctp-crust);
+    color: var(--ctp-green);
+    @apply font-mono text-xs;
+}
+
+.json-display .key {
+    color: var(--ctp-mauve);
+}
+
+.json-display .string {
+    color: var(--ctp-yellow);
+}
+
+.json-display .number {
+    color: var(--ctp-peach);
+}
+
+/* Buttons */
+.btn {
+    background-color: var(--ctp-mauve);
+    color: var(--ctp-crust);
+    @apply px-3 py-1.5 text-sm rounded-md transition-colors;
+}
+
+.btn:hover {
+    background-color: var(--ctp-lavender);
+}
+
+/* Status text */
+.status-text {
+    color: var(--ctp-subtext1);
+    @apply text-xs;
+}
+
+/* Headings */
+.heading-primary {
+    color: var(--ctp-rosewater);
+}
+
+.heading-secondary {
+    color: var(--ctp-flamingo);
+}
