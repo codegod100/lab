@@ -88,4 +88,4 @@ export function generateTreePositions(count = 20, areaSize = 40) {
 
 
 // Export using ES Modules
-export { World, Player, Obstacle, generateTreePositions };
+export { World, Player, Obstacle };
