@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Pizza Clicker Game</title>
+        <link rel="stylesheet" href="style.css" />
+        <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+    </head>
+    <body>
+        <div class="game-container">
+            <h1>Pizza Clicker</h1>
+            <div id="score-display">
+                Score: <span id="score">0.0</span><br />
+                PPS: <span id="pps">0.0</span><br />
+                Click Multiplier: ×<span id="click-multiplier">1.0</span>
+            </div>
+
+            <div class="upgrades">
+                <div class="pizza-container">
+                    <div
+                        id="pizza-container-3d"
+                        style="width: 300px; height: 300px; cursor: pointer"
+                    ></div>
+                </div>
+                <div>
+                    <div class="upgrade-item">
+                        <button id="upgrade-click">
+                            Upgrade Click (Cost: 25)
+                        </button>
+                        <div class="upgrade-desc">+0.5 to each click</div>
+                    </div>
+                    <div class="upgrade-item">
+                        <button id="upgrade-oven">
+                            Upgrade Oven (Cost: 10)
+                        </button>
+                        <div class="upgrade-desc">
+                            +0.1 PPS (Pizzas Per Second)
+                        </div>
+                    </div>
+                    <div class="upgrade-item">
+                        <button id="upgrade-delivery">
+                            Hire Delivery (Cost: 50)
+                        </button>
+                        <div class="upgrade-desc">
+                            +5 PPS (Pizzas Per Second)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script src="index.js"></script>
+    </body>
+</html>

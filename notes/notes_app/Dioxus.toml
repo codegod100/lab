@@ -1,0 +1,20 @@
+[application]
+name = "Notes App"
+default_platform = "web"
+out_dir = "dist"
+asset_dir = "public"
+
+[web.app]
+title = "Dioxus Notes App"
+base_path = "/"
+
+[web.watcher]
+reload_html = true
+watch_path = ["src", "public"]
+
+[web.dev]
+port = 8080
+
+# [web.resource]
+# style = []
+# script = []
