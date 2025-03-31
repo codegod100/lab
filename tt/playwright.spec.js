@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Game UI Tests', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('http://localhost:3000');
+    await page.goto('http://localhost:5173');
   });
 
   test('should display initial resource counts', async ({ page }) => {

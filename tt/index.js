@@ -163,6 +163,7 @@ function updateToolManagementUI() {
         console.error('No game instance or player');
         return;
     }
+    console.log(gameInstance.player)
     console.log('Full tool inventory:', JSON.parse(JSON.stringify(gameInstance.player.inventory.tools)));
     if (gameInstance.player.inventory.tools.length === 0) {
         console.warn('No tools found in inventory!');
