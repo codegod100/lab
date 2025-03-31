@@ -85,7 +85,47 @@ export class World {
         return false;
     }
 
+    harvestStone(player, stoneIndex) {
+        if (stoneIndex >= 0 && stoneIndex < this.entities.length) {
+            const stone = this.entities[stoneIndex];
+            if (stone instanceof Obstacle) {
+                const hasPickaxe = player.inventory.tools.some(tool =>
+                    tool.name.includes('Pickaxe')
+                );
+                const stoneAmount = hasPickaxe ? 3 : 1;
+                const collected = player.collectResource('STONE', stoneAmount);
+                if (collected) {
+                    if (!hasPickaxe) {
+                        console.log("Collected stone (get a pickaxe for more efficient mining)");
+                    }
+                    return true;
+                }
+                
+                if (stone.takeDamage(hasPickaxe ? 2 : 1)) {
+                    if (stone.mesh) {
+                        stone.topple();
+                    }
+                    this.entities.splice(stoneIndex, 1);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     findNearbyTrees(player, radius = 3) {
+        return this.entities
+            .map((entity, index) => ({ entity, index }))
+            .filter(({ entity }) =>
+                entity instanceof Obstacle &&
+                Math.sqrt(
+                    Math.pow(entity.position.x - player.position.x, 2) +
+                    Math.pow(entity.position.z - player.position.z, 2)
+                ) <= radius
+            );
+    }
+
+    findNearbyStones(player, radius = 3) {
         return this.entities
             .map((entity, index) => ({ entity, index }))
             .filter(({ entity }) =>
@@ -127,6 +167,10 @@ export class Player {
             const nearbyTrees = world.findNearbyTrees(this);
             if (nearbyTrees.length > 0) {
                 world.harvestTree(this, nearbyTrees[0].index);
+            }
+            const nearbyStones = world.findNearbyStones(this);
+            if (nearbyStones.length > 0) {
+                world.harvestStone(this, nearbyStones[0].index);
             }
         }
     }
@@ -341,11 +385,12 @@ export class Obstacle {
     }
 }
 
-export function generateTreePositions(count = 20, areaSize = 40) {
-    const positions = [];
+export function generateResourcePositions(treeCount = 15, stoneCount = 10, areaSize = 40) {
+    const positions = { trees: [], stones: [] };
     const halfSize = areaSize / 2;
 
-    for (let i = 0; i < count; i++) {
+    // Generate tree positions
+    for (let i = 0; i < treeCount; i++) {
         let x, z;
         const minDist = 6;
         do {
@@ -358,7 +403,7 @@ export function generateTreePositions(count = 20, areaSize = 40) {
             let attempts = 0;
             do {
                 const refIndex = Math.floor(Math.random() * i);
-                refPos = positions[refIndex];
+                refPos = positions.trees[refIndex];
                 attempts++;
             } while ((Math.abs(refPos.x) < minDist * 1.5 ||
                      Math.abs(refPos.z) < minDist * 1.5) &&
@@ -377,7 +422,33 @@ export function generateTreePositions(count = 20, areaSize = 40) {
         x = Math.max(-halfSize, Math.min(halfSize, x));
         z = Math.max(-halfSize, Math.min(halfSize, z));
 
-        positions.push({ x, y: 0, z });
+        positions.trees.push({ x, y: 0, z });
+    }
+
+    // Generate stone positions
+    for (let i = 0; i < stoneCount; i++) {
+        let x, z;
+        const minDist = 4;
+        do {
+            x = (Math.random() - 0.5) * areaSize;
+            z = (Math.random() - 0.5) * areaSize;
+        } while (Math.abs(x) < minDist || Math.abs(z) < minDist);
+
+        if (Math.random() > 0.5 && i > 0) {
+            const refIndex = Math.floor(Math.random() * i);
+            const refPos = positions.stones[refIndex];
+            const offsetRange = 2;
+            x = refPos.x + (Math.random() - 0.5) * offsetRange;
+            z = refPos.z + (Math.random() - 0.5) * offsetRange;
+        }
+
+        if (Math.abs(x) < 4) x = Math.sign(x) * 4;
+        if (Math.abs(z) < 4) z = Math.sign(z) * 4;
+
+        x = Math.max(-halfSize, Math.min(halfSize, x));
+        z = Math.max(-halfSize, Math.min(halfSize, z));
+
+        positions.stones.push({ x, y: 0, z });
     }
 
     return positions;
@@ -428,8 +499,10 @@ class Game {
         this.player.mesh.position.set(this.player.position.x, this.player.position.y + 0.5, this.player.position.z);
         this.scene.add(this.player.mesh);
 
-        const treePositions = generateTreePositions();
-        treePositions.forEach(pos => {
+        const resourcePositions = generateResourcePositions();
+        
+        // Create trees
+        resourcePositions.trees.forEach(pos => {
             const tree = new Obstacle(pos, 3, 1.5);
             
             // Create simple tree geometry (trunk + leaves)
@@ -455,6 +528,31 @@ class Game {
             tree.mesh = treeMesh;
             this.scene.add(treeMesh);
             this.world.addEntity(tree);
+        });
+
+        // Create stones
+        resourcePositions.stones.forEach(pos => {
+            const stone = new Obstacle(pos, 4, 1.0);
+            
+            // Create simple stone geometry
+            const stoneGeometry = new THREE.DodecahedronGeometry(0.8);
+            const stoneMaterial = new THREE.MeshStandardMaterial({
+                color: 0x888888,
+                roughness: 0.7,
+                metalness: 0.1
+            });
+            const stoneMesh = new THREE.Mesh(stoneGeometry, stoneMaterial);
+            stoneMesh.position.set(pos.x, 0.8, pos.z);
+            stoneMesh.castShadow = true;
+            stoneMesh.rotation.set(
+                Math.random() * Math.PI,
+                Math.random() * Math.PI,
+                Math.random() * Math.PI
+            );
+            
+            stone.mesh = stoneMesh;
+            this.scene.add(stoneMesh);
+            this.world.addEntity(stone);
         });
 
         this.setupControls();
