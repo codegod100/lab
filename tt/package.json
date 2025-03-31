@@ -3,6 +3,7 @@
   "module": "index.js",
   "type": "module",
   "dependencies": {
+    "@types/jest": "^29.5.14",
     "three": "^0.175.0"
   },
   "devDependencies": {
