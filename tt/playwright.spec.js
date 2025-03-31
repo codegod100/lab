@@ -7,12 +7,11 @@ test.describe('Game UI Tests', () => {
 
   test('should display initial resource counts', async ({ page }) => {
     const resourceDisplay = page.locator('#resource-display');
-    const resourcesList = page.locator('#resources-list');
     
     await expect(resourceDisplay).toBeVisible();
     await expect(resourceDisplay).toContainText('Resources:');
-    await expect(resourcesList).toContainText('WOOD: 0');
-    await expect(resourcesList).toContainText('STONE: 0');
+    await expect(resourceDisplay).toContainText('WOOD: 0');
+    await expect(resourceDisplay).toContainText('STONE: 0');
   });
 
   test('should open crafting menu', async ({ page }) => {

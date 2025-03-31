@@ -13,10 +13,8 @@ export {
 
 // Resource Display
 function updateResourceDisplayInternal() {
-    if (!gameInstance?.player) return;
     
     const resourcesList = document.getElementById('resources-list');
-    if (!resourcesList) return;
     
     // Aggregate resources
     const resourceCounts = {};
