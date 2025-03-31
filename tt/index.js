@@ -13,12 +13,14 @@ export {
 
 // Resource Display
 function updateResourceDisplayInternal() {
+    if (typeof document === 'undefined') return;
     
     const resourcesList = document.getElementById('resources-list');
+    if (!resourcesList) return;
     
     // Aggregate resources
     const resourceCounts = {};
-    gameInstance.player.inventory.backpack.items.forEach(item => {
+    gameInstance?.player?.inventory?.backpack?.items?.forEach(item => {
         if (item.stackable) {
             resourceCounts[item.type] = (resourceCounts[item.type] || 0) + item.quantity;
         }
@@ -36,6 +38,7 @@ function updateResourceDisplayInternal() {
 
 // Crafting UI
 function updateCraftingUIInternal() {
+    if (typeof document === 'undefined') return;
     if (!gameInstance?.player) return;
     
     const craftingGrid = document.getElementById('crafting-grid');
@@ -88,26 +91,12 @@ function updateCraftingUIInternal() {
 
         if (canCraft) {
             craftBtn.addEventListener('click', () => {
-                console.log('Pre-craft tools:', gameInstance.player.inventory.tools.map(t => t.name));
-                console.log('Before craft - tools:', gameInstance.player.inventory.tools);
                 const craftResult = gameInstance.player.craft(recipe.id);
-                console.log('After craft - tools:', gameInstance.player.inventory.tools);
-                console.log('Craft result:', craftResult);
                 if (craftResult) {
-                    console.log('Full inventory state:', {
-                        tools: JSON.parse(JSON.stringify(gameInstance.player.inventory.tools)),
-                        backpack: JSON.parse(JSON.stringify(gameInstance.player.inventory.backpack.items))
-                    });
                     craftingResult.textContent = `Crafted ${recipe.name}!`;
-                    // Debug tool addition
-                    const newTool = gameInstance.player.inventory.tools.find(t => t.name === recipe.name);
-                    console.log('New tool details:', newTool);
-                    // Update all UIs
                     updateToolManagementUI();
                     updateToolHotbar();
                     updateResourceDisplayInternal();
-                    // Verify updates
-                    console.log('UI update complete');
                 } else {
                     craftingResult.textContent = `Failed to craft ${recipe.name}. (Check space?)`;
                 }
@@ -124,6 +113,7 @@ function updateCraftingUIInternal() {
 let activeToolSlot = 0;
 
 function updateToolHotbar() {
+    if (typeof document === 'undefined') return;
     if (!gameInstance?.player) return;
     
     const hotbar = document.getElementById('tool-hotbar');
@@ -159,15 +149,8 @@ function updateToolHotbar() {
 
 // Tool Management
 function updateToolManagementUI() {
-    if (!gameInstance?.player) {
-        console.error('No game instance or player');
-        return;
-    }
-    console.log(gameInstance.player)
-    console.log('Full tool inventory:', JSON.parse(JSON.stringify(gameInstance.player.inventory.tools)));
-    if (gameInstance.player.inventory.tools.length === 0) {
-        console.warn('No tools found in inventory!');
-    }
+    if (typeof document === 'undefined') return;
+    if (!gameInstance?.player) return;
     
     const toolGrid = document.getElementById('tool-grid');
     if (!toolGrid) return;
@@ -198,119 +181,90 @@ function updateToolManagementUI() {
 
 // ===== INITIALIZATION ===== //
 
-document.addEventListener('DOMContentLoaded', () => {
-    // Get UI elements
-    const craftButton = document.getElementById('craft-items');
-    const closeCrafting = document.getElementById('close-crafting');
-    const craftingTable = document.getElementById('crafting-table');
-    const manageToolsBtn = document.getElementById('manage-tools');
-    const toolPanel = document.getElementById('tool-panel');
-    const closeToolsBtn = document.getElementById('close-tools');
+// Only run in browser environment
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', () => {
+        // Get UI elements
+        const craftButton = document.getElementById('craft-items');
+        const closeCrafting = document.getElementById('close-crafting');
+        const craftingTable = document.getElementById('crafting-table');
+        const manageToolsBtn = document.getElementById('manage-tools');
+        const toolPanel = document.getElementById('tool-panel');
+        const closeToolsBtn = document.getElementById('close-tools');
 
-    // Crafting toggle
-    if (craftButton && craftingTable) {
-        craftButton.addEventListener('click', (e) => {
-            e.stopPropagation();
-            craftingTable.style.display = 
-                craftingTable.style.display === 'none' ? 'block' : 'none';
-            if (craftingTable.style.display === 'block') {
-                updateCraftingUIInternal();
-            }
-        });
-    }
-
-    // Close crafting
-    if (closeCrafting && craftingTable) {
-        closeCrafting.addEventListener('click', () => {
-            craftingTable.style.display = 'none';
-        });
-    }
-
-    // Tool management toggle
-    if (manageToolsBtn && toolPanel) {
-        manageToolsBtn.addEventListener('click', () => {
-            toolPanel.style.display = 
-                toolPanel.style.display === 'none' ? 'block' : 'none';
-            if (toolPanel.style.display === 'block') {
-                console.log('Force refreshing tool panel');
-                // Completely rebuild the tool grid
-                const toolGrid = document.getElementById('tool-grid');
-                toolGrid.innerHTML = '';
-                
-                const tools = gameInstance.player.inventory.tools;
-                console.log('Tools to render:', tools);
-                if (tools.length === 0) {
-                    console.warn('No tools found in inventory!');
-                }
-                tools.forEach(tool => {
-                    console.log('Rendering tool:', tool);
-                    const toolItem = document.createElement('div');
-                    toolItem.className = 'tool-item';
-                    if (gameInstance.player.activeTool === tool) {
-                        toolItem.classList.add('equipped');
-                    }
-                    toolItem.innerHTML = `
-                        <div><strong>${tool.name}</strong></div>
-                        <div style="font-size: 0.8em">${tool.type}</div>
-                    `;
-                    toolItem.addEventListener('click', () => {
-                        gameInstance.player.activeTool = tool;
-                        updateToolManagementUI();
-                        updateToolHotbar();
-                    });
-                    if (!toolItem) {
-                        console.error('Failed to create tool item!');
-                    } else {
-                        toolGrid.appendChild(toolItem);
-                        console.log('Successfully rendered tool:', tool.name);
-                    }
-                });
-            }
-        });
-    }
-
-    // Close tool panel
-    if (closeToolsBtn && toolPanel) {
-        closeToolsBtn.addEventListener('click', () => {
-            toolPanel.style.display = 'none';
-        });
-    }
-
-    // Click outside to close panels
-    document.addEventListener('click', (e) => {
-        if (craftingTable.style.display === 'block' && 
-            !craftingTable.contains(e.target) && 
-            e.target !== craftButton) {
-            craftingTable.style.display = 'none';
-        }
-        if (toolPanel.style.display === 'block' && 
-            !toolPanel.contains(e.target) && 
-            e.target !== manageToolsBtn) {
-            toolPanel.style.display = 'none';
-        }
-    });
-
-    // Wait for game instance
-    const checkGameInstance = setInterval(() => {
-        if (window.game) {
-            gameInstance = window.game;
-            clearInterval(checkGameInstance);
-            
-            // Setup UI updater
-            gameInstance.uiUpdater.render = () => {
-                updateResourceDisplayInternal();
-                updateToolHotbar();
+        // Crafting toggle
+        if (craftButton && craftingTable) {
+            craftButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                craftingTable.style.display = 
+                    craftingTable.style.display === 'none' ? 'block' : 'none';
                 if (craftingTable.style.display === 'block') {
                     updateCraftingUIInternal();
                 }
+            });
+        }
+
+        // Close crafting
+        if (closeCrafting && craftingTable) {
+            closeCrafting.addEventListener('click', () => {
+                craftingTable.style.display = 'none';
+            });
+        }
+
+        // Tool management toggle
+        if (manageToolsBtn && toolPanel) {
+            manageToolsBtn.addEventListener('click', () => {
+                toolPanel.style.display = 
+                    toolPanel.style.display === 'none' ? 'block' : 'none';
                 if (toolPanel.style.display === 'block') {
                     updateToolManagementUI();
                 }
-            };
-            
-            // Initial updates
-            updateResourceDisplayInternal();
-            updateToolHotbar();
+            });
         }
-    }, 100);
-});
+
+        // Close tool panel
+        if (closeToolsBtn && toolPanel) {
+            closeToolsBtn.addEventListener('click', () => {
+                toolPanel.style.display = 'none';
+            });
+        }
+
+        // Click outside to close panels
+        document.addEventListener('click', (e) => {
+            if (craftingTable.style.display === 'block' && 
+                !craftingTable.contains(e.target) && 
+                e.target !== craftButton) {
+                craftingTable.style.display = 'none';
+            }
+            if (toolPanel.style.display === 'block' && 
+                !toolPanel.contains(e.target) && 
+                e.target !== manageToolsBtn) {
+                toolPanel.style.display = 'none';
+            }
+        });
+
+        // Wait for game instance
+        const checkGameInstance = setInterval(() => {
+            if (window.game) {
+                gameInstance = window.game;
+                clearInterval(checkGameInstance);
+                
+                // Setup UI updater
+                gameInstance.uiUpdater.render = () => {
+                    updateResourceDisplayInternal();
+                    updateToolHotbar();
+                    if (craftingTable.style.display === 'block') {
+                        updateCraftingUIInternal();
+                    }
+                    if (toolPanel.style.display === 'block') {
+                        updateToolManagementUI();
+                    }
+                };
+                
+                // Initial updates
+                updateResourceDisplayInternal();
+                updateToolHotbar();
+            }
+        }, 100);
+    });
+}
