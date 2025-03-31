@@ -1,5 +1,29 @@
 // game.js
 
+/**
+ * @typedef {Object} InventoryItem
+ * @property {string} type
+ * @property {string} name
+ * @property {number} width
+ * @property {number} height
+ * @property {number} [x]
+ * @property {number} [y]
+ */
+
+/**
+ * @typedef {Object} StackableItem
+ * @property {true} stackable
+ * @property {number} quantity
+ * @property {number} maxStack
+ * @extends InventoryItem
+ */
+
+/**
+ * @typedef {Object} ToolItem
+ * @property {false} [stackable]
+ * @extends InventoryItem
+ */
+
 // Item definitions
 const Items = {
     WOOD: {
@@ -77,16 +101,6 @@ class World {
                 ) <= radius
             );
     }
-
-    // update(deltaTime) {
-    //     // Game logic updates for player and entities would go here
-    //     if (this.player) {
-    //         // Update player logic
-    //     }
-    //     this.entities.forEach(entity => {
-    //         // Update entity logic
-    //     });
-    // }
 }
 
 class Player {
@@ -101,10 +115,8 @@ class Player {
                 items: []
             }
         };
-        // this.mesh = null; // Optional reference to the THREE.Mesh
     }
 
-    // Methods for actions: move, attack, interact, etc.
     move(dx, dy, dz) {
         this.position.x += dx;
         this.position.y += dy;
@@ -114,17 +126,14 @@ class Player {
     collectResource(type, amount = 1) {
         if (!Items[type]?.stackable) return false;
         
-        // Find existing stack
         const existing = this.inventory.backpack.items.find(
             item => item.type === type && item.quantity < item.maxStack
         );
         
         if (existing) {
-            // Add to existing stack
             existing.quantity = Math.min(existing.quantity + amount, existing.maxStack);
             return true;
         } else {
-            // Create new stack
             const stack = {
                 ...Items[type],
                 type: type,
@@ -151,7 +160,6 @@ class Player {
 
         if (!recipes[item]) return false;
 
-        // Check if player has required materials in backpack
         for (const [material, needed] of Object.entries(recipes[item])) {
             let remaining = needed;
             const stacks = this.inventory.backpack.items
@@ -163,7 +171,6 @@ class Player {
             }
         }
 
-        // Deduct materials from backpack
         for (const [material, needed] of Object.entries(recipes[item])) {
             let remaining = needed;
             const stacks = this.inventory.backpack.items
@@ -182,15 +189,13 @@ class Player {
             }
         }
         
-        // Create the crafted item (convert all types to lowercase for consistency)
         const craftedItem = {
             ...Items[item],
-            type: item.toLowerCase(), // Convert all to lowercase
+            type: item.toLowerCase(),
             x: -1,
             y: -1
         };
 
-        // Place in backpack if it's not a tool
         const isTool = craftedItem.type.includes('axe') || craftedItem.type.includes('pickaxe');
         if (!isTool) {
             const position = this.findSpaceForItem(craftedItem);
@@ -210,7 +215,6 @@ class Player {
         return this.inventory.tools.includes(toolType);
     }
 
-    // Inventory management methods
     canPlaceItem(item, x, y) {
         const backpack = this.inventory.backpack;
         if (x < 0 || y < 0 ||
@@ -272,14 +276,13 @@ class Player {
     }
 }
 
-// Could be renamed to Entity or have a base Entity class
 class Obstacle {
-    constructor(position, health = 3, size = 1.0) { // Default health to 3 hits, size 1.0
+    constructor(position, health = 3, size = 1.0) {
         this.position = position;
         this.maxHealth = health;
         this.currentHealth = health;
-        this.size = size; // Scale factor
-        this.mesh = null; // Reference to the THREE.Mesh
+        this.size = size;
+        this.mesh = null;
     }
 
     takeDamage(amount) {
@@ -288,27 +291,23 @@ class Obstacle {
             this.currentHealth = 0;
         }
         console.log(`Obstacle took ${amount} damage, health: ${this.currentHealth}/${this.maxHealth}`);
-        return this.currentHealth <= 0; // Return true if destroyed
+        return this.currentHealth <= 0;
     }
 }
 
-// Procedural generation utilities
-export function generateTreePositions(count = 20, areaSize = 40) {
+function generateTreePositions(count = 20, areaSize = 40) {
     const positions = [];
     const halfSize = areaSize / 2;
 
     for (let i = 0; i < count; i++) {
         let x, z;
-        // Generate initial position with strict center avoidance
-        const minDist = 6; // More than required 5 to ensure test passes
+        const minDist = 6;
         do {
             x = (Math.random() - 0.5) * areaSize;
             z = (Math.random() - 0.5) * areaSize;
         } while (Math.abs(x) < minDist || Math.abs(z) < minDist);
 
-        // Only cluster if we have valid positions to reference
         if (Math.random() > 0.7 && i > 0) {
-            // Find a reference position that's safely outside center
             let refPos;
             let attempts = 0;
             do {
@@ -320,18 +319,15 @@ export function generateTreePositions(count = 20, areaSize = 40) {
                     attempts < 10);
 
             if (attempts < 10) {
-                // Cluster with conservative offset
                 const offsetRange = 3;
                 x = refPos.x + (Math.random() - 0.5) * offsetRange;
                 z = refPos.z + (Math.random() - 0.5) * offsetRange;
             }
         }
 
-        // Final validation - absolutely no positions in center area
         if (Math.abs(x) < 5) x = Math.sign(x) * 5;
         if (Math.abs(z) < 5) z = Math.sign(z) * 5;
 
-        // Final bounds clamping
         x = Math.max(-halfSize, Math.min(halfSize, x));
         z = Math.max(-halfSize, Math.min(halfSize, z));
 
@@ -341,6 +337,5 @@ export function generateTreePositions(count = 20, areaSize = 40) {
     return positions;
 }
 
-
-// Export using ES Modules
-export { World, Player, Obstacle, Items };
+// ES Module Exports
+export { World, Player, Obstacle, Items, generateTreePositions };

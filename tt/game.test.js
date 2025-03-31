@@ -1,3 +1,6 @@
+// @ts-check
+'use strict';
+
 // Import necessary modules
 import { World, Player, Obstacle, generateTreePositions, Items } from './game.js'; // Using ESM import
 
