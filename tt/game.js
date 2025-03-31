@@ -1,28 +1,4 @@
-// game.js
-
-/**
- * @typedef {Object} InventoryItem
- * @property {string} type
- * @property {string} name
- * @property {number} width
- * @property {number} height
- * @property {number} [x]
- * @property {number} [y]
- */
-
-/**
- * @typedef {Object} StackableItem
- * @property {true} stackable
- * @property {number} quantity
- * @property {number} maxStack
- * @extends InventoryItem
- */
-
-/**
- * @typedef {Object} ToolItem
- * @property {false} [stackable]
- * @extends InventoryItem
- */
+import * as THREE from 'three';
 
 // Item definitions
 const Items = {
@@ -57,31 +33,47 @@ const Items = {
     }
 };
 
+const Recipes = {
+    WOODEN_AXE: { WOOD: 3 },
+    WOODEN_PICKAXE: { WOOD: 3 },
+    CAMPFIRE: { WOOD: 5, STONE: 3 }
+};
+
+
 class World {
     constructor() {
         this.player = null;
-        this.entities = []; // To hold obstacles, NPCs, etc.
+        this.entities = [];
     }
 
     setPlayer(player) {
         this.player = player;
-        // Optionally add player's mesh to the scene here if World manages THREE objects
     }
 
     addEntity(entity) {
         this.entities.push(entity);
-        // Optionally add entity's mesh to the scene here
     }
 
     harvestTree(player, treeIndex) {
         if (treeIndex >= 0 && treeIndex < this.entities.length) {
             const tree = this.entities[treeIndex];
             if (tree instanceof Obstacle) {
-                // Give wood on each hit (using new inventory system)
-                player.collectResource('WOOD', 2);
+                const hasAxe = player.inventory.tools.some(tool =>
+                    tool.name.includes('Axe')
+                );
+                const woodAmount = hasAxe ? 3 : 1;
+                const collected = player.collectResource('WOOD', woodAmount);
+                if (collected) {
+                    if (!hasAxe) {
+                        console.log("Collected wood (get an axe for more efficient chopping)");
+                    }
+                    return true;
+                }
                 
-                if (tree.takeDamage(1)) {
-                    // Tree was destroyed
+                if (tree.takeDamage(hasAxe ? 2 : 1)) {
+                    if (tree.mesh) {
+                        this.scene?.remove(tree.mesh);
+                    }
                     this.entities.splice(treeIndex, 1);
                     return true;
                 }
@@ -104,7 +96,7 @@ class World {
 }
 
 class Player {
-    constructor() {
+    constructor(inventoryRenderer) {
         this.position = { x: 0, y: 0, z: 0 };
         this.inventory = {
             tools: [],
@@ -115,12 +107,25 @@ class Player {
                 items: []
             }
         };
+        this.activeTool = null;
+        this.inventoryRenderer = inventoryRenderer;
     }
 
-    move(dx, dy, dz) {
+    move(dx, dy, dz, world) {
         this.position.x += dx;
         this.position.y += dy;
         this.position.z += dz;
+        
+        if (this.mesh) {
+            this.mesh.position.set(this.position.x, this.position.y, this.position.z);
+        }
+
+        if (world) {
+            const nearbyTrees = world.findNearbyTrees(this);
+            if (nearbyTrees.length > 0) {
+                world.harvestTree(this, nearbyTrees[0].index);
+            }
+        }
     }
 
     collectResource(type, amount = 1) {
@@ -132,6 +137,10 @@ class Player {
         
         if (existing) {
             existing.quantity = Math.min(existing.quantity + amount, existing.maxStack);
+            if (this.inventoryRenderer) {
+                this.inventoryRenderer.render();
+                console.log('Inventory after updating stack:', JSON.stringify(this.inventory.backpack.items));
+            }
             return true;
         } else {
             const stack = {
@@ -145,137 +154,145 @@ class Player {
             if (!position) return false;
             
             if (this.placeItem(stack, position.x, position.y)) {
+                if (this.inventoryRenderer) {
+                    this.inventoryRenderer.render();
+                    console.log('Inventory after placing new stack:', JSON.stringify(this.inventory.backpack.items));
+                }
                 return true;
             }
         }
         return false;
     }
 
-    craft(item) {
-        const recipes = {
-            'WOODEN_AXE': { WOOD: 3 },
-            'WOODEN_PICKAXE': { WOOD: 3 },
-            'CAMPFIRE': { WOOD: 5, STONE: 3 }
-        };
-
-        if (!recipes[item]) return false;
-
-        for (const [material, needed] of Object.entries(recipes[item])) {
-            let remaining = needed;
-            const stacks = this.inventory.backpack.items
-                .filter(i => i.type === material)
-                .sort((a, b) => b.quantity - a.quantity);
-            
-            if (stacks.reduce((sum, stack) => sum + stack.quantity, 0) < remaining) {
-                return false;
-            }
-        }
-
-        for (const [material, needed] of Object.entries(recipes[item])) {
-            let remaining = needed;
-            const stacks = this.inventory.backpack.items
-                .filter(i => i.type === material)
-                .sort((a, b) => b.quantity - a.quantity);
-            
-            for (const stack of stacks) {
-                if (remaining <= 0) break;
-                const deduct = Math.min(remaining, stack.quantity);
-                stack.quantity -= deduct;
-                remaining -= deduct;
-                
-                if (stack.quantity === 0) {
-                    this.removeItem(stack);
-                }
-            }
-        }
-        
-        const craftedItem = {
-            ...Items[item],
-            type: item.toLowerCase(),
-            x: -1,
-            y: -1
-        };
-
-        const isTool = craftedItem.type.includes('axe') || craftedItem.type.includes('pickaxe');
-        if (!isTool) {
-            const position = this.findSpaceForItem(craftedItem);
-            if (!position) return false;
-            
-            if (!this.placeItem(craftedItem, position.x, position.y)) {
-                return false;
-            }
-        } else {
-            this.inventory.tools.push(craftedItem);
-        }
-        
-        return true;
-    }
-
-    hasTool(toolType) {
-        return this.inventory.tools.includes(toolType);
-    }
-
-    canPlaceItem(item, x, y) {
-        const backpack = this.inventory.backpack;
-        if (x < 0 || y < 0 ||
-            x + item.width > backpack.width ||
-            y + item.height > backpack.height) {
-            return false;
-        }
-
-        for (let iy = y; iy < y + item.height; iy++) {
-            for (let ix = x; ix < x + item.width; ix++) {
-                if (backpack.grid[iy][ix] !== null) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    placeItem(item, x, y) {
-        if (!this.canPlaceItem(item, x, y)) return false;
-
-        const backpack = this.inventory.backpack;
-        item.x = x;
-        item.y = y;
-        backpack.items.push(item);
-
-        for (let iy = y; iy < y + item.height; iy++) {
-            for (let ix = x; ix < x + item.width; ix++) {
-                backpack.grid[iy][ix] = item;
-            }
-        }
-        return true;
-    }
-
-    removeItem(item) {
-        const backpack = this.inventory.backpack;
-        const index = backpack.items.indexOf(item);
-        if (index === -1) return false;
-
-        for (let iy = item.y; iy < item.y + item.height; iy++) {
-            for (let ix = item.x; ix < item.x + item.width; ix++) {
-                backpack.grid[iy][ix] = null;
-            }
-        }
-        backpack.items.splice(index, 1);
-        return true;
-    }
-
     findSpaceForItem(item) {
         const backpack = this.inventory.backpack;
         for (let y = 0; y <= backpack.height - item.height; y++) {
             for (let x = 0; x <= backpack.width - item.width; x++) {
-                if (this.canPlaceItem(item, x, y)) {
-                    return {x, y};
+                let canPlace = true;
+                for (let iy = 0; iy < item.height; iy++) {
+                    for (let ix = 0; ix < item.width; ix++) {
+                        if (backpack.grid[y + iy][x + ix] !== null) {
+                            canPlace = false;
+                            break;
+                        }
+                    }
+                    if (!canPlace) break;
+                }
+                if (canPlace) {
+                    return { x, y };
                 }
             }
         }
-        return null;
+        return null; // No space found
     }
-}
 
+    placeItem(item, x, y) {
+        const backpack = this.inventory.backpack;
+        // Check bounds again just in case
+        if (y + item.height > backpack.height || x + item.width > backpack.width) {
+            return false;
+        }
+
+        // Mark grid cells as occupied
+        for (let iy = 0; iy < item.height; iy++) {
+            for (let ix = 0; ix < item.width; ix++) {
+                // Use a reference or identifier for the item
+                backpack.grid[y + iy][x + ix] = item.type || true; 
+            }
+        }
+
+        // Add item to list and store its position
+        item.x = x;
+        item.y = y;
+        backpack.items.push(item);
+    }
+
+    // Helper to remove items from inventory grid
+    removeFromGrid(item) {
+        const backpack = this.inventory.backpack;
+        if (item.x === undefined || item.y === undefined) return; // Not placed
+
+        for (let iy = 0; iy < item.height; iy++) {
+            for (let ix = 0; ix < item.width; ix++) {
+                if (backpack.grid[item.y + iy]?.[item.x + ix] === item.type) {
+                    backpack.grid[item.y + iy][item.x + ix] = null;
+                }
+            }
+        }
+        item.x = undefined;
+        item.y = undefined;
+    }
+
+    // Check if player has enough resources to craft an item
+    canCraft(itemType) {
+        const recipe = Recipes[itemType];
+        if (!recipe) return false;
+
+        for (const resourceType in recipe) {
+            const requiredAmount = recipe[resourceType];
+            let currentAmount = 0;
+            this.inventory.backpack.items.forEach(item => {
+                if (item.type === resourceType) {
+                    currentAmount += item.quantity;
+                }
+            });
+            if (currentAmount < requiredAmount) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // Attempt to craft an item
+    craft(itemType) {
+        if (!this.canCraft(itemType)) {
+            console.log(`Cannot craft ${itemType}: Insufficient resources.`);
+            return false;
+        }
+
+        const recipe = Recipes[itemType];
+        const craftedItem = { ...Items[itemType], type: itemType };
+
+        // Check if there's space for the crafted item
+        const position = this.findSpaceForItem(craftedItem);
+        if (!position) {
+            console.log(`Cannot craft ${itemType}: No inventory space.`);
+            return false;
+        }
+
+        // Consume resources
+        for (const resourceType in recipe) {
+            let amountToConsume = recipe[resourceType];
+            for (let i = this.inventory.backpack.items.length - 1; i >= 0 && amountToConsume > 0; i--) {
+                const item = this.inventory.backpack.items[i];
+                if (item.type === resourceType) {
+                    const consume = Math.min(amountToConsume, item.quantity);
+                    item.quantity -= consume;
+                    amountToConsume -= consume;
+                    if (item.quantity <= 0) {
+                        this.removeFromGrid(item);
+                        this.inventory.backpack.items.splice(i, 1);
+                    }
+                }
+            }
+        }
+
+        // Place the crafted item
+        if (this.placeItem(craftedItem, position.x, position.y)) {
+            console.log(`Crafted ${itemType} successfully.`);
+            if (this.inventoryRenderer) {
+                this.inventoryRenderer.render(); // Update UI
+            }
+            return true;
+        } else {
+            // This case should ideally not happen if findSpaceForItem worked,
+            // but good to handle. Might need to refund resources if complex.
+            console.error(`Failed to place crafted item ${itemType} even after finding space.`);
+            return false;
+        }
+    }
+
+} // End of Player class
 class Obstacle {
     constructor(position, health = 3, size = 1.0) {
         this.position = position;
@@ -290,7 +307,6 @@ class Obstacle {
         if (this.currentHealth < 0) {
             this.currentHealth = 0;
         }
-        console.log(`Obstacle took ${amount} damage, health: ${this.currentHealth}/${this.maxHealth}`);
         return this.currentHealth <= 0;
     }
 }
@@ -337,5 +353,115 @@ function generateTreePositions(count = 20, areaSize = 40) {
     return positions;
 }
 
-// ES Module Exports
-export { World, Player, Obstacle, Items, generateTreePositions };
+class Game {
+    constructor() {
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.camera.position.set(0, 15, 20); // Position camera higher and back
+        this.camera.lookAt(0, 0, 0); // Look at the center of the scene
+
+        this.renderer = new THREE.WebGLRenderer({ antialias: true }); // Enable antialiasing
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setClearColor(0x87CEEB); // Sky blue background
+        this.renderer.shadowMap.enabled = true; // Enable shadows
+        document.body.appendChild(this.renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // Softer ambient light
+        this.scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8); // Add directional light
+        directionalLight.position.set(5, 10, 7.5); // Position the light
+        directionalLight.castShadow = true; // Enable shadow casting
+        this.scene.add(directionalLight);
+
+        // Ground plane
+        const planeGeometry = new THREE.PlaneGeometry(100, 100);
+        const planeMaterial = new THREE.MeshStandardMaterial({ color: 0x55aa55 }); // Greener, standard material
+        const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+        plane.receiveShadow = true; // Allow ground to receive shadows
+        plane.rotation.x = -Math.PI / 2;
+        this.scene.add(plane);
+
+        this.world = new World();
+
+        // Create a simple renderer object to link Player actions to UI updates
+        // index.js will assign the actual update functions to this object later.
+        this.uiUpdater = {
+            render: () => {
+                // This function body will be overwritten by index.js
+                // to directly call its internal update functions.
+                console.log("uiUpdater.render called (placeholder - waiting for index.js assignment)");
+            }
+        };
+        this.player = new Player(this.uiUpdater); // Pass the updater to the player
+        this.world.setPlayer(this.player);
+
+        // Create player mesh (e.g., a simple capsule)
+        const playerGeometry = new THREE.CapsuleGeometry(0.5, 1, 4, 8);
+        const playerMaterial = new THREE.MeshStandardMaterial({ color: 0x0077ff }); // Blue color
+        this.player.mesh = new THREE.Mesh(playerGeometry, playerMaterial);
+        this.player.mesh.castShadow = true; // Player casts shadow
+        this.player.mesh.position.set(this.player.position.x, this.player.position.y + 0.5, this.player.position.z); // Adjust y position based on geometry
+        this.scene.add(this.player.mesh);
+
+        // Generate and add trees
+        const treePositions = generateTreePositions();
+        treePositions.forEach(pos => {
+            const tree = new Obstacle(pos, 3, 1.5); // Create logical obstacle
+            // Create tree mesh (e.g., a cylinder for the trunk)
+            const trunkHeight = 3;
+            const trunkRadius = 0.5;
+            const treeGeometry = new THREE.CylinderGeometry(trunkRadius, trunkRadius, trunkHeight, 8);
+            const treeMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 }); // Brown color
+            const treeMesh = new THREE.Mesh(treeGeometry, treeMaterial);
+            treeMesh.castShadow = true; // Tree casts shadow
+            treeMesh.position.set(pos.x, trunkHeight / 2, pos.z); // Position based on geometry center
+            tree.mesh = treeMesh; // Link mesh to the logical obstacle
+            this.scene.add(treeMesh);
+            this.world.addEntity(tree); // Add logical obstacle to the world
+        });
+
+        this.setupControls(); // Initialize keyboard listeners
+
+        // Give player starting resources for testing
+        this.player.collectResource('WOOD', 5);
+        this.player.collectResource('STONE', 2);
+
+    }
+
+    setupControls() {
+        this.keys = {};
+        window.addEventListener('keydown', (e) => { this.keys[e.code] = true; });
+        window.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
+    }
+
+
+    update() {
+        requestAnimationFrame(() => this.update());
+        // Handle player movement based on keys
+        const moveSpeed = 0.1;
+        if (this.keys?.KeyW) {
+            this.player.move(0, 0, -moveSpeed, this.world);
+        }
+        if (this.keys?.KeyS) {
+            this.player.move(0, 0, moveSpeed, this.world);
+        }
+        if (this.keys?.KeyA) {
+            this.player.move(-moveSpeed, 0, 0, this.world);
+        }
+        if (this.keys?.KeyD) {
+            this.player.move(moveSpeed, 0, 0, this.world);
+        }
+
+        this.renderer.render(this.scene, this.camera);
+    }
+}
+
+export { World, Player, Obstacle, Items, generateTreePositions, Game };
+
+// Initialize and start the game only in a browser environment
+if (typeof window !== 'undefined') {
+    const game = new Game();
+    window.game = game; // Expose game instance globally for UI interaction
+    game.update();
+}
