@@ -10,26 +10,86 @@
       }
     </script>
     <style>
-        body { margin: 0; overflow: hidden; } /* Basic styles for canvas */
+        body { margin: 0; overflow: hidden; }
         canvas { display: block; }
+        
+        /* Hotbar Styling */
+        .hotbar-slot {
+            width: 50px;
+            height: 50px;
+            margin: 0 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(30,30,30,0.8);
+            border: 2px solid #444;
+            border-radius: 3px;
+            color: #f0e6d2;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+        .hotbar-slot:hover {
+            background: rgba(60,60,60,0.8);
+        }
+        .hotbar-slot.active {
+            border-color: gold;
+            box-shadow: 0 0 10px gold;
+        }
+        .hotbar-slot.equipped {
+            background: rgba(92, 72, 25, 0.5);
+        }
+        
+        /* Tool Management Styling */
+        .tool-item {
+            border: 1px solid #555;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tool-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .tool-item.equipped {
+            border-color: gold;
+            background: rgba(92, 72, 25, 0.3);
+            box-shadow: 0 0 8px gold;
+        }
     </style>
 </head>
+<body>
+    <!-- Resource Display -->
     <div id="resource-display" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); color: white; padding: 10px; border-radius: 5px; z-index: 10;">
         Resources:
         <div id="resources-list"></div>
     </div>
 
+    <!-- Crafting Button -->
     <button id="craft-items" style="position: absolute; top: 10px; left: 10px; z-index: 10;">Craft Items</button>
 
-    <!-- Crafting Table (Initially Hidden) -->
+    <!-- Tool Management Button -->
+    <button id="manage-tools" style="position: absolute; top: 50px; left: 10px; z-index: 10;">Manage Tools</button>
+
+    <!-- Crafting Table -->
     <div id="crafting-table" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.7); padding: 20px; border-radius: 5px; color: white; z-index: 20;">
         <h2>Crafting</h2>
         <div id="crafting-grid"></div>
         <div id="crafting-result"></div>
         <button id="close-crafting" style="position: absolute; top: 5px; right: 5px;">X</button>
     </div>
-<body>
-    <!-- The game canvas will be appended here by game.js -->
+
+    <!-- Tool Management Panel -->
+    <div id="tool-panel" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); padding: 20px; border-radius: 5px; color: white; z-index: 20; width: 300px;">
+        <h2>Tool Management</h2>
+        <div id="tool-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;"></div>
+        <button id="close-tools" style="position: absolute; top: 5px; right: 5px;">X</button>
+    </div>
+
+    <!-- Hotbar -->
+    <div id="tool-hotbar" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; background: rgba(0,0,0,0.6); padding: 5px; border-radius: 5px; z-index: 10;"></div>
+
+    <!-- Game Scripts -->
     <script type="module" src="game.js"></script>
     <script src="index.js"></script>
 </body>

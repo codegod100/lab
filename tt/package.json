@@ -3,7 +3,11 @@
   "module": "index.js",
   "type": "module",
   "dependencies": {
+    "@playwright/test": "^1.51.1",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
     "@types/jest": "^29.5.14",
+    "jsdom": "^26.0.0",
     "three": "^0.175.0"
   },
   "devDependencies": {
@@ -11,5 +15,11 @@
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
+  },
+  "scripts": {
+    "test:unit": "bun test game.test.js",
+    "test:ui": "playwright test --config=playwright.config.js",
+    "test": "bun run test:unit && bun run test:ui",
+    "dev": "bun run index.js"
   }
 }
