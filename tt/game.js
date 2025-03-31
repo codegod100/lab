@@ -153,7 +153,11 @@ class Player {
             const position = this.findSpaceForItem(stack);
             if (!position) return false;
             
-            if (this.placeItem(stack, position.x, position.y)) {
+            const placed = this.placeItem(stack, position.x, position.y);
+            if (placed && stack.isTool) {
+                this.addTool(stack);
+            }
+            if (placed) {
                 if (this.inventoryRenderer) {
                     this.inventoryRenderer.render();
                     console.log('Inventory after placing new stack:', JSON.stringify(this.inventory.backpack.items));
@@ -186,6 +190,17 @@ class Player {
         return null; // No space found
     }
 
+    addTool(tool) {
+        if (!tool.isTool) return false;
+        console.log('Adding tool to inventory:', tool);
+        this.inventory.tools.push(tool);
+        console.log('Current tools:', this.inventory.tools);
+        if (this.inventoryRenderer) {
+            this.inventoryRenderer.render();
+        }
+        return true;
+    }
+
     placeItem(item, x, y) {
         const backpack = this.inventory.backpack;
         // Check bounds again just in case
@@ -205,6 +220,7 @@ class Player {
         item.x = x;
         item.y = y;
         backpack.items.push(item);
+        return true; // Indicate successful placement
     }
 
     // Helper to remove items from inventory grid
@@ -280,6 +296,11 @@ class Player {
         // Place the crafted item
         if (this.placeItem(craftedItem, position.x, position.y)) {
             console.log(`Crafted ${itemType} successfully.`);
+            // Explicitly add tool to inventory tools array if it's a tool
+            if (craftedItem.isTool) {
+                this.inventory.tools.push(craftedItem);
+                console.log('Tool added to inventory:', craftedItem);
+            }
             if (this.inventoryRenderer) {
                 this.inventoryRenderer.render(); // Update UI
             }
