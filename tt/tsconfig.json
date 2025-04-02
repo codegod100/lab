@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
-    "types": ["bun-types"],
+    "types": [
+      "bun-types"
+    ],
+    "allowJs": true, // Explicitly allow JavaScript files
     "module": "ESNext",
     "target": "ESNext",
     "moduleResolution": "bundler",
@@ -9,6 +12,15 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["**/*.ts", "**/*.js"],
-  "exclude": ["node_modules"]
+  "include": [
+    "**/*.ts",
+    "**/*.js"
+  ],
+  "exclude": [
+    "node_modules",
+    "game.test.js",
+    "index.js",
+    "playwright.config.js",
+    "playwright.spec.js"
+  ]
 }

@@ -1,36 +1,35 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="utf-8">
   <title>Game</title>
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@v0.149.0/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@v0.149.0/examples/jsm/"
-      }
-    }
-  </script>
+
   <style>
     body {
       margin: 0;
       overflow: hidden;
     }
+
     canvas {
       display: block;
       width: 100vw;
       height: 100vh;
     }
+
     #ui {
       position: absolute;
       top: 10px;
       left: 10px;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0, 0, 0, 0.5);
       color: white;
       padding: 10px;
       border-radius: 5px;
       font-family: Arial, sans-serif;
+      z-index: 10;
+      /* Ensure it stays above the panel */
     }
+
     #hotbar {
       position: absolute;
       bottom: 60px;
@@ -38,42 +37,134 @@
       transform: translateX(-50%);
       display: flex;
       gap: 5px;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0, 0, 0, 0.5);
       padding: 5px;
       border-radius: 5px;
+      z-index: 10;
+      /* Ensure it stays above the panel */
     }
+
     .hotbar-slot {
       width: 40px;
       height: 40px;
-      background: rgba(255,255,255,0.2);
+      background: rgba(255, 255, 255, 0.2);
       border: 2px solid #555;
       display: flex;
       align-items: center;
       justify-content: center;
+      color: white;
+      /* Added for item text */
+      font-size: 10px;
+      /* Added for item text */
+      text-align: center;
+      /* Added for item text */
+      overflow: hidden;
+      /* Prevent text overflow */
+      position: relative;
+      /* For item count */
     }
+
     .hotbar-slot.active {
       border-color: white;
     }
-    #crafting {
+
+    .item-count {
       position: absolute;
-      bottom: 10px;
-      left: 10px;
-      background: rgba(0,0,0,0.5);
-      color: white;
-      padding: 10px;
-      border-radius: 5px;
-      font-family: Arial, sans-serif;
+      bottom: 2px;
+      right: 2px;
+      font-size: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 1px 3px;
+      border-radius: 3px;
     }
+
+    #inventory-crafting-panel {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px;
+      /* Adjust as needed */
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      font-family: Arial, sans-serif;
+      display: none;
+      /* Hidden by default */
+      z-index: 5;
+      flex-direction: column;
+      /* Changed to column */
+      align-items: center;
+      /* Center content */
+    }
+
+    #inventory-crafting-panel.visible {
+      display: flex;
+      /* Use flex when visible */
+    }
+
+    #inventory-grid {
+      display: grid;
+      grid-template-columns: repeat(10, 40px);
+      /* Match player inventory width */
+      grid-template-rows: repeat(6, 40px);
+      /* Match player inventory height */
+      gap: 5px;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 10px;
+      border: 1px solid #555;
+      margin-bottom: 15px;
+      /* Space between inventory and crafting */
+    }
+
+    .inventory-slot {
+      width: 40px;
+      height: 40px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid #444;
+      position: relative;
+      /* For item count */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      overflow: hidden;
+    }
+
+    #crafting {
+      /* Removed absolute positioning, now part of the panel */
+      background: none;
+      /* Panel provides background */
+      color: white;
+      padding: 0;
+      /* Panel provides padding */
+      border-radius: 0;
+      font-family: Arial, sans-serif;
+      width: 100%;
+      /* Take full width of panel */
+      text-align: center;
+      /* Center crafting title */
+    }
+
     .craft-btn {
       margin: 5px;
-      padding: 5px 10px;
-      background: #333;
-      border: none;
+      padding: 8px 15px;
+      /* Slightly larger buttons */
+      background: #444;
+      /* Slightly lighter */
+      border: 1px solid #666;
       color: white;
       cursor: pointer;
+      border-radius: 3px;
+    }
+
+    .craft-btn:hover {
+      background: #555;
     }
   </style>
 </head>
+
 <body>
   <div id="ui">
     <div>Wood: <span id="wood-count">0</span></div>
@@ -90,13 +181,19 @@
     <div class="hotbar-slot"></div>
     <div class="hotbar-slot"></div>
   </div>
-  <div id="crafting">
-    <h3>Crafting</h3>
-    <button class="craft-btn" data-item="WOODEN_AXE">Wooden Axe (3 Wood)</button>
-    <button class="craft-btn" data-item="WOODEN_PICKAXE">Wooden Pickaxe (3 Wood)</button>
-    <button class="craft-btn" data-item="CAMPFIRE">Campfire (5 Wood, 3 Stone)</button>
+  <div id="inventory-crafting-panel">
+    <h2>Inventory & Crafting</h2>
+    <div id="inventory-grid">
+      <!-- Inventory slots will be generated by JS -->
+    </div>
+    <div id="crafting">
+      <h3>Crafting</h3>
+      <button class="craft-btn" data-item="WOODEN_AXE">Wooden Axe (3 Wood)</button>
+      <button class="craft-btn" data-item="WOODEN_PICKAXE">Wooden Pickaxe (3 Wood)</button>
+      <button class="craft-btn" data-item="CAMPFIRE">Campfire (5 Wood, 3 Stone)</button>
+    </div>
   </div>
-  <script type="module" src="game.js"></script>
+  <script type="module" src="game.ts"></script>
 </body>
-</html>
 
+</html>
