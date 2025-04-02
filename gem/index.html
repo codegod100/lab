@@ -4,7 +4,6 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Three.js Survival Crafting</title>
-        <script src="https://cdn.tailwindcss.com"></script>
         <link
             href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
             rel="stylesheet"
@@ -27,117 +26,152 @@
             }
             #ui-container {
                 position: absolute;
-                top: 0; /* Changed to 0 */
-                left: 0; /* Changed to 0 */
-                right: 0; /* Changed to 0 */
-                bottom: 0; /* Changed to 0 */
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
                 display: flex;
                 flex-direction: column;
                 justify-content: space-between; /* Pushes top/bottom rows apart */
                 pointer-events: none; /* Allow clicking through the container */
-                padding: 15px; /* Consistent padding */
-                font-size: 12px; /* Smaller font for game UI */
+                padding: 15px;
+                font-size: 12px;
             }
             .ui-panel {
                 background-color: rgba(0, 0, 0, 0.7);
-                padding: 15px;
-                border-radius: 8px; /* Rounded corners */
+                padding: 10px 15px; /* Slightly less padding */
+                border-radius: 8px;
                 border: 2px solid #444;
-                pointer-events: auto; /* Enable interaction for panels */
-                margin-bottom: 10px; /* Spacing between panels if stacked */
-                max-width: 300px; /* Limit width */
+                pointer-events: auto;
+                margin-bottom: 10px;
+                max-width: 280px; /* Slightly narrower */
+                box-shadow: 3px 3px 5px rgba(0,0,0,0.5);
             }
             .ui-panel h3 {
                 margin-top: 0;
                 margin-bottom: 10px;
-                color: #0f0; /* Greenish text */
+                color: #0f0;
                 border-bottom: 1px solid #444;
                 padding-bottom: 5px;
+                font-size: 13px; /* Slightly larger heading */
             }
-            #inventory ul,
-            #crafting ul {
+            .ui-panel ul {
                 list-style: none;
                 padding: 0;
                 margin: 0;
             }
-            #inventory li,
-            #crafting li {
+            .ui-panel li {
                 margin-bottom: 5px;
             }
-            #crafting button {
+
+            /* Crafting Buttons Specific Styling */
+            .crafting-menu {
+                 /* Inherits .ui-panel styles */
+                 /* Positioned via parent */
+            }
+            .crafting-menu button {
+                display: block; /* Each button on new line */
+                width: 100%; /* Full width within panel */
                 background-color: #555;
                 color: #fff;
                 border: 1px solid #777;
-                padding: 5px 10px;
+                padding: 6px 10px;
                 border-radius: 4px;
                 cursor: pointer;
                 font-family: "Press Start 2P", cursive;
-                font-size: 10px; /* Smaller button text */
-                margin-left: 10px;
+                font-size: 10px;
+                margin-bottom: 5px; /* Space between buttons */
                 transition: background-color 0.2s ease;
-                box-shadow: 2px 2px 0px #333; /* Button shadow */
+                box-shadow: 2px 2px 0px #333;
+                text-align: left; /* Align text left */
             }
-            #crafting button:hover {
+            .crafting-menu button:hover:not(:disabled) {
                 background-color: #777;
             }
-            #crafting button:active {
+            .crafting-menu button:active:not(:disabled) {
                 background-color: #444;
                 box-shadow: 1px 1px 0px #333;
                 transform: translate(1px, 1px);
             }
-            #crafting button:disabled {
+            .crafting-menu button:disabled {
                 opacity: 0.5;
                 cursor: not-allowed;
+                box-shadow: none;
             }
+            .crafting-menu button::after { /* Show cost in tooltip or after text */
+                content: attr(title);
+                font-size: 9px;
+                color: #aaa;
+                margin-left: 10px;
+                float: right; /* Align cost to the right */
+            }
+
 
             /* Row containers for layout */
             .ui-row {
                 display: flex;
                 justify-content: space-between;
                 width: 100%;
+                pointer-events: none; /* Rows don't capture events */
             }
             .ui-row-bottom {
-                align-items: flex-end; /* Align items to bottom within the row */
+                align-items: flex-end;
             }
             .ui-col-left {
                 display: flex;
                 flex-direction: column;
-                align-items: flex-start; /* Align panels to the left */
+                align-items: flex-start;
+                pointer-events: none; /* Cols don't capture events */
             }
             .ui-col-right {
                 display: flex;
                 flex-direction: column;
-                align-items: flex-end; /* Align panels to the right */
+                align-items: flex-end;
+                pointer-events: none; /* Cols don't capture events */
             }
 
             #message-log {
-                /* Inherits .ui-panel styles */
-                max-height: 120px; /* Slightly more height */
+                max-height: 120px;
                 overflow-y: auto;
-                width: 100%; /* Take available width in its column */
-                max-width: 400px; /* Limit width */
-                /* Removed align-self: center */
+                width: 100%;
+                max-width: 400px;
+                /* Positioned via parent */
             }
             #message-log p {
                 margin: 0 0 5px 0;
-                color: #ff0; /* Yellowish messages */
-                word-wrap: break-word; /* Wrap long messages */
+                color: #ff0;
+                word-wrap: break-word;
             }
             #controls-info {
-                /* Inherits .ui-panel styles */
-                /* align-self: flex-end; is handled by parent .ui-col-right */
+                 /* Positioned via parent */
             }
 
-            .diablo-inventory {
-                position: absolute;
+            /* Diablo Inventory Panel */
+            #inventory-panel {
+                position: absolute; /* Position relative to game-container */
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                width: 350px;
+                width: 350px; /* Fixed width */
+                max-width: 90%; /* Max width relative to viewport */
                 background-color: rgba(0, 0, 0, 0.85);
                 border: 2px solid #8b0000;
                 box-shadow: 0 0 20px rgba(139, 0, 0, 0.6);
-                z-index: 100;
+                z-index: 100; /* Ensure it's above other UI */
+                display: none; /* Hidden by default */
+                /* Removed ui-panel class inheritance for positioning */
+                padding: 15px;
+                border-radius: 8px;
+                pointer-events: auto; /* Enable interaction */
+                font-size: 12px;
+            }
+             #inventory-panel h3 { /* Style heading inside */
+                margin-top: 0;
+                margin-bottom: 10px;
+                color: #ffc000; /* Gold color */
+                border-bottom: 1px solid #5a0000;
+                padding-bottom: 5px;
+                font-size: 14px;
             }
 
             .close-btn {
@@ -145,44 +179,70 @@
                 cursor: pointer;
                 font-size: 18px;
                 color: #ff0000;
+                border: none;
+                background: none;
+                padding: 0 5px;
+                line-height: 1;
+            }
+            .close-btn:hover {
+                color: #ff6666;
             }
 
             .inventory-grid {
                 display: grid;
-                grid-template-columns: repeat(5, 1fr);
+                grid-template-columns: repeat(5, 1fr); /* 5 columns */
                 gap: 4px;
-                padding: 10px;
+                padding: 10px 0; /* Padding top/bottom */
             }
 
             .inventory-slot {
-                width: 50px;
-                height: 50px;
+                width: 50px; /* Fixed size */
+                height: 50px; /* Fixed size */
                 background-color: rgba(50, 50, 50, 0.7);
                 border: 1px solid #555;
                 display: flex;
                 justify-content: center;
                 align-items: center;
                 cursor: pointer;
-                position: relative;
+                position: relative; /* For tooltip positioning */
                 transition: all 0.2s;
+                overflow: hidden; /* Hide overflow from icons */
             }
-
             .inventory-slot:hover {
                 border-color: #ff9900;
                 box-shadow: 0 0 5px #ff9900;
             }
-
             .inventory-slot.occupied {
                 background-color: rgba(80, 80, 80, 0.7);
             }
-
-            .inventory-slot img {
-                max-width: 85%;
-                max-height: 85%;
+            .inventory-slot.selected {
+                border: 2px solid #ffd700;
+                box-shadow: 0 0 10px #ffd700;
             }
+            .item-icon-container { /* Container for icon centering */
+                width: 80%;
+                height: 80%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            .inventory-slot img { /* Style for image icons */
+                max-width: 100%;
+                max-height: 100%;
+                object-fit: contain;
+            }
+            .inventory-slot .text-icon { /* Style for text/emoji icons */
+                 font-size: 24px;
+                 text-align: center;
+                 line-height: 1; /* Adjust line height for centering */
+            }
+
 
             .item-tooltip {
                 position: absolute;
+                bottom: 105%; /* Position above the slot */
+                left: 50%;
+                transform: translateX(-50%);
                 background-color: rgba(0, 0, 0, 0.9);
                 border: 1px solid #8b0000;
                 padding: 8px;
@@ -193,150 +253,185 @@
                 pointer-events: none;
                 visibility: hidden;
                 opacity: 0;
-                transition: opacity 0.2s;
+                transition: opacity 0.2s, visibility 0s 0.2s;
+                border-radius: 4px;
             }
-
             .inventory-slot:hover .item-tooltip {
                 visibility: visible;
                 opacity: 1;
+                transition: opacity 0.2s;
             }
+            .item-name { color: #ffd700; margin-bottom: 5px; font-weight: bold; }
+            .item-description { color: #ccc; font-size: 9px; margin-bottom: 4px; }
+            .item-effect { color: #80aaff; font-size: 9px; margin-bottom: 4px; }
+            .item-cost { color: #ff8080; font-size: 9px; }
 
-            .item-name {
-                color: #ffd700;
-                margin-bottom: 5px;
-                font-weight: bold;
-            }
 
-            .item-description {
-                color: #ccc;
-                font-size: 9px;
-            }
-
-            .inventory-btn {
-                background-color: #8b0000;
-                color: #fff;
-                border: 1px solid #ff0000;
-                padding: 5px 10px;
-                border-radius: 4px;
+            /* Open Inventory Button (Bottom Left) */
+            #show-inventory-btn {
+                background-color: rgba(0, 0, 0, 0.7);
+                color: white;
+                border: 1px solid #888;
+                padding: 8px 12px;
+                border-radius: 5px;
                 cursor: pointer;
                 font-family: "Press Start 2P", cursive;
                 font-size: 10px;
-                margin-top: 10px;
                 transition: background-color 0.2s;
+                pointer-events: auto; /* Make button clickable */
+                /* Positioned via parent */
             }
-
-            .inventory-btn:hover {
-                background-color: #a00;
-            }
-
-            /* Selected item highlight */
-            .inventory-slot.selected {
-                border: 2px solid #ffd700;
-                box-shadow: 0 0 10px #ffd700;
-            }
-
-            .game-btn {
-                background-color: rgba(0, 0, 0, 0.7);
-                color: white;
-                border: none;
-                padding: 8px 12px;
-                margin: 5px;
-                border-radius: 5px;
-                cursor: pointer;
-                font-weight: bold;
-                transition: background-color 0.2s;
-            }
-
-            .game-btn:hover {
+            #show-inventory-btn:hover {
                 background-color: rgba(50, 50, 50, 0.9);
             }
 
-            .game-btn:active {
-                background-color: rgba(70, 70, 70, 0.9);
+            /* Save/Load Buttons Container (Top Right) */
+            .game-controls {
+                position: absolute;
+                top: 15px;
+                right: 15px;
+                z-index: 50;
+                pointer-events: auto; /* Allow clicking buttons */
             }
+            .game-btn {
+                background-color: rgba(0, 0, 0, 0.7);
+                color: white;
+                border: 1px solid #888;
+                padding: 8px 12px;
+                margin-left: 5px; /* Space between buttons */
+                border-radius: 5px;
+                cursor: pointer;
+                font-family: "Press Start 2P", cursive;
+                font-size: 10px;
+                transition: background-color 0.2s;
+            }
+            .game-btn:hover { background-color: rgba(50, 50, 50, 0.9); }
+            .game-btn:active { background-color: rgba(70, 70, 70, 0.9); }
+
+            /* Active Tool Indicator (Bottom Center/Right) */
+            .tool-indicator-container {
+                position: absolute;
+                bottom: 15px;
+                right: 15px; /* Align with controls info */
+                z-index: 50;
+                pointer-events: none; /* Container doesn't block */
+            }
+            .active-tool-indicator {
+                background-color: rgba(0, 0, 0, 0.75);
+                border: 1px solid #aaa;
+                border-radius: 5px;
+                padding: 5px 10px;
+                display: flex; /* Use flex for icon + text */
+                align-items: center;
+                pointer-events: auto; /* Indicator can be interacted with if needed */
+            }
+            .indicator-icon {
+                font-size: 18px; /* Larger icon */
+                margin-right: 8px;
+                line-height: 1;
+            }
+            .indicator-text {
+                font-size: 11px;
+                color: #eee;
+            }
+
         </style>
     </head>
     <body>
         <div id="game-container">
-            <div class="game-controls">
-                <!-- Existing buttons will be here -->
-                <!-- Save/Load buttons will be added here -->
-            </div>
             <canvas id="canvas"></canvas>
 
+            <!-- UI Overlay Container -->
             <div id="ui-container">
+
+                <!-- Top Row -->
                 <div class="ui-row">
+                    <!-- Top Left Column -->
                     <div class="ui-col-left">
+                        <!-- Resource Inventory -->
                         <div id="inventory" class="ui-panel">
-                            <h3>Inventory</h3>
+                            <h3>Resources</h3>
                             <ul>
                                 <li id="inv-wood">Wood: 0</li>
                                 <li id="inv-stone">Stone: 0</li>
-                                <li id="inv-axe" style="display: none">
-                                    Axe: 1
-                                </li>
-                                <li id="inv-hut" style="display: none">
-                                    Hut: 1
-                                </li>
+                                <!-- Hide old axe/hut indicators -->
+                                <!-- <li id="inv-axe" style="display: none">Axe: 1</li> -->
+                                <!-- <li id="inv-hut" style="display: none">Hut: 1</li> -->
                             </ul>
                         </div>
-                        <div
-                            id="inventory-panel"
-                            class="ui-panel diablo-inventory"
-                            style="display: none"
-                        >
-                            <h3>
-                                Inventory
-                                <span class="close-btn" id="close-inventory"
-                                    >×</span
-                                >
-                            </h3>
-                            <div class="inventory-grid">
-                                <!-- Grid slots will be generated dynamically -->
-                            </div>
-                            <button
-                                id="show-inventory-btn"
-                                class="inventory-btn"
-                            >
-                                Open Inventory [I]
-                            </button>
-                        </div>
-                        <div id="crafting" class="ui-panel">
-                            <h3>Crafting (Press E near resources)</h3>
-                            <ul>
-                                <li>
-                                    Axe (5 Wood, 2 Stone)
-                                    <button id="craft-axe">Craft</button>
-                                </li>
-                                <li>
-                                    Hut (10 Wood, 5 Stone)
-                                    <button id="craft-hut">Craft</button>
-                                </li>
-                            </ul>
+                        <!-- Crafting Menu -->
+                        <div class="crafting-menu ui-panel">
+                            <h3>Crafting</h3>
+                            <button id="craft-axe" title="5 Wood, 2 Stone" disabled>Axe</button>
+                            <button id="craft-hut" title="10 Wood, 5 Stone" disabled>Hut</button>
+                            <button id="craft-wall" title="4 Wood" disabled>Wall</button>
+                            <button id="craft-floor" title="3 Wood" disabled>Floor</button>
                         </div>
                     </div>
-                    <div></div>
+                    <!-- Top Right Column (Save/Load Buttons) -->
+                    <div class="ui-col-right">
+                         <div class="game-controls">
+                            <!-- Save/Load buttons will be added here by JS -->
+                        </div>
+                    </div>
                 </div>
 
+                <!-- Bottom Row -->
                 <div class="ui-row ui-row-bottom">
+                     <!-- Bottom Left Column -->
                     <div class="ui-col-left">
-                        <div id="message-log" class="ui-panel">
-                            <p>Welcome! Use WASD to move.</p>
-                            <p>Collect resources (trees/rocks).</p>
-                        </div>
+                         <div id="message-log" class="ui-panel">
+                            <!-- Messages added by JS -->
+                         </div>
+                         <button id="show-inventory-btn" title="Open/Close Inventory [I]">Inventory [I]</button>
                     </div>
+                     <!-- Bottom Right Column -->
                     <div class="ui-col-right">
+                        <div class="tool-indicator-container">
+                             <div id="active-tool-indicator" class="active-tool-indicator" style="display: none;">
+                                <div class="indicator-icon">?</div>
+                                <div class="indicator-text">Tool</div>
+                            </div>
+                        </div>
                         <div id="controls-info" class="ui-panel">
                             <h3>Controls</h3>
-                            <p>W/S: Forward/Backward</p>
-                            <p>A/D: Strafe Left/Right</p>
-                            <p>E: Gather Resource (when close)</p>
+                            <p>WASD: Move/Rotate</p>
+                            <p>Space: Jump</p>
+                            <p>E: Gather/Place</p>
+                            <p>I: Inventory</p>
+                            <p>U: Use Item</p>
+                            <p>M: Move Object</p>
+                            <p>R: Rotate Place</p>
+                            <p>Esc: Cancel</p>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
+            </div> <!-- End ui-container -->
+
+            <!-- Diablo-style Inventory Panel (positioned absolutely) -->
+            <div id="inventory-panel" class="diablo-inventory">
+                <h3>
+                    Inventory
+                    <button class="close-btn" id="close-inventory" title="Close [I/Esc]">×</button>
+                </h3>
+                <div class="inventory-grid">
+                    <!-- Grid slots generated by JS -->
+                </div>
+                <!-- Maybe add character stats or equipment slots here later -->
+            </div>
+
+        </div> <!-- End game-container -->
+
+        <!-- Load Three.js and GLTFLoader -->
+        <script type="importmap">
+            {
+                "imports": {
+                    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                    "three/examples/jsm/loaders/GLTFLoader.js": "https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js"
+                }
+            }
+        </script>
         <script type="module" src="game.ts"></script>
     </body>
 </html>

@@ -2,374 +2,652 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-// Type declarations for HTML elements
-const invWoodEl = document.getElementById("inv-wood") as HTMLElement;
-const invStoneEl = document.getElementById("inv-stone") as HTMLElement;
-const axeInvEl = document.getElementById("inv-axe") as HTMLElement;
-const hutInvEl = document.getElementById("inv-hut") as HTMLElement;
-const messageLogEl = document.getElementById("message-log") as HTMLElement;
+// --- Type Definitions ---
+interface ItemDefinition {
+  name: string;
+  description: string;
+  icon: string; // Emoji or URL
+  width?: number; // For inventory grid display (optional)
+  height?: number; // For inventory grid display (optional)
+  effect?: string; // Description of tool effect
+  placeable?: boolean; // Can this item be placed in the world?
+  placeableType?: "structure" | "decoration"; // Category for placement logic
+  // Function to get geometry for placement/preview
+  geometry?: () => THREE.BufferGeometry;
+  // Function to get material(s) for placement/preview
+  material?: () => THREE.Material | THREE.Material[];
+}
 
-let scene: THREE.Scene,
-  camera: THREE.PerspectiveCamera,
-  renderer: THREE.WebGLRenderer,
-  player: THREE.Group,
-  clock: THREE.Clock;
+interface InventoryItem {
+  type: string; // Key from itemDefinitions
+  // Add quantity, durability etc. if needed later
+}
+
+// REMOVED: WorldObject, Resource, CraftedStructure interfaces
+// We will use THREE.Object3D and THREE.Mesh directly, relying on userData.
+
+// Type assertion for DOM elements (add checks where needed)
+const invWoodEl = document.getElementById("inv-wood") as HTMLElement | null;
+const invStoneEl = document.getElementById("inv-stone") as HTMLElement | null;
+const messageLog = document.getElementById("message-log") as HTMLElement | null;
+const inventoryPanel = document.getElementById(
+  "inventory-panel",
+) as HTMLElement | null;
+const inventoryGrid = document.querySelector(
+  ".inventory-grid",
+) as HTMLElement | null;
+// Ensure activeToolIndicator is fetched correctly, might need adjustment based on createToolIndicator
+let activeToolIndicator = document.getElementById(
+  "active-tool-indicator",
+) as HTMLElement | null;
+const gameControls = document.querySelector(
+  ".game-controls",
+) as HTMLElement | null;
+
+// --- Global Variables with Types ---
+let scene: THREE.Scene;
+let camera: THREE.PerspectiveCamera;
+let renderer: THREE.WebGLRenderer;
+let player: THREE.Group; // Player model is a Group
+let clock: THREE.Clock;
 let moveMode = false;
-let selectedObject = null;
+// Use THREE.Mesh directly for selected objects (structures are Meshes)
+let selectedObject: THREE.Mesh | null = null;
 const moveSpeed = 8.0;
-const keys = {}; // Keep track of pressed keys
-const resources = []; // Store collectible resource objects (now groups)
-const craftedObjects = []; // Store placed objects like huts
-const inventory = { wood: 0, stone: 0, axe: 0, hut: 0 };
-const gatherDistance = 2.0; // Slightly increased gather distance for larger models
-const inventorySize = 20; // 6x4 grid
-const playerInventory = []; // Array to store inventory items
+const keys: { [key: string]: boolean } = {}; // Keep track of pressed keys
+// Use THREE.Object3D for resources (can be Mesh or Group)
+const resources: THREE.Object3D[] = []; // Store collectible resource objects
+// Use THREE.Mesh for crafted objects (structures are Meshes)
+const craftedObjects: THREE.Mesh[] = []; // Store placed objects like huts, walls
+// Resource counts (add other resources if needed)
+const inventory: { [key: string]: number } = { wood: 0, stone: 0 };
+const gatherDistance = 2.0;
+const inventorySize = 20; // 5x4 grid
+// Initialize inventory with nulls
+const playerInventory: (InventoryItem | null)[] = new Array(inventorySize).fill(
+  null,
+);
 let selectedItemIndex = -1;
-let activeToolType = null; // Tracks currently active tool
+let activeToolType: string | null = null; // Tracks currently active tool (item type string)
+let isInPlacementMode = false;
+let placementPreviewObject: THREE.Mesh | null = null; // Preview is always a Mesh
+let placementItemType: string | null = null;
+let placementIsValid = false;
+let supported = false; // Variable to track if placement is supported (used in confirmPlacement message)
 
-let mixer: THREE.AnimationMixer;
-let playerAnimations: { [key: string]: THREE.AnimationAction } = {}; // Animation actions
-let currentAnimation: string = "idle"; // Currently playing animation
+let mixer: THREE.AnimationMixer | null = null; // Initialize as null
+let playerAnimations: { [key: string]: THREE.AnimationAction } = {};
+let currentAnimation: string = "idle";
 // Jump physics variables
-const GRAVITY = 9.8; // acceleration due to gravity
-const JUMP_FORCE = 5.0; // initial jump velocity
-let playerVelocity = new THREE.Vector3(0, 0, 0);
-let isOnGround = true;
-let isJumping = false;
-let jumpStartY = 0; // track the y-position when jump started
-// Items definitions
-const itemDefinitions = {
+const GRAVITY = 9.8;
+const JUMP_FORCE = 5.0;
+let playerVelocity = new THREE.Vector3(0, 0, 0); // For physics
+let isOnGround = true; // For physics
+let isJumping = false; // For physics
+let jumpStartY = 0; // For jump height limit (optional)
+
+// Preloaded resource models
+let rockModel: THREE.Group | null = null; // Use Group to handle potential GLTF structure
+
+// Item Definitions with Type
+const itemDefinitions: { [key: string]: ItemDefinition } = {
   axe: {
     name: "Wooden Axe",
     description: "A simple axe for chopping trees faster.",
-    icon: "🪓", // Can be replaced with actual image URL
-    width: 1,
-    height: 2,
-    effect: "increases wood gathering by 2x",
+    icon: "🪓",
+    effect: "Increases wood gathering by 2x",
   },
   hut: {
     name: "Small Hut",
-    description: "A basic shelter to keep you safe.",
-    icon: "🏠", // Can be replaced with actual image URL
-    width: 2,
-    height: 2,
+    description: "A basic shelter.",
+    icon: "🏠",
     placeable: true,
+    placeableType: "structure",
+    geometry: () => new THREE.BoxGeometry(3, 2, 3),
+    material: () => new THREE.MeshStandardMaterial({ color: 0xd2b48c }), // Tan
   },
+  // --- NEW BASE BUILDING ITEMS ---
+  wall: {
+    name: "Wooden Wall",
+    description: "A sturdy wooden wall section.",
+    icon: "🧱", // Placeholder icon
+    placeable: true,
+    placeableType: "structure",
+    // Width, Height, Thickness - Align with grid size (e.g., 3)
+    geometry: () => new THREE.BoxGeometry(3, 2.5, 0.3),
+    material: () => new THREE.MeshStandardMaterial({ color: 0xae8a64 }), // Wood color
+  },
+  floor: {
+    name: "Wooden Floor",
+    description: "A simple wooden floor section.",
+    icon: "🟫", // Brown square emoji
+    placeable: true,
+    placeableType: "structure",
+    // Width, Height, Depth - Align with grid size (e.g., 3)
+    geometry: () => new THREE.BoxGeometry(3, 0.2, 3),
+    material: () => new THREE.MeshStandardMaterial({ color: 0xae8a64 }), // Wood color
+  },
+  // Add roof, door, window etc. later
 };
 
 // Crafting Recipes
-const recipes = {
+const recipes: { [key: string]: { [resource: string]: number } } = {
   axe: { wood: 5, stone: 2 },
   hut: { wood: 10, stone: 5 },
+  // --- NEW RECIPES ---
+  wall: { wood: 4 },
+  floor: { wood: 3 },
 };
 
-// Initiate a jump
-function startJump() {
-  if (isOnGround) {
-    isJumping = true;
-    isOnGround = false;
-    jumpStartY = player.position.y;
-    playerVelocity.y = JUMP_FORCE;
+// Placement Materials (remain the same)
+const placementMaterialValid = new THREE.MeshStandardMaterial({
+  color: 0x00ff00,
+  transparent: true,
+  opacity: 0.6,
+});
+const placementMaterialInvalid = new THREE.MeshStandardMaterial({
+  color: 0xff0000,
+  transparent: true,
+  opacity: 0.6,
+});
 
-    // Play jump animation
-    const jumpAnim = findAnimation(["jump", "leap"]);
-    if (jumpAnim) {
-      playAnimation(jumpAnim, 0.1);
-    }
-
-    addMessage("Jumped!");
+// --- Helper function to dispose materials ---
+function disposeMaterial(material: THREE.Material | THREE.Material[] | null) {
+  // Added null check
+  if (!material) return;
+  if (Array.isArray(material)) {
+    material.forEach((m) => m.dispose());
+  } else {
+    material.dispose();
   }
 }
 
-// Apply gravity and handle landing
-function updateJump(delta) {
-  if (!isOnGround) {
-    // Apply gravity
-    playerVelocity.y -= GRAVITY * delta;
+// --- Helper function to dispose Object3D resources/structures correctly ---
+function disposeObject3D(obj: THREE.Object3D | null) {
+  if (!obj) return;
 
-    // Update position
-    player.position.y += playerVelocity.y * delta;
+  // Traverse children for groups/meshes
+  obj.traverse((child) => {
+    if (child instanceof THREE.Mesh) {
+      child.geometry?.dispose();
+      disposeMaterial(child.material);
+    }
+  });
 
-    // Check for landing (ground is at y=0)
-    if (player.position.y <= 0) {
-      player.position.y = 0; // Snap to ground
-      playerVelocity.y = 0;
-      isOnGround = true;
-      isJumping = false;
+  // If the object itself is a mesh (and not handled by traverse, e.g. single rock)
+  if (obj instanceof THREE.Mesh) {
+    obj.geometry?.dispose();
+    disposeMaterial(obj.material);
+  }
+  // Note: We don't remove from parent here, assumes scene.remove() is called separately.
+}
 
-      // Play landing animation if available, otherwise idle
-      const landAnim = findAnimation(["land", "landing"]);
-      if (landAnim) {
-        playAnimation(landAnim, 0.1);
+// --- Placement Functions ---
 
-        // Switch back to idle after landing animation finishes
-        if (mixer && playerAnimations[landAnim]) {
-          const duration = playerAnimations[landAnim]._clip.duration;
-          setTimeout(() => {
-            if (!keys["w"] && !keys["a"] && !keys["s"] && !keys["d"]) {
-              const idleAnim = findAnimation(["idle", "stand"]);
-              if (idleAnim) playAnimation(idleAnim, 0.3);
-            }
-          }, duration * 800); // Slightly shorter than full duration
-        }
-      } else {
-        // No landing animation, go straight to idle
-        if (!keys["w"] && !keys["a"] && !keys["s"] && !keys["d"]) {
-          const idleAnim = findAnimation(["idle", "stand"]);
-          if (idleAnim) playAnimation(idleAnim, 0.3);
-        }
+// Generic function to create the visual preview object
+function createPlacementPreview(itemType: string): THREE.Mesh | null {
+  const definition = itemDefinitions[itemType];
+  if (!definition?.placeable || !definition.geometry) {
+    console.error(
+      `Item type "${itemType}" is not placeable or has no geometry defined.`,
+    );
+    return null;
+  }
+
+  try {
+    const geometry = definition.geometry();
+    // Start with the valid material, clone it so we don't share state across previews
+    const previewMesh = new THREE.Mesh(
+      geometry,
+      placementMaterialValid.clone(), // Clone the valid material
+    );
+    previewMesh.castShadow = false;
+    previewMesh.receiveShadow = false;
+    // Store the type being previewed for validation logic
+    previewMesh.userData = { placingType: itemType };
+    return previewMesh;
+  } catch (error) {
+    console.error(`Error creating preview for ${itemType}:`, error);
+    return null;
+  }
+}
+
+// Generic function to create the actual placed structure
+// Update return type to THREE.Mesh | null
+function createStructureAtPosition(
+  itemType: string,
+  x: number,
+  y: number,
+  z: number,
+  rotationY: number = 0,
+): THREE.Mesh | null {
+  // <-- Changed return type
+  const definition = itemDefinitions[itemType];
+  if (!definition?.placeable || !definition.geometry || !definition.material) {
+    console.error(
+      `Cannot create structure: Item type "${itemType}" is not placeable or lacks geometry/material.`,
+    );
+    return null;
+  }
+
+  try {
+    const geometry = definition.geometry();
+    const material = definition.material(); // Get potentially new material instance(s)
+    // Create a standard Mesh
+    const structureMesh = new THREE.Mesh(geometry, material);
+
+    // Assign properties directly (they exist on Mesh)
+    structureMesh.position.set(x, y, z);
+    structureMesh.rotation.y = rotationY;
+    structureMesh.castShadow = true;
+    structureMesh.receiveShadow = true;
+    // Ensure userData is initialized if it doesn't exist (it should on Mesh)
+    structureMesh.userData = structureMesh.userData || {};
+    structureMesh.userData.type = itemType; // Store the type
+
+    scene.add(structureMesh);
+    // No need to cast anymore, just push the Mesh
+    craftedObjects.push(structureMesh);
+
+    return structureMesh; // Return the THREE.Mesh
+  } catch (error) {
+    console.error(`Error creating structure mesh for ${itemType}:`, error);
+    addMessage(`Error creating ${definition.name} object.`);
+    return null;
+  }
+}
+
+// NEW: Creates the visual preview object (ghost hut) - DEPRECATED? createPlacementPreview is generic
+// Keeping for now in case it's used elsewhere, but should likely be removed if unused.
+function createHutPreview(): THREE.Object3D | null {
+  console.warn(
+    "createHutPreview is likely deprecated, use createPlacementPreview",
+  );
+  // Use the same geometry as the final hut for accurate preview
+  const hutGeometry = new THREE.BoxGeometry(3, 2, 3); // Match createHutAtPosition
+  // Start with the valid material
+  const previewHut = new THREE.Mesh(
+    hutGeometry,
+    placementMaterialValid.clone(),
+  ); // Clone material
+  previewHut.castShadow = false; // Preview doesn't need to cast shadows
+  previewHut.receiveShadow = false;
+  return previewHut;
+}
+
+// NEW: Updates the position and validity of the placement preview
+function updatePlacementPreview() {
+  if (!isInPlacementMode || !placementPreviewObject || !placementItemType)
+    return;
+
+  const definition = itemDefinitions[placementItemType];
+  // Check for geometry function existence before calling it
+  if (!definition?.placeable || typeof definition.geometry !== "function")
+    return;
+
+  const placementDistance = 5; // How far in front of the player to place
+  const gridSize = 3.0; // Snap to a 3x3 grid (should match wall/floor dimensions)
+
+  // Calculate position in front of the player
+  const forward = new THREE.Vector3();
+  player.getWorldDirection(forward);
+  forward.y = 0; // Keep it level with the ground for placement
+  forward.normalize();
+
+  const targetPosition = player.position
+    .clone()
+    .addScaledVector(forward, placementDistance);
+
+  // --- Snapping Logic (Grid) ---
+  targetPosition.x = Math.round(targetPosition.x / gridSize) * gridSize;
+  targetPosition.z = Math.round(targetPosition.z / gridSize) * gridSize;
+
+  // Adjust Y based on item type and potential support
+  // Get geometry to calculate height, handle potential errors
+  let itemGeometry: THREE.BufferGeometry | null = null;
+  try {
+    itemGeometry = definition.geometry();
+  } catch (e) {
+    console.error("Error getting geometry for height calculation:", e);
+    return; // Cannot proceed without geometry
+  }
+  // Check if geometry has parameters and height (BoxGeometry does)
+  // Use 'any' or define specific geometry types if needed, or check geometry type
+  let itemHeight = 1; // Default height
+  if (itemGeometry instanceof THREE.BoxGeometry) {
+    itemHeight = itemGeometry.parameters.height;
+  } else if (itemGeometry instanceof THREE.CylinderGeometry) {
+    itemHeight = itemGeometry.parameters.height;
+  } // Add other geometry types as needed
+  let baseHeight = 0; // Ground level
+
+  // --- Check for supporting object below (e.g., floor for a wall) ---
+  const down = new THREE.Vector3(0, -1, 0);
+  // Raycast origin slightly above the target base to avoid self-intersection
+  const rayOrigin = targetPosition.clone().setY(baseHeight + itemHeight + 0.1); // Use calculated itemHeight, start slightly above
+  const raycaster = new THREE.Raycaster(rayOrigin, down, 0, itemHeight + 0.2); // Check slightly more than itemHeight below
+  const structuresToCheck = craftedObjects.filter(
+    (o) => o !== placementPreviewObject,
+  ); // Don't check self
+  const groundPlane = scene.children.find(
+    (c) => c instanceof THREE.Mesh && c.geometry instanceof THREE.PlaneGeometry,
+  );
+  const checkList: THREE.Object3D[] = groundPlane // Ensure checkList is Object3D[]
+    ? structuresToCheck.concat(groundPlane as THREE.Mesh)
+    : structuresToCheck;
+
+  const intersects = raycaster.intersectObjects(checkList);
+  supported = false; // Reset supported flag each update
+  let supportHeight = 0;
+
+  if (intersects.length > 0) {
+    const firstIntersect = intersects[0];
+    // Check if the intersection point is reasonably close to the target position's XZ
+    if (
+      Math.abs(firstIntersect.point.x - targetPosition.x) < gridSize / 2 &&
+      Math.abs(firstIntersect.point.z - targetPosition.z) < gridSize / 2
+    ) {
+      supported = true;
+      supportHeight = firstIntersect.point.y; // Height of the support object/ground
+    }
+  }
+  // --- End Support Check ---
+
+  // Adjust Y position based on item type and support
+  if (placementItemType === "floor") {
+    targetPosition.y = supportHeight + itemHeight / 2; // Place floor slightly above ground/support
+  } else if (placementItemType === "wall") {
+    // Place wall on top of support (ground or floor)
+    targetPosition.y = supportHeight + itemHeight / 2;
+  } else if (placementItemType === "hut") {
+    targetPosition.y = supportHeight + itemHeight / 2; // Hut base on ground/support
+  } else {
+    // Default: center based on height above support
+    targetPosition.y = supportHeight + itemHeight / 2;
+  }
+
+  placementPreviewObject.position.copy(targetPosition);
+  // Keep preview rotation aligned with player for now, allow rotation with 'R'
+  // placementPreviewObject.rotation.y = player.rotation.y; // Might be desired
+
+  // --- Placement Validity Check ---
+  placementIsValid = true; // Assume valid initially
+
+  // 1. Check for Collision with other crafted objects (using Bounding Box)
+  const previewBox = new THREE.Box3().setFromObject(placementPreviewObject);
+  for (const obj of craftedObjects) {
+    // obj is THREE.Mesh here
+    if (obj === placementPreviewObject) continue; // Skip self
+    const existingBox = new THREE.Box3().setFromObject(obj);
+    // Allow slight overlap for adjacent walls/floors, disallow major intersection
+    const intersection = previewBox.clone().intersect(existingBox);
+    if (!intersection.isEmpty()) {
+      // Calculate intersection volume or dimensions to decide if it's too much overlap
+      const intersectionSize = intersection.getSize(new THREE.Vector3());
+      // Allow minor overlap (e.g., less than 10cm) for snapping feel
+      if (
+        intersectionSize.x > 0.1 &&
+        intersectionSize.y > 0.1 &&
+        intersectionSize.z > 0.1
+      ) {
+        placementIsValid = false;
+        // console.log("Collision with crafted object detected");
+        break;
       }
     }
   }
+
+  // 2. Check for Collision with resources
+  if (placementIsValid) {
+    for (const resource of resources) {
+      // resource is THREE.Object3D here
+      const resourceBox = new THREE.Box3().setFromObject(resource);
+      if (previewBox.intersectsBox(resourceBox)) {
+        placementIsValid = false;
+        // console.log("Collision with resource detected");
+        break;
+      }
+    }
+  }
+
+  // 3. Check for necessary support (e.g., walls need ground/floor)
+  if (placementIsValid) {
+    if (placementItemType === "wall" || placementItemType === "hut") {
+      // Requires support found by the raycast earlier
+      if (!supported) {
+        placementIsValid = false; // Disallow floating walls/huts
+        // console.log(`${placementItemType} requires support below.`);
+      }
+    }
+    // Add checks for floors needing flat ground, etc. if desired
+  }
+
+  // Update preview material based on validity
+  // Ensure material is not an array before assigning
+  if (
+    placementPreviewObject.material &&
+    !Array.isArray(placementPreviewObject.material)
+  ) {
+    // Assign the shared material instances directly
+    placementPreviewObject.material = placementIsValid
+      ? placementMaterialValid
+      : placementMaterialInvalid;
+  }
 }
 
-function createToolIndicator() {
-  const toolIndicator = document.createElement("div");
-  toolIndicator.id = "active-tool-indicator";
-  toolIndicator.innerHTML = `
-    <div class="indicator-icon">🔄</div>
-    <div class="indicator-text">No Tool</div>
-  `;
-  toolIndicator.style.display = "none"; // Hide initially
-  document.body.appendChild(toolIndicator);
-
-  // Add CSS for this in your stylesheet or inline here
-  const style = document.createElement("style");
-  style.textContent = `
-    #active-tool-indicator {
-      position: fixed;
-      top: 70px;
-      right: 10px;
-      background: rgba(0, 0, 0, 0.7);
-      color: white;
-      padding: 8px 12px;
-      border-radius: 5px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      z-index: 1000;
-    }
-    .indicator-icon {
-      font-size: 24px;
-    }
-    .indicator-text {
-      font-size: 16px;
-      font-weight: bold;
-    }
-  `;
-  document.head.appendChild(style);
-}
-
-function updateToolIndicator() {
-  const indicator = document.getElementById("active-tool-indicator");
-
-  if (!activeToolType) {
-    indicator.style.display = "none";
+// Confirms placement at the current preview location
+function confirmPlacement() {
+  if (!isInPlacementMode || !placementPreviewObject || !placementItemType) {
+    // Don't show message if not even in placement mode
     return;
   }
 
-  const toolDef = itemDefinitions[activeToolType];
-  if (!toolDef) {
-    indicator.style.display = "none";
+  if (!placementIsValid) {
+    addMessage("Cannot place object here.");
+    // Provide more specific feedback based on why placementIsValid is false
+    if (placementItemType) {
+      const definition = itemDefinitions[placementItemType];
+      // Check the 'supported' flag which was updated in updatePlacementPreview
+      if (definition?.placeableType === "structure" && !supported) {
+        addMessage("Placement requires support below.");
+      } else {
+        addMessage("Placement position is obstructed."); // Generic obstruction message
+      }
+    }
     return;
   }
 
-  // Show the indicator with the tool info
-  indicator.style.display = "flex";
-  indicator.querySelector(".indicator-icon").textContent = toolDef.icon;
-  indicator.querySelector(".indicator-text").textContent = toolDef.name;
-}
-
-// Initialize the inventory system
-function initInventorySystem() {
-  // Create inventory grid
-  const grid = document.querySelector(".inventory-grid");
-  for (let i = 0; i < inventorySize; i++) {
-    const slot = document.createElement("div");
-    slot.className = "inventory-slot";
-    slot.dataset.index = i;
-
-    // Click handler for slots
-    slot.addEventListener("click", () => {
-      selectInventorySlot(i);
-    });
-
-    grid.appendChild(slot);
+  const definition = itemDefinitions[placementItemType];
+  if (!definition) {
+    console.error("Placement item type definition not found!");
+    cancelPlacement(); // Clean up placement state
+    return;
   }
 
-  // Set up event listeners
-  document
-    .getElementById("show-inventory-btn")
-    .addEventListener("click", toggleInventory);
-  document
-    .getElementById("close-inventory")
-    .addEventListener("click", closeInventory);
+  // Create the actual object at the preview's position and rotation
+  // placedObject is THREE.Mesh | null
+  const placedObject = createStructureAtPosition(
+    // Use the generic function
+    placementItemType,
+    placementPreviewObject.position.x,
+    placementPreviewObject.position.y,
+    placementPreviewObject.position.z,
+    placementPreviewObject.rotation.y, // Pass rotation
+  );
 
-  // Also allow 'I' key to toggle inventory
-  document.addEventListener("keydown", (event) => {
-    if (event.key.toLowerCase() === "i") {
-      toggleInventory();
+  if (placedObject) {
+    addMessage(`${definition.name} placed successfully!`);
+
+    // --- Consume the item from inventory ---
+    // Find the specific item instance that was selected (if applicable)
+    // or just find the first instance of the required type.
+    let itemIndexToRemove = -1;
+    if (
+      selectedItemIndex >= 0 &&
+      playerInventory[selectedItemIndex]?.type === placementItemType
+    ) {
+      itemIndexToRemove = selectedItemIndex;
+    } else {
+      // Fallback: find the first instance if the selected item wasn't the one used
+      itemIndexToRemove = playerInventory.findIndex(
+        (item) => item?.type === placementItemType,
+      );
     }
 
-    // Use selected item with 'U' key
-    if (event.key.toLowerCase() === "u" && selectedItemIndex >= 0) {
-      useSelectedItem();
+    if (itemIndexToRemove !== -1) {
+      playerInventory[itemIndexToRemove] = null; // Remove item
+      // If the removed item was the selected one, deselect
+      if (selectedItemIndex === itemIndexToRemove) {
+        selectedItemIndex = -1;
+      }
+      updateInventoryDisplay();
+    } else {
+      // This case should ideally not happen if placement started via 'U' key
+      console.warn(
+        `Placed item "${placementItemType}" not found in inventory after placement confirmation.`,
+      );
+      addMessage(
+        `Error: Could not find ${definition.name} in inventory to remove.`,
+      );
     }
-  });
-
-  // Update initial inventory display
-  updateInventoryDisplay();
-}
-
-// Toggle inventory visibility
-function toggleInventory() {
-  const inventoryPanel = document.getElementById("inventory-panel");
-  if (inventoryPanel.style.display === "none") {
-    inventoryPanel.style.display = "block";
-    updateInventoryDisplay(); // Refresh display
   } else {
-    inventoryPanel.style.display = "none";
+    addMessage(`Failed to place ${definition.name}.`);
+    // Don't consume item if placement failed internally
   }
-}
 
-function closeInventory() {
-  document.getElementById("inventory-panel").style.display = "none";
-}
-
-// Update the visual display of the inventory
-function updateInventoryDisplay() {
-  const slots = document.querySelectorAll(".inventory-slot");
-
-  // Clear all slots first
-  slots.forEach((slot) => {
-    slot.innerHTML = "";
-    slot.classList.remove("occupied", "selected");
-  });
-
-  // Fill slots with items
-  playerInventory.forEach((item, index) => {
-    if (!item) return;
-
-    const slot = slots[index];
-    slot.classList.add("occupied");
-
-    if (index === selectedItemIndex) {
-      slot.classList.add("selected");
-    }
-
-    // Create item display
-    const itemDef = itemDefinitions[item.type];
-
-    // Create icon (text or image)
-    if (itemDef.icon.startsWith("http")) {
-      // It's an image URL
-      const img = document.createElement("img");
-      img.src = itemDef.icon;
-      img.alt = itemDef.name;
-      slot.appendChild(img);
-    } else {
-      // It's an emoji or text
-      const icon = document.createElement("div");
-      icon.style.fontSize = "24px";
-      icon.textContent = itemDef.icon;
-      slot.appendChild(icon);
-    }
-
-    // Create tooltip
-    const tooltip = document.createElement("div");
-    tooltip.className = "item-tooltip";
-
-    const nameElement = document.createElement("div");
-    nameElement.className = "item-name";
-    nameElement.textContent = itemDef.name;
-    tooltip.appendChild(nameElement);
-
-    const descElement = document.createElement("div");
-    descElement.className = "item-description";
-    descElement.textContent = itemDef.description;
-    tooltip.appendChild(descElement);
-
-    if (itemDef.effect) {
-      const effectElement = document.createElement("div");
-      effectElement.className = "item-description";
-      effectElement.textContent = `Effect: ${itemDef.effect}`;
-      tooltip.appendChild(effectElement);
-    }
-
-    slot.appendChild(tooltip);
-  });
-}
-
-// Select an inventory slot
-function selectInventorySlot(index) {
-  if (playerInventory[index]) {
-    // Toggle selection
-    if (selectedItemIndex === index) {
-      selectedItemIndex = -1; // Deselect
-    } else {
-      selectedItemIndex = index;
-    }
-
-    // Show what item was selected
-    if (selectedItemIndex >= 0) {
-      const item = playerInventory[selectedItemIndex];
-      const itemDef = itemDefinitions[item.type];
-      addMessage(`Selected: ${itemDef.name}. Press 'U' to use.`);
-    }
-
-    updateInventoryDisplay();
+  // --- Clean up placement mode ---
+  if (placementPreviewObject) {
+    scene.remove(placementPreviewObject);
+    // Dispose geometry and the *cloned* preview material
+    placementPreviewObject.geometry?.dispose();
+    disposeMaterial(placementPreviewObject.material); // Safe to dispose cloned material
   }
+  placementPreviewObject = null;
+  isInPlacementMode = false;
+  placementItemType = null;
+  placementIsValid = false;
+  supported = false; // Reset supported flag
+  // No need to update UI here, handled by item consumption or cancellation
 }
 
-// Use the selected item
+// Cancel placement (minor update for cleanup)
+function cancelPlacement() {
+  if (!isInPlacementMode) return;
+
+  addMessage("Placement cancelled.");
+
+  // --- Clean up placement mode ---
+  if (placementPreviewObject) {
+    scene.remove(placementPreviewObject);
+    // Dispose geometry and the *cloned* preview material
+    placementPreviewObject.geometry?.dispose();
+    disposeMaterial(placementPreviewObject.material);
+  }
+  placementPreviewObject = null;
+  isInPlacementMode = false;
+  placementItemType = null;
+  placementIsValid = false;
+  supported = false; // Reset supported flag
+
+  // No need to give item back, as it wasn't removed yet.
+  updateInventoryDisplay(); // Refresh UI in case selection changed visually
+}
+
+// Use the selected item (updated for generic placement)
 function useSelectedItem() {
-  if (selectedItemIndex < 0 || !playerInventory[selectedItemIndex]) return;
+  if (selectedItemIndex < 0 || !playerInventory[selectedItemIndex]) {
+    addMessage("No item selected.");
+    return;
+  }
+  if (isInPlacementMode) {
+    addMessage("Already placing an object. Confirm (E) or Cancel (Esc).");
+    return;
+  }
+  if (moveMode) {
+    addMessage(
+      "Cannot use items while moving an object. Confirm (Enter) or Cancel (Esc).",
+    );
+    return;
+  }
 
   const item = playerInventory[selectedItemIndex];
+  if (!item) return; // Should not happen with check above, but safety
+
   const itemDef = itemDefinitions[item.type];
+  if (!itemDef) {
+    console.error(`Item definition not found for type: ${item.type}`);
+    addMessage("Cannot use item: definition missing.");
+    return;
+  }
 
   if (itemDef.placeable) {
-    // Placeable items (like huts)
-    placeHut(); // Using existing placement function
-    addMessage(`Placed ${itemDef.name}`);
+    // --- START PLACEMENT MODE ---
+    isInPlacementMode = true;
+    placementItemType = item.type;
 
-    // Remove from inventory after placing
-    playerInventory[selectedItemIndex] = null;
-    selectedItemIndex = -1;
+    // Create the preview object
+    placementPreviewObject = createPlacementPreview(item.type); // Use generic preview creator
+    if (placementPreviewObject) {
+      scene.add(placementPreviewObject);
+      addMessage(
+        `Placing ${itemDef.name}. Move to position, E=Place, R=Rotate, Esc=Cancel.`,
+      );
+      updatePlacementPreview(); // Initial position update
+    } else {
+      // Failed to create preview
+      cancelPlacement(); // Clean up placement state
+      addMessage(`Error starting placement for ${itemDef.name}.`);
+    }
+    // --- END PLACEMENT MODE INITIATION ---
+    // Item is NOT removed yet. Only on confirmPlacement.
   } else {
+    // Item is a tool or consumable (not placeable)
     // Tool activation logic
     if (activeToolType === item.type) {
       // Tool is already active, deactivate it
       activeToolType = null;
       addMessage(`${itemDef.name} deactivated`);
     } else {
-      // Activate the tool
+      // Deactivate previous tool if any
+      if (activeToolType) {
+        const prevToolDef = itemDefinitions[activeToolType];
+        if (prevToolDef) addMessage(`${prevToolDef.name} deactivated.`);
+      }
+      // Activate the new tool
       activeToolType = item.type;
       addMessage(`${itemDef.name} activated`);
     }
     updateToolIndicator();
+    // Since a tool was used/toggled, deselect it from inventory view
+    selectedItemIndex = -1;
   }
 
-  updateInventoryDisplay();
+  updateInventoryDisplay(); // Update UI after any action
 }
 
 // Add item to inventory (modified from existing craft function)
-function addItemToInventory(itemType) {
+function addItemToInventory(itemType: string): boolean {
+  // Added return type hint
   // Find first empty slot
   const emptySlot = playerInventory.findIndex(
     (slot) => slot === null || slot === undefined,
   );
 
-  if (emptySlot >= 0 || playerInventory.length < inventorySize) {
-    const newItem = { type: itemType };
-
-    if (emptySlot >= 0) {
-      playerInventory[emptySlot] = newItem;
-    } else {
-      playerInventory.push(newItem);
-    }
-
-    addMessage(`Added ${itemDefinitions[itemType].name} to inventory`);
+  if (emptySlot !== -1) {
+    // Check if a slot was found
+    const newItem: InventoryItem = { type: itemType }; // Ensure type
+    playerInventory[emptySlot] = newItem;
+    const itemDef = itemDefinitions[itemType];
+    addMessage(`Added ${itemDef ? itemDef.name : itemType} to inventory`);
+    updateInventoryDisplay();
+    return true;
+  } else if (playerInventory.length < inventorySize) {
+    // Check if we can append (shouldn't happen with fixed size)
+    const newItem: InventoryItem = { type: itemType };
+    playerInventory.push(newItem); // This technically expands the array beyond inventorySize
+    console.warn("Inventory expanded beyond initial size. Check logic.");
+    const itemDef = itemDefinitions[itemType];
+    addMessage(`Added ${itemDef ? itemDef.name : itemType} to inventory`);
     updateInventoryDisplay();
     return true;
   } else {
@@ -379,7 +657,8 @@ function addItemToInventory(itemType) {
 }
 
 // Modify the existing craft functions to use the new inventory
-function craftItem(itemName) {
+function craftItem(itemName: string) {
+  // Added type hint
   const recipe = recipes[itemName];
   if (!recipe) {
     addMessage(`Unknown recipe: ${itemName}`);
@@ -389,7 +668,10 @@ function craftItem(itemName) {
   // Check if player has enough resources
   let canCraft = true;
   for (const resourceType in recipe) {
-    if (inventory[resourceType] < recipe[resourceType]) {
+    if (
+      !inventory.hasOwnProperty(resourceType) ||
+      inventory[resourceType] < recipe[resourceType]
+    ) {
       canCraft = false;
       addMessage(`Not enough ${resourceType}. Need ${recipe[resourceType]}.`);
       break;
@@ -404,9 +686,11 @@ function craftItem(itemName) {
 
     // Instead of adding to old inventory, add to new Diablo-style inventory
     if (addItemToInventory(itemName)) {
-      addMessage(`Crafted 1 ${itemName}!`);
+      // Message handled by addItemToInventory
+      // addMessage(`Crafted 1 ${itemName}!`); // Redundant message
     } else {
       // Refund resources if inventory is full
+      addMessage(`Inventory full, cannot store crafted ${itemName}.`); // More specific message
       for (const resourceType in recipe) {
         inventory[resourceType] += recipe[resourceType];
       }
@@ -418,10 +702,30 @@ function craftItem(itemName) {
 
 // For the cheat code, modify to use new inventory
 function cheatCreateHut() {
-  addItemToInventory("hut");
+  // Add hut item to inventory using the existing function
+  if (addItemToInventory("hut")) {
+    // Message is handled by addItemToInventory
+  } else {
+    addMessage("Inventory full, cannot add cheat hut.");
+  }
+  // Don't place it automatically anymore
 }
 
-function loadPlayerModel(modelPath) {
+// Generic Cheat Function
+function cheatCreateItem(itemType: string) {
+  if (!itemDefinitions[itemType]) {
+    addMessage(`Cheat failed: Unknown item type "${itemType}".`);
+    return;
+  }
+  if (addItemToInventory(itemType)) {
+    // Message handled by addItemToInventory
+  } else {
+    addMessage(`Inventory full, cannot add cheat item "${itemType}".`);
+  }
+}
+
+function loadPlayerModel(modelPath: string): Promise<THREE.Group> {
+  // Added type hints
   return new Promise((resolve, reject) => {
     const loader = new GLTFLoader();
 
@@ -431,9 +735,10 @@ function loadPlayerModel(modelPath) {
         // Success callback
         const model = gltf.scene;
         model.traverse((node) => {
-          if (node.isMesh) {
+          // Use type guard for isMesh
+          if (node instanceof THREE.Mesh) {
             node.castShadow = true;
-            node.receiveShadow = true;
+            node.receiveShadow = true; // Player model can receive shadows too
           }
         });
 
@@ -453,8 +758,11 @@ function loadPlayerModel(modelPath) {
 
           // Process and store animations
           gltf.animations.forEach((clip) => {
-            const name = clip.name.toLowerCase().replace(/\s+/g, "_");
-            playerAnimations[name] = mixer.clipAction(clip);
+            const name = clip.name.toLowerCase().replace(/\s+/g, "_"); // Normalize name
+            // Ensure mixer exists before calling clipAction
+            if (mixer) {
+              playerAnimations[name] = mixer.clipAction(clip);
+            }
           });
 
           // Try to play an idle animation
@@ -467,13 +775,13 @@ function loadPlayerModel(modelPath) {
           }
 
           // Create debug UI for easier testing
-          createAnimationDebugUI();
+          // createAnimationDebugUI();
         }
         resolve(model);
       },
       // Progress callback
       (xhr) => {
-        console.log(`${(xhr.loaded / xhr.total) * 100}% loaded`);
+        // console.log(`${(xhr.loaded / xhr.total) * 100}% loaded`); // Can be noisy
       },
       // Error callback
       (error) => {
@@ -488,7 +796,11 @@ function createAnimationDebugUI() {
     return;
   }
 
+  const existingPanel = document.getElementById("animation-debug-panel");
+  if (existingPanel) return; // Don't create multiple panels
+
   const debugPanel = document.createElement("div");
+  debugPanel.id = "animation-debug-panel"; // Add ID for checking existence
   debugPanel.style.position = "fixed";
   debugPanel.style.top = "10px";
   debugPanel.style.left = "10px";
@@ -536,80 +848,175 @@ function findAnimation(keywords: string[]): string | null {
   }
 
   for (const keyword of keywords) {
-    const match = Object.keys(playerAnimations).find((name) =>
-      name.includes(keyword),
+    // Find an exact match or a name containing the keyword
+    const match = Object.keys(playerAnimations).find(
+      (name) => name === keyword || name.includes(keyword),
     );
     if (match) return match;
   }
 
-  return null;
+  return null; // No match found
 }
 
 // Play animation with crossfade
-function playAnimation(name: string, duration: number = 0.5) {
-  if (!playerAnimations[name]) {
+function playAnimation(name: string, duration: number = 0.5): boolean {
+  // Added return type hint
+  if (!mixer) return false; // Need mixer to play animations
+
+  const targetAction = playerAnimations[name];
+  if (!targetAction) {
     console.warn(`Animation "${name}" not found!`);
     return false;
   }
 
-  if (currentAnimation === name) return true;
+  if (currentAnimation === name && targetAction.isRunning()) return true; // Already playing and running
 
-  const action = playerAnimations[name];
+  const currentAction = currentAnimation
+    ? playerAnimations[currentAnimation]
+    : null;
 
-  if (currentAnimation && playerAnimations[currentAnimation]) {
-    playerAnimations[currentAnimation].fadeOut(duration);
+  // Stop and reset the target action before fading in
+  targetAction.stop(); // Ensure it's stopped before playing again
+  targetAction.reset(); // Reset time to start from beginning
+
+  if (currentAction && currentAction !== targetAction) {
+    currentAction.fadeOut(duration);
   }
 
-  action.reset().fadeIn(duration).play();
+  targetAction
+    .setEffectiveTimeScale(1)
+    .setEffectiveWeight(1)
+    .fadeIn(duration)
+    .play();
   currentAnimation = name;
 
-  console.log(`Playing animation: ${name}`);
+  // console.log(`Playing animation: ${name}`); // Can be noisy
   return true;
 }
 
+// --- NEW: Function to create a low-poly tree ---
+function createLowPolyTree(): THREE.Group {
+  const tree = new THREE.Group();
+
+  // --- Trunk ---
+  const trunkHeight = THREE.MathUtils.randFloat(1.5, 3.5);
+  const trunkRadius = THREE.MathUtils.randFloat(0.15, 0.3);
+  const trunkGeometry = new THREE.CylinderGeometry(
+    trunkRadius * 0.8,
+    trunkRadius,
+    trunkHeight,
+    5,
+    1,
+  ); // Low poly (5 sides)
+  const trunkMaterial = new THREE.MeshStandardMaterial({
+    color: 0x8b4513, // Brown
+    roughness: 0.9,
+    metalness: 0.1,
+  });
+  const trunkMesh = new THREE.Mesh(trunkGeometry, trunkMaterial);
+  trunkMesh.position.y = trunkHeight / 2; // Position base at 0
+  trunkMesh.castShadow = true;
+  trunkMesh.receiveShadow = true;
+  tree.add(trunkMesh);
+
+  // --- Leaves ---
+  const leafTypes = ["cone", "icosahedron", "stacked"];
+  const leafType = leafTypes[Math.floor(Math.random() * leafTypes.length)];
+  const leafColor = new THREE.Color(0x228b22); // Forest Green base
+  leafColor.offsetHSL(
+    THREE.MathUtils.randFloat(-0.05, 0.05),
+    THREE.MathUtils.randFloat(-0.1, 0.1),
+    THREE.MathUtils.randFloat(-0.1, 0.1),
+  ); // Slight color variation
+  const leafMaterial = new THREE.MeshStandardMaterial({
+    color: leafColor,
+    roughness: 0.8,
+    metalness: 0.0,
+  });
+
+  const addLeaves = (yOffset: number, scale: number) => {
+    let leafGeometry: THREE.BufferGeometry;
+    const leafHeight = THREE.MathUtils.randFloat(1.5, 2.5) * scale;
+    const leafRadius = THREE.MathUtils.randFloat(0.8, 1.5) * scale;
+
+    if (
+      leafType === "cone" ||
+      (leafType === "stacked" && Math.random() < 0.7)
+    ) {
+      leafGeometry = new THREE.ConeGeometry(leafRadius, leafHeight, 6); // Low poly cone
+    } else {
+      // icosahedron or stacked variant
+      leafGeometry = new THREE.IcosahedronGeometry(
+        leafRadius * 0.8,
+        Math.random() < 0.5 ? 0 : 1,
+      ); // More rounded or pointy
+    }
+
+    const leafMesh = new THREE.Mesh(leafGeometry, leafMaterial);
+    leafMesh.position.y = yOffset + leafHeight * 0.4; // Position leaves relative to offset
+    leafMesh.castShadow = true;
+    leafMesh.receiveShadow = false; // Leaves often don't receive distinct shadows well
+
+    // Random tilt
+    leafMesh.rotation.x += THREE.MathUtils.randFloat(-0.1, 0.1);
+    leafMesh.rotation.z += THREE.MathUtils.randFloat(-0.1, 0.1);
+
+    tree.add(leafMesh);
+  };
+
+  if (leafType === "stacked") {
+    const numStacks = THREE.MathUtils.randInt(2, 3);
+    let currentY = trunkHeight * 0.8; // Start slightly below trunk top
+    let currentScale = 1.0;
+    for (let i = 0; i < numStacks; i++) {
+      addLeaves(currentY, currentScale);
+      currentY += 1.5 * currentScale * 0.5; // Move up for next stack
+      currentScale *= 0.7; // Smaller stacks on top
+    }
+  } else {
+    // Single leaf cluster, positioned near the top of the trunk
+    addLeaves(trunkHeight * 0.9, 1.0);
+  }
+
+  // Add slight overall rotation for variety
+  tree.rotation.y = Math.random() * Math.PI * 2;
+
+  return tree;
+}
+
+// --- NEW: Load Resource Models ---
+async function loadResourceModels() {
+  const loader = new GLTFLoader();
+  try {
+    // --- REMOVED Tree Model Loading ---
+
+    // Load Rock Model (remains the same)
+    const rockGltf = await loader.loadAsync("./models/rock.glb"); // Make sure path is correct
+    rockModel = rockGltf.scene;
+    // Ensure rock model parts cast/receive shadows appropriately
+    rockModel.traverse((node) => {
+      if (node instanceof THREE.Mesh) {
+        node.castShadow = true;
+        node.receiveShadow = true;
+      }
+    });
+    console.log("Rock model loaded successfully.");
+  } catch (error) {
+    console.error("Error loading resource models:", error);
+    addMessage("Failed to load some resource models.", true);
+    // Game can continue with procedural trees and fallback rocks
+  }
+}
+
 // --- Initialization ---
-function init() {
-  createToolIndicator();
-  initInventorySystem();
-  addSaveLoadButtons();
-  // Scene
+async function init() {
+  console.log("Initializing game...");
+
+  // Basic Scene Setup
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x87ceeb); // Sky blue background
-  scene.fog = new THREE.Fog(0x87ceeb, 15, 60); // Adjusted fog
+  scene.fog = new THREE.Fog(0x87ceeb, 10, 70); // Add fog
 
-  const tempGeometry = new THREE.BoxGeometry(0.5, 1.8, 0.5);
-  const tempMaterial = new THREE.MeshStandardMaterial({
-    color: 0x0000ff,
-    transparent: true,
-    opacity: 0.5,
-  });
-  player = new THREE.Group();
-  const tempCube = new THREE.Mesh(tempGeometry, tempMaterial);
-  tempCube.position.y = 0.9;
-  player.add(tempCube);
-  scene.add(player);
-
-  loadPlayerModel("./imp.glb")
-    .then((model) => {
-      // Remove the temporary cube
-      player.remove(tempCube);
-      tempCube.geometry.dispose();
-      tempCube.material.dispose();
-
-      // Add the loaded model to the player group
-      player.add(model);
-
-      console.log("Player model loaded successfully");
-    })
-    .catch((error) => {
-      console.error("Failed to load player model:", error);
-      addMessage("Failed to load player model. Using fallback.");
-    });
-
-  // player = createAnimalPlayer();
-  // player.position.y = 0; // Position the base at ground level
-  // player.castShadow = true;
-  // scene.add(player);
   // Camera
   camera = new THREE.PerspectiveCamera(
     75,
@@ -617,1142 +1024,1483 @@ function init() {
     0.1,
     1000,
   );
-  camera.position.set(0, 1.7, 5); // Positioned slightly above ground, looking forward
-  camera.lookAt(0, 1, 0);
+  // Camera starts behind the player position (which is 0,0,0 initially)
+  // We will attach camera to player later
 
   // Renderer
-  renderer = new THREE.WebGLRenderer({
-    canvas: document.getElementById("canvas"),
-    antialias: true,
-  });
+  const canvas = document.getElementById("canvas") as HTMLCanvasElement | null; // Added type assertion
+  // Ensure canvas exists before creating renderer
+  if (!canvas) {
+      console.error("Canvas element not found!");
+      addMessage("FATAL ERROR: Canvas element not found!", true);
+      return; // Stop initialization if canvas is missing
+  }
+  renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true; // Enable shadows
   renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
+  // No need to appendChild again if using existing canvas element
 
-  // Clock for delta time
+  // Clock
   clock = new THREE.Clock();
 
   // Lighting
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // Soft ambient light
   scene.add(ambientLight);
 
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9); // Slightly brighter Sun light
-  directionalLight.position.set(15, 20, 10); // Adjusted position
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0); // Brighter directional light
+  directionalLight.position.set(15, 20, 10);
   directionalLight.castShadow = true;
   // Configure shadow properties
-  directionalLight.shadow.mapSize.width = 1024; // Keep reasonable shadow map size
-  directionalLight.shadow.mapSize.height = 1024;
+  directionalLight.shadow.mapSize.width = 2048; // Higher resolution shadows
+  directionalLight.shadow.mapSize.height = 2048;
   directionalLight.shadow.camera.near = 0.5;
-  directionalLight.shadow.camera.far = 60; // Match fog distance
-  directionalLight.shadow.camera.left = -30; // Increase shadow area
-  directionalLight.shadow.camera.right = 30;
-  directionalLight.shadow.camera.top = 30;
-  directionalLight.shadow.camera.bottom = -30;
+  directionalLight.shadow.camera.far = 100;
+  directionalLight.shadow.camera.left = -60;
+  directionalLight.shadow.camera.right = 60;
+  directionalLight.shadow.camera.top = 60;
+  directionalLight.shadow.camera.bottom = -60;
   scene.add(directionalLight);
-  // Optional: Add a light helper to visualize direction
+  // Optional: Add a light helper
   // const lightHelper = new THREE.DirectionalLightHelper(directionalLight, 5);
   // scene.add(lightHelper);
-  // const shadowCameraHelper = new THREE.CameraHelper(directionalLight.shadow.camera);
-  // scene.add(shadowCameraHelper);
+  // const shadowHelper = new THREE.CameraHelper(directionalLight.shadow.camera);
+  // scene.add(shadowHelper);
 
-  // Ground
+  // Ground Plane
   const groundGeometry = new THREE.PlaneGeometry(120, 120); // Larger ground
   const groundMaterial = new THREE.MeshStandardMaterial({
-    color: 0x228b22,
-    side: THREE.DoubleSide,
-  }); // Forest green
+    color: 0x55aa55, // Greenish color
+    roughness: 0.9,
+    metalness: 0.1,
+  });
   const ground = new THREE.Mesh(groundGeometry, groundMaterial);
   ground.rotation.x = -Math.PI / 2; // Rotate to be flat
-  ground.receiveShadow = true; // Allow ground to receive shadows
+  ground.receiveShadow = true; // Ground receives shadows
   scene.add(ground);
 
-  // Player (simple cube)
-  // const playerGeometry = new THREE.BoxGeometry(0.5, 1.8, 0.5); // Approx human height
-  // const playerMaterial = new THREE.MeshStandardMaterial({
-  //   color: 0x0000ff,
-  // }); // Blue player
-  // player = new THREE.Mesh(playerGeometry, playerMaterial);
-  // player.position.y = 0.9; // Position player slightly above ground base
-  // player.castShadow = true;
-  // scene.add(player);
-  //
-  //
+  // Player Placeholder (Group)
+  player = new THREE.Group();
+  player.position.set(0, 0, 0); // Start at origin ground level
+  scene.add(player);
 
-  // Spawn initial resources
-  spawnResources("wood", 100); // More trees
-  spawnResources("stone", 80); // More rocks
+  // Load Player Model (async)
+  try {
+    const playerModel = await loadPlayerModel("./imp.glb"); // Ensure path is correct
+    player.add(playerModel); // Add loaded model to the player group
+    console.log("Player model loaded and added.");
+  } catch (error) {
+    console.error("Player model loading failed, using fallback:", error);
+    addMessage("Failed to load player model, using fallback.", true);
+    // Fallback Cube
+    const fallbackGeo = new THREE.BoxGeometry(0.5, 1.7, 0.5); // Approx player size
+    const fallbackMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+    const fallbackMesh = new THREE.Mesh(fallbackGeo, fallbackMat);
+    fallbackMesh.position.y = 1.7 / 2; // Position base at player group origin
+    fallbackMesh.castShadow = true;
+    fallbackMesh.receiveShadow = true;
+    player.add(fallbackMesh);
+  }
+
+  // Attach Camera to Player (after player group is created)
+  // Position camera slightly behind and above the player model origin
+  camera.position.set(0, 2.5, 5); // Adjust Y for height, Z for distance
+  camera.lookAt(player.position.x, player.position.y + 1.0, player.position.z); // Look slightly above player feet
+  player.add(camera); // Attach camera to player group
+
+  // Load Resource Models (async)
+  // await loadResourceModels(); // You might want to uncomment this if needed
+
+  // Spawn Initial Resources
+  spawnResources("wood", 100);
+  spawnResources("stone", 80);
+
+  // Initialize UI Systems
+  initInventorySystem();
+  createToolIndicator(); // Create the indicator element
+  addSaveLoadButtons(); // Add save/load buttons
+
+  // Initial UI Update
+  updateInventoryUI();
+  updateToolIndicator(); // Update display (should be hidden initially)
 
   // Event Listeners
-  window.addEventListener("resize", onWindowResize, false);
-  document.addEventListener("keydown", (event) => {
-    keys[event.key.toLowerCase()] = true;
+  document.addEventListener("keydown", handleKeyDown);
+  document.addEventListener("keyup", handleKeyUp);
+  window.addEventListener("resize", onWindowResize);
 
-    // Cheat code: Shift+H to instantly create a hut
-    if (event.key.toLowerCase() === "h" && event.shiftKey) {
-      cheatCreateHut();
-      addMessage("🔮 CHEAT ACTIVATED: Free hut created!");
-    }
+  // Add initial message
+  addMessage(
+    "Welcome! WASD=Move, Space=Jump, E=Gather/Place, I=Inventory, M=Move Object, U=Use Item",
+  );
 
-    // Press 'M' to toggle move mode
-    if (event.key.toLowerCase() === "m") {
+  // Start Animation Loop
+  animate(); // Make sure this is called *after* everything else is set up
+  console.log("Initialization complete. Starting animation loop."); // DIAGNOSTIC LOG
+}
+
+// Separate KeyDown Handler
+function handleKeyDown(event: KeyboardEvent) {
+  // Ignore key presses if typing in an input/textarea
+  if (
+    event.target instanceof HTMLInputElement ||
+    event.target instanceof HTMLTextAreaElement ||
+    (event.target instanceof HTMLElement && event.target.isContentEditable)
+  ) {
+    return;
+  }
+
+  const keyLower = event.key.toLowerCase();
+  keys[keyLower] = true;
+
+  // Handle single-press actions
+  switch (keyLower) {
+    case "e": // Gather resource OR Confirm Placement
+      if (isInPlacementMode) {
+        confirmPlacement();
+      } else if (!moveMode) {
+        // Don't gather if moving object
+        tryGatherResource();
+      }
+      break;
+    case " ": // Jump
+      if (isOnGround && !isJumping && !moveMode && !isInPlacementMode) {
+        // Prevent jumping in special modes
+        startJump();
+      }
+      break;
+    case "i": // Toggle Inventory
+      toggleInventory();
+      break;
+    case "u": // Use Selected Item (Place or Activate Tool)
+      useSelectedItem();
+      break;
+    case "m": // Toggle Move Mode
       toggleMoveMode();
-    }
-
-    // Spacebar to jump
-    if (event.key === " ") {
-      startJump();
-
-      // Prevent default to avoid page scrolling
-      event.preventDefault();
-    }
-
-    // In move mode, press 'Enter' to place the selected object
-    if (event.key === "Enter" && moveMode && selectedObject) {
-      moveMode = false;
-      selectedObject = null;
-      addMessage("Hut placement confirmed!");
-      updateMoveUI(false);
-    }
-  });
-
-  // Add these new functions to handle moving huts
-  function toggleMoveMode() {
-    moveMode = !moveMode;
-
-    if (moveMode) {
-      // Enter move mode - try to select the closest hut
-      selectClosestHut();
-    } else {
-      // Exit move mode
-      selectedObject = null;
-    }
-
-    updateMoveUI(moveMode);
+      break;
+    case "enter": // Confirm Move
+      if (moveMode) {
+        confirmMove();
+      }
+      break;
+    case "escape": // Cancel Placement or Move Mode, Close Inventory
+      if (isInPlacementMode) {
+        cancelPlacement();
+      } else if (moveMode) {
+        toggleMoveMode(); // Use toggle to handle cancellation logic
+      } else if (inventoryPanel && inventoryPanel.style.display === "block") {
+        closeInventory();
+      }
+      break;
+    case "r": // Rotate Placement Preview
+      if (isInPlacementMode && placementPreviewObject) {
+        placementPreviewObject.rotation.y += Math.PI / 2; // Rotate 90 degrees
+        updatePlacementPreview(); // Update validity after rotation
+      }
+      break;
+    // --- Cheats ---
+    case "1": // Cheat: Add Wood
+      if (event.shiftKey) {
+        // Shift+1
+        inventory.wood += 10;
+        addMessage("Cheat: Added 10 wood.");
+        updateInventoryUI();
+      }
+      break;
+    case "2": // Cheat: Add Stone
+      if (event.shiftKey) {
+        // Shift+2
+        inventory.stone += 10;
+        addMessage("Cheat: Added 10 stone.");
+        updateInventoryUI();
+      }
+      break;
+    case "3": // Cheat: Add Axe
+      if (event.shiftKey) cheatCreateItem("axe");
+      break;
+    case "4": // Cheat: Add Hut Item
+      if (event.shiftKey) cheatCreateItem("hut");
+      break;
+    case "5": // Cheat: Add Wall Item
+      if (event.shiftKey) cheatCreateItem("wall");
+      break;
+    case "6": // Cheat: Add Floor Item
+      if (event.shiftKey) cheatCreateItem("floor");
+      break;
   }
+}
 
-  function selectClosestHut() {
-    let closestDistance = Infinity;
-    let closestHut = null;
+// Separate KeyUp Handler
+function handleKeyUp(event: KeyboardEvent) {
+  keys[event.key.toLowerCase()] = false;
+}
 
-    for (let i = 0; i < craftedObjects.length; i++) {
-      const object = craftedObjects[i];
-      // Only consider huts (you could add a type check if you have multiple object types)
+// --- NEW: Jump Function ---
+function startJump() {
+  if (!isOnGround || isJumping) return; // Extra safety check
 
-      const distance = player.position.distanceTo(object.position);
-      if (distance < closestDistance && distance < 10) {
-        // Only select if within 10 units
-        closestDistance = distance;
-        closestHut = object;
+  isOnGround = false;
+  isJumping = true;
+  jumpStartY = player.position.y; // Record start height (optional)
+  playerVelocity.y = JUMP_FORCE; // Apply upward force
+
+  // Play jump animation
+  const jumpAnim = findAnimation(["jump", "jump_start"]);
+  if (jumpAnim) {
+    playAnimation(jumpAnim, 0.1); // Quick transition to jump anim
+  }
+  // console.log("Jump started");
+}
+
+// Confirm Move Function
+function confirmMove() {
+  if (!moveMode || !selectedObject) return;
+
+  // Check for collision at the final position before confirming
+  const finalBox = new THREE.Box3().setFromObject(selectedObject);
+  let collision = false;
+  // Check against other crafted objects
+  for (const obj of craftedObjects) {
+    if (obj === selectedObject) continue;
+    const existingBox = new THREE.Box3().setFromObject(obj);
+    if (finalBox.intersectsBox(existingBox)) {
+      collision = true;
+      break;
+    }
+  }
+  // Check against resources
+  if (!collision) {
+    for (const res of resources) {
+      const resBox = new THREE.Box3().setFromObject(res);
+      if (finalBox.intersectsBox(resBox)) {
+        collision = true;
+        break;
       }
     }
+  }
 
-    if (closestHut) {
-      selectedObject = closestHut;
-      addMessage(
-        "Hut selected for moving. Use WASD to position, Enter to place.",
-      );
+  if (collision) {
+    addMessage("Cannot confirm move, final position is obstructed.", true);
+    // Optionally, snap the object back to its original position or last valid position
+    return;
+  }
+
+  moveMode = false;
+  // Reset emissive color (selectedObject is THREE.Mesh)
+  // Check material exists and is not an array (standard check for Mesh)
+  if (selectedObject.material && !Array.isArray(selectedObject.material)) {
+    // Check if material has emissive property before trying to set it
+    if ("emissive" in selectedObject.material) {
+      (
+        selectedObject.material as
+          | THREE.MeshStandardMaterial
+          | THREE.MeshPhysicalMaterial
+      ).emissive?.setHex(0x000000);
+    }
+  }
+  // Access userData safely
+  const objectType = selectedObject.userData?.type || "object";
+  addMessage(`Moved ${objectType} confirmed!`);
+  selectedObject = null; // Deselect
+  updateMoveUI(false); // Ensure highlight is removed (should be redundant but safe)
+}
+
+// --- UI Updates ---
+function updateInventoryUI() {
+  if (invWoodEl) invWoodEl.textContent = String(inventory.wood);
+  if (invStoneEl) invStoneEl.textContent = String(inventory.stone);
+
+  // Update craft button states based on resources (example for axe)
+  const craftAxeBtn = document.getElementById(
+    "craft-axe-btn",
+  ) as HTMLButtonElement | null;
+  if (craftAxeBtn) {
+    const canCraftAxe =
+      inventory.wood >= recipes.axe.wood &&
+      inventory.stone >= recipes.axe.stone;
+    craftAxeBtn.disabled = !canCraftAxe;
+    craftAxeBtn.title = canCraftAxe
+      ? "Craft Wooden Axe (Cost: 5 Wood, 2 Stone)"
+      : `Need ${recipes.axe.wood} Wood, ${recipes.axe.stone} Stone`;
+  }
+  // Update other craft buttons similarly
+  const craftHutBtn = document.getElementById(
+    "craft-hut-btn",
+  ) as HTMLButtonElement | null;
+  if (craftHutBtn) {
+    const canCraftHut =
+      inventory.wood >= recipes.hut.wood &&
+      inventory.stone >= recipes.hut.stone;
+    craftHutBtn.disabled = !canCraftHut;
+    craftHutBtn.title = canCraftHut
+      ? `Craft Small Hut (Cost: ${recipes.hut.wood} Wood, ${recipes.hut.stone} Stone)`
+      : `Need ${recipes.hut.wood} Wood, ${recipes.hut.stone} Stone`;
+  }
+  const craftWallBtn = document.getElementById(
+    "craft-wall-btn",
+  ) as HTMLButtonElement | null;
+  if (craftWallBtn) {
+    const canCraftWall = inventory.wood >= recipes.wall.wood;
+    craftWallBtn.disabled = !canCraftWall;
+    craftWallBtn.title = canCraftWall
+      ? `Craft Wooden Wall (Cost: ${recipes.wall.wood} Wood)`
+      : `Need ${recipes.wall.wood} Wood`;
+  }
+  const craftFloorBtn = document.getElementById(
+    "craft-floor-btn",
+  ) as HTMLButtonElement | null;
+  if (craftFloorBtn) {
+    const canCraftFloor = inventory.wood >= recipes.floor.wood;
+    craftFloorBtn.disabled = !canCraftFloor;
+    craftFloorBtn.title = canCraftFloor
+      ? `Craft Wooden Floor (Cost: ${recipes.floor.wood} Wood)`
+      : `Need ${recipes.floor.wood} Wood`;
+  }
+
+  // Add logic for other craftable items here...
+  for (const itemName in recipes) {
+    const button = document.getElementById(
+      `craft-${itemName}-btn`,
+    ) as HTMLButtonElement | null;
+    if (button) {
+      let canCraft = true;
+      // FIX: Explicitly type 'needed' as string[]
+      let needed: string[] = [];
+      for (const resourceType in recipes[itemName]) {
+        // Ensure inventory has the property before checking value
+        if (
+            !inventory.hasOwnProperty(resourceType) || // Check if resource exists in inventory
+            inventory[resourceType] < recipes[itemName][resourceType]
+           ) {
+          canCraft = false;
+          needed.push(`${recipes[itemName][resourceType]} ${resourceType}`);
+        }
+      }
+      button.disabled = !canCraft;
+      if (!canCraft) {
+        button.title = `Need: ${needed.join(", ")}`;
+      } else {
+        const costString = Object.entries(recipes[itemName])
+          .map(([res, amount]) => `${amount} ${res}`)
+          .join(", ");
+        const itemDef = itemDefinitions[itemName];
+        button.title = `Craft ${itemDef ? itemDef.name : itemName} (Cost: ${costString})`;
+      }
     } else {
-      addMessage("No huts found nearby to move.");
-      moveMode = false;
+      // Don't warn every frame, maybe just once in init if needed
+      // console.warn(`Craft button for "${itemName}" not found.`);
     }
   }
+}
 
-  // Add this new function for the cheat
-  function cheatCreateHut() {
-    // Add hut to inventory
-    inventory["hut"]++;
-    updateInventoryUI();
-
-    // Also place the hut in front of the player
-    placeHut();
+// Add message to log (with optional error styling)
+function addMessage(text: string, isError: boolean = false) {
+  if (!messageLog) return; // Check if messageLog exists
+  const p = document.createElement("p");
+  p.textContent = `> ${text}`;
+  if (isError) {
+    p.style.color = "red";
+    p.style.fontWeight = "bold";
   }
-  document.addEventListener("keyup", (event) => {
-    keys[event.key.toLowerCase()] = false;
-    if (event.key.toLowerCase() === "e") {
-      tryGatherResource();
+  // Prepend new messages to the top
+  messageLog.insertBefore(p, messageLog.firstChild);
+
+  // Limit number of messages
+  const maxMessages = 7;
+  while (messageLog.children.length > maxMessages) {
+    if (messageLog.lastChild) {
+      // Check if lastChild exists before removing
+      messageLog.removeChild(messageLog.lastChild);
+    } else {
+      break; // Safety break
     }
+  }
+}
+
+// Update the visual display of the inventory (with type safety)
+function updateInventoryDisplay() {
+  if (!inventoryGrid) return; // Check if grid exists
+  const slots = inventoryGrid.querySelectorAll(".inventory-slot");
+
+  // Clear all slots first (more robust clearing)
+  slots.forEach((slot) => {
+    slot.innerHTML = ""; // Clear content
+    slot.className = "inventory-slot"; // Reset classes
+    // Remove event listeners if necessary, though re-adding is usually fine
   });
 
-  // Crafting Button Listeners
-  document
-    .getElementById("craft-axe")
-    .addEventListener("click", () => craftItem("axe"));
-  document
-    .getElementById("craft-hut")
-    .addEventListener("click", () => craftItem("hut"));
+  // Fill slots with items
+  playerInventory.forEach((item, index) => {
+    if (index >= slots.length) return; // Prevent errors if inventory size mismatch
 
-  // Start the game loop
-  animate();
-  updateInventoryUI(); // Initial UI update
-  addMessage("Game started. Find resources!");
-}
+    const slot = slots[index] as HTMLElement; // We know the slot exists now
 
-// Add this function to update UI when in move mode
-function updateMoveUI(active) {
-  if (active) {
-    addMessage("MOVE MODE: Use WASD to position hut, Enter to confirm.");
-    // Optionally add visual indicator like highlighting the selected hut
-    if (selectedObject) {
-      // You could add a highlight effect here
-      selectedObject.material.emissive = new THREE.Color(0x553311);
+    if (!item) {
+      // Ensure empty slots are truly empty and reset classes
+      slot.innerHTML = "";
+      slot.className = "inventory-slot";
+      return; // Skip null slots
     }
-  } else {
-    addMessage("Move mode deactivated.");
-    // Remove any visual indicators
-    if (selectedObject) {
-      selectedObject.material.emissive = new THREE.Color(0x000000);
+
+    slot.classList.add("occupied");
+
+    if (index === selectedItemIndex) {
+      slot.classList.add("selected");
     }
-  }
-}
 
-// --- Resource Spawning ---
-function spawnResources(type, count) {
-  const spread = 100; // How far resources spread from center
+    // Create item display
+    const itemDef = itemDefinitions[item.type];
+    if (!itemDef) {
+      console.warn(`Item definition not found for type: ${item.type}`);
+      slot.textContent = "?"; // Placeholder for unknown item
+      slot.title = `Unknown Item: ${item.type}`; // Tooltip for unknown
+      return;
+    }
 
-  for (let i = 0; i < count; i++) {
-    let resourceObject; // This will be the Mesh or Group
+    // Create icon (text or image)
+    const iconContainer = document.createElement("div");
+    iconContainer.className = "item-icon-container"; // For styling
 
-    if (type === "wood") {
-      // Create a Tree (Group of trunk and leaves)
-      const tree = new THREE.Group();
-
-      // Trunk
-      const trunkHeight = Math.random() * 2 + 1.5; // Random height
-      const trunkRadius = 0.2 + Math.random() * 0.1;
-      const trunkGeometry = new THREE.CylinderGeometry(
-        trunkRadius * 0.8,
-        trunkRadius,
-        trunkHeight,
-        8,
-      );
-      const trunkMaterial = new THREE.MeshStandardMaterial({
-        color: 0x8b4513,
-      }); // Brown
-      const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-      trunk.castShadow = true;
-      trunk.receiveShadow = true; // Trunk can receive shadow from leaves
-      trunk.position.y = trunkHeight / 2; // Base at y=0
-      tree.add(trunk);
-
-      // Leaves (simple cone)
-      const leavesHeight = trunkHeight * 1.5 + Math.random() * 0.5;
-      const leavesRadius = trunkRadius * 4 + Math.random() * 1;
-      const leavesGeometry = new THREE.ConeGeometry(
-        leavesRadius,
-        leavesHeight,
-        8,
-      );
-      const leavesMaterial = new THREE.MeshStandardMaterial({
-        color: 0x2e8b57,
-      }); // Sea green
-      const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
-      leaves.castShadow = true;
-      leaves.position.y = trunkHeight + leavesHeight * 0.4; // Position above trunk
-      tree.add(leaves);
-
-      resourceObject = tree;
-      resourceObject.position.y = 0; // Group's base is at ground level
+    if (itemDef.icon.startsWith("http") || itemDef.icon.startsWith("./")) {
+      // Check for URL or relative path
+      // Image URL
+      const img = document.createElement("img");
+      img.src = itemDef.icon;
+      img.alt = itemDef.name;
+      img.style.maxWidth = "100%"; // Ensure image fits
+      img.style.maxHeight = "100%";
+      img.style.objectFit = "contain";
+      img.draggable = false; // Prevent dragging image
+      iconContainer.appendChild(img);
     } else {
-      // Stone
-      // Create a Rock (Jagged shape)
-      const rockRadius = 0.4 + Math.random() * 0.3;
-      // IcosahedronGeometry gives a more jagged look than Sphere
-      const rockGeometry = new THREE.IcosahedronGeometry(rockRadius, 0); // Detail level 0 for fewer faces
-      const rockMaterial = new THREE.MeshStandardMaterial({
-        color: 0x808080,
-        flatShading: true,
-      }); // Grey, flat shading emphasizes facets
-      const rock = new THREE.Mesh(rockGeometry, rockMaterial);
-      rock.castShadow = true;
-      rock.receiveShadow = true; // Rocks can receive shadows
-      resourceObject = rock;
-      resourceObject.position.y = rockRadius * 0.8; // Position slightly above ground based on radius
+      // Emoji or text
+      const icon = document.createElement("div");
+      icon.style.fontSize = "24px"; // Adjust as needed
+      icon.style.textAlign = "center";
+      icon.style.lineHeight = "40px"; // Approx vertical center for 40px slot height
+      icon.textContent = itemDef.icon;
+      iconContainer.appendChild(icon);
     }
+    slot.appendChild(iconContainer);
 
-    // Set position and add to scene/array
-    resourceObject.position.x = (Math.random() - 0.5) * spread;
-    resourceObject.position.z = (Math.random() - 0.5) * spread;
+    // Create tooltip
+    const tooltip = document.createElement("div");
+    tooltip.className = "item-tooltip";
 
-    // Ensure resources don't spawn too close to the center (player start)
-    if (resourceObject.position.length() < 5) {
-      resourceObject.position.setLength(5 + Math.random() * (spread / 2 - 5)); // Move it further out
+    // Build tooltip HTML safely
+    let tooltipHTML = `<div class="item-name">${itemDef.name}</div>`;
+    tooltipHTML += `<div class="item-description">${itemDef.description}</div>`;
+    if (itemDef.effect) {
+      tooltipHTML += `<div class="item-effect">Effect: ${itemDef.effect}</div>`;
     }
+    const recipe = recipes[item.type];
+    if (recipe) {
+      const costString = Object.entries(recipe)
+        .map(([res, amount]) => `${amount} ${res}`)
+        .join(", ");
+      tooltipHTML += `<div class="item-cost">Cost: ${costString}</div>`;
+    }
+    tooltip.innerHTML = tooltipHTML;
 
-    resourceObject.userData = { type: type }; // Store resource type in the group/mesh
-    scene.add(resourceObject);
-    resources.push(resourceObject);
-  }
+    slot.appendChild(tooltip);
+  });
 }
 
-// --- Game Loop ---
-function animate() {
-  requestAnimationFrame(animate);
-  const delta = clock.getDelta(); // Time since last frame
-  updateJump(delta);
-  handleMovement(delta);
-  // Update animations
-  if (mixer) {
-    mixer.update(delta);
-  }
-  renderer.render(scene, camera);
-}
+// Select an inventory slot (with type safety)
+function selectInventorySlot(index: number) {
+  if (index < 0 || index >= playerInventory.length) return; // Index out of bounds
 
-// --- Player Movement ---
-function handleMovement(delta) {
-  const moveDistance = moveSpeed * delta;
-  const moveDirection = new THREE.Vector3();
+  const item = playerInventory[index]; // Can be InventoryItem | null
 
-  // Get forward/backward direction based on camera
-  const forward = new THREE.Vector3();
-  camera.getWorldDirection(forward);
-  forward.y = 0; // Keep movement horizontal
-  forward.normalize();
-
-  // Get right/left direction (strafe)
-  const right = new THREE.Vector3();
-  right.crossVectors(camera.up, forward).normalize(); // Right is perpendicular to up and forward
-
-  if (moveMode && selectedObject) {
-    // Move the selected object instead of the player
-    if (keys["w"]) moveDirection.add(forward);
-    if (keys["s"]) moveDirection.sub(forward);
-    if (keys["a"]) moveDirection.sub(right);
-    if (keys["d"]) moveDirection.add(right);
-
-    // Move the selected object
-    if (moveDirection.lengthSq() > 0) {
-      moveDirection.normalize();
-      selectedObject.position.addScaledVector(moveDirection, moveDistance);
+  if (item) {
+    // Clicked on a slot with an item
+    // Toggle selection
+    if (selectedItemIndex === index) {
+      selectedItemIndex = -1; // Deselect
+      addMessage("Deselected item.");
+    } else {
+      selectedItemIndex = index;
+      const itemDef = itemDefinitions[item.type];
+      const name = itemDef ? itemDef.name : `Unknown (${item.type})`;
+      addMessage(`Selected: ${name}. Press 'U' to use.`);
     }
+    updateInventoryDisplay(); // Update visuals
   } else {
-    // Normal player movement (existing code)
-    if (keys["w"]) moveDirection.add(forward);
-    if (keys["s"]) moveDirection.sub(forward);
-    if (keys["a"]) moveDirection.add(right);
-    if (keys["d"]) moveDirection.sub(right);
-
-    // Normalize diagonal movement to prevent faster speed
-    if (moveDirection.lengthSq() > 0) {
-      moveDirection.normalize();
-      player.position.addScaledVector(moveDirection, moveDistance);
-
-      // Camera following logic (existing code)
-      const cameraOffsetBehind = 3;
-      const cameraOffsetY = 0.7;
-      const cameraTargetPosition = player.position.clone();
-      cameraTargetPosition.addScaledVector(
-        forward.negate(),
-        cameraOffsetBehind,
-      );
-      cameraTargetPosition.y = player.position.y + cameraOffsetY;
-      camera.position.lerp(cameraTargetPosition, 0.15);
-      camera.lookAt(
-        player.position.x,
-        player.position.y + 0.5,
-        player.position.z,
-      );
+    // Clicked an empty slot, deselect if something was selected
+    if (selectedItemIndex !== -1) {
+      selectedItemIndex = -1;
+      addMessage("Deselected item.");
+      updateInventoryDisplay();
     }
   }
 }
 
-// --- Save/Load Game Functions ---
-function saveGame() {
-  // Create a game state object to store all important data
-  const gameState = {
-    inventory: inventory,
-    playerInventory: playerInventory,
-    playerPosition: {
-      x: player.position.x,
-      y: player.position.y,
-      z: player.position.z,
-    },
-    resources: resources.map((resource) => ({
-      type: resource.userData.type,
-      position: {
-        x: resource.position.x,
-        y: resource.position.y,
-        z: resource.position.z,
-      },
-    })),
-    craftedObjects: craftedObjects.map((obj) => ({
-      // Assuming these are huts for now
-      type: "hut",
-      position: {
-        x: obj.position.x,
-        y: obj.position.y,
-        z: obj.position.z,
-      },
-    })),
-    activeToolType: activeToolType,
-    selectedItemIndex: selectedItemIndex,
-  };
+// Creates or finds the tool indicator element and its container
+function createToolIndicator() {
+  // Find or create the main container for UI elements like this
+  let uiContainer = document.getElementById("game-ui-overlay");
+  if (!uiContainer) {
+    uiContainer = document.createElement("div");
+    uiContainer.id = "game-ui-overlay";
+    // Basic styling for the overlay container (adjust as needed)
+    uiContainer.style.position = "fixed";
+    uiContainer.style.bottom = "10px";
+    uiContainer.style.left = "50%";
+    uiContainer.style.transform = "translateX(-50%)";
+    uiContainer.style.zIndex = "900"; // Below inventory/menus maybe
+    uiContainer.style.display = "flex";
+    uiContainer.style.gap = "10px";
+    uiContainer.style.alignItems = "center";
+    document.body.appendChild(uiContainer);
+  }
 
-  // Save to localStorage
+  // Find or create the specific tool indicator element within the container
+  activeToolIndicator = document.getElementById("active-tool-indicator");
+  if (!activeToolIndicator) {
+    activeToolIndicator = document.createElement("div");
+    activeToolIndicator.id = "active-tool-indicator";
+    activeToolIndicator.className = "active-tool-indicator"; // Use class for CSS styling
+    activeToolIndicator.style.display = "none"; // Hidden by default
+    activeToolIndicator.style.backgroundColor = "rgba(0, 0, 0, 0.6)";
+    activeToolIndicator.style.color = "white";
+    activeToolIndicator.style.padding = "5px 10px";
+    activeToolIndicator.style.borderRadius = "5px";
+    // activeToolIndicator.style.display = "flex"; // Set display in updateToolIndicator
+    activeToolIndicator.style.alignItems = "center";
+    activeToolIndicator.style.gap = "8px";
+    activeToolIndicator.style.fontSize = "14px";
+
+    // Icon container
+    const iconEl = document.createElement("div");
+    iconEl.className = "indicator-icon"; // Class for styling
+    iconEl.style.fontSize = "20px"; // Adjust icon size
+
+    // Text container
+    const textEl = document.createElement("div");
+    textEl.className = "indicator-text"; // Class for styling
+
+    // Add elements to indicator
+    activeToolIndicator.appendChild(iconEl);
+    activeToolIndicator.appendChild(textEl);
+
+    // Add indicator to the main UI container
+    uiContainer.appendChild(activeToolIndicator);
+  }
+}
+
+// Update tool indicator display
+function updateToolIndicator() {
+  if (!activeToolIndicator) {
+    console.warn("Tool indicator element not found.");
+    return; // Check if indicator element exists
+  }
+
+  if (!activeToolType) {
+    activeToolIndicator.style.display = "none";
+    return;
+  }
+
+  const toolDef = itemDefinitions[activeToolType];
+  if (!toolDef) {
+    console.warn(`Definition for active tool "${activeToolType}" not found.`);
+    activeToolIndicator.style.display = "none"; // Hide if definition is missing
+    activeToolType = null; // Clear invalid tool type
+    return;
+  }
+
+  // Safely query selector elements within the indicator
+  const iconElement = activeToolIndicator.querySelector(
+    ".indicator-icon",
+  ) as HTMLElement | null;
+  const textElement = activeToolIndicator.querySelector(
+    ".indicator-text",
+  ) as HTMLElement | null;
+
+  if (iconElement) iconElement.textContent = toolDef.icon;
+  if (textElement) textElement.textContent = toolDef.name;
+
+  // Show the indicator
+  activeToolIndicator.style.display = "flex"; // Use flex to show
+}
+
+// --- Save/Load ---
+
+// Define a type for the save data structure for better type safety
+interface SaveData {
+  playerPosition: { x: number; y: number; z: number };
+  playerRotation: number;
+  inventory: { [key: string]: number };
+  playerInventory: (InventoryItem | null)[];
+  selectedItemIndex: number;
+  activeToolType: string | null;
+  structures: {
+    type: string;
+    position: { x: number; y: number; z: number };
+    rotation: number;
+  }[];
+  version: string;
+  savedAt: string;
+}
+
+function saveGame(): boolean {
+  // Added return type hint
   try {
-    localStorage.setItem("gemGameSave", JSON.stringify(gameState));
+    // Create a save data object conforming to the SaveData interface
+    const saveData: SaveData = {
+      // Player data
+      playerPosition: {
+        x: player.position.x,
+        y: player.position.y,
+        z: player.position.z,
+      },
+      playerRotation: player.rotation.y,
+
+      // Resources
+      inventory: { ...inventory }, // Copy inventory object
+
+      // Inventory items
+      playerInventory: playerInventory.map((item) =>
+        item ? { ...item } : null,
+      ), // Deep copy
+      selectedItemIndex,
+      activeToolType,
+
+      // Crafted structures (iterate through THREE.Mesh array)
+      structures: craftedObjects.map((obj) => ({
+        // Access properties directly from THREE.Mesh
+        type: obj.userData?.type || "unknown", // Safe access to userData
+        position: {
+          x: obj.position.x,
+          y: obj.position.y,
+          z: obj.position.z,
+        },
+        rotation: obj.rotation.y,
+      })),
+
+      // Game version/timestamp for compatibility checking
+      version: "1.1", // Increment version if format changes
+      savedAt: new Date().toISOString(),
+    };
+
+    // Save to localStorage
+    localStorage.setItem("survivalGameSave", JSON.stringify(saveData));
     addMessage("Game saved successfully!");
-    showSaveNotification("Game saved successfully!");
-  } catch (e) {
-    console.error("Failed to save game:", e);
-    addMessage("Failed to save game. Error: " + e.message);
-    showSaveNotification("Failed to save game!", true);
-  }
-}
-
-function loadGame() {
-  try {
-    const savedData = localStorage.getItem("gemGameSave");
-    if (!savedData) {
-      addMessage("No saved game found.");
-      showSaveNotification("No saved game found!", true);
-      return false;
-    }
-
-    const gameState = JSON.parse(savedData);
-
-    // 1. Reset the current game state
-    resetGameState();
-
-    // 2. Load inventory
-    Object.assign(inventory, gameState.inventory);
-
-    // 3. Load player inventory items
-    gameState.playerInventory.forEach((item, index) => {
-      playerInventory[index] = item;
-    });
-    selectedItemIndex = gameState.selectedItemIndex;
-    activeToolType = gameState.activeToolType;
-    updateToolIndicator();
-
-    // 4. Set player position
-    player.position.set(
-      gameState.playerPosition.x,
-      gameState.playerPosition.y,
-      gameState.playerPosition.z,
-    );
-
-    // 5. Spawn resources
-    gameState.resources.forEach((resourceData) => {
-      spawnResourceAtPosition(
-        resourceData.type,
-        resourceData.position.x,
-        resourceData.position.y,
-        resourceData.position.z,
-      );
-    });
-
-    // 6. Recreate crafted objects (like huts)
-    gameState.craftedObjects.forEach((objData) => {
-      if (objData.type === "hut") {
-        createHutAtPosition(
-          objData.position.x,
-          objData.position.y,
-          objData.position.z,
-        );
-      }
-    });
-
-    // 7. Update UI
-    updateInventoryUI();
-    updateInventoryDisplay();
-
-    addMessage("Game loaded successfully!");
-    showSaveNotification("Game loaded successfully!");
+    // console.log("Game saved:", saveData);
     return true;
-  } catch (e) {
-    console.error("Failed to load game:", e);
-    addMessage("Failed to load game. Error: " + e.message);
-    showSaveNotification("Failed to load game!", true);
+  } catch (error) {
+    console.error("Error saving game:", error);
+    addMessage("Error saving game!", true);
     return false;
   }
 }
 
-// Helper function to reset the current game state
-function resetGameState() {
-  // Clear current resources
-  resources.forEach((resource) => {
-    scene.remove(resource);
-    // Dispose of geometries and materials
-    if (resource.isGroup) {
-      resource.traverse((child) => {
-        if (child.isMesh) {
-          child.geometry.dispose();
-          if (child.material.isMaterial) {
-            child.material.dispose();
-          } else {
-            child.material.forEach((material) => material.dispose());
-          }
+function loadGame(): boolean {
+  // Added return type hint
+  try {
+    // Get save data from localStorage, check for null
+    const savedDataString = localStorage.getItem("survivalGameSave");
+    if (!savedDataString) {
+      addMessage("No saved game found.");
+      return false;
+    }
+    // Parse only if string exists
+    const saveData: SaveData = JSON.parse(savedDataString); // Assume structure matches SaveData
+
+    if (!saveData) {
+      // Should be redundant now, but keep as safety
+      addMessage("Failed to parse save data.");
+      return false;
+    }
+
+    // Optional: Version check for compatibility
+    if (saveData.version !== "1.1") {
+      addMessage(
+        `Save data is from an incompatible version (${saveData.version}). Loading may cause issues.`,
+        true,
+      );
+      // Potentially add migration logic here if needed
+    }
+
+    // Reset current game state BEFORE loading
+    resetGameState();
+
+    // Restore player position and rotation
+    if (saveData.playerPosition) {
+      player.position.set(
+        saveData.playerPosition.x,
+        saveData.playerPosition.y,
+        saveData.playerPosition.z,
+      );
+    }
+    if (saveData.playerRotation !== undefined) {
+      player.rotation.y = saveData.playerRotation;
+    }
+    // Reset physics state after setting position
+    playerVelocity.set(0, 0, 0);
+    isOnGround = true; // Assume loaded onto ground initially
+    isJumping = false;
+
+    // Restore resource inventory
+    if (saveData.inventory) {
+      // Clear existing inventory and copy saved data
+      Object.keys(inventory).forEach((key) => delete inventory[key]); // Clear current
+      Object.assign(inventory, saveData.inventory); // Copy saved values
+    }
+
+    // Restore player item inventory
+    if (saveData.playerInventory && Array.isArray(saveData.playerInventory)) {
+      // Ensure the loaded inventory fits the current size
+      playerInventory.fill(null); // Clear current inventory
+      for (
+        let i = 0;
+        i < Math.min(inventorySize, saveData.playerInventory.length);
+        i++
+      ) {
+        // Use inventorySize limit
+        playerInventory[i] = saveData.playerInventory[i];
+      }
+    }
+
+    // Restore selected item and active tool
+    selectedItemIndex = saveData.selectedItemIndex ?? -1;
+    activeToolType = saveData.activeToolType ?? null;
+
+    // Rebuild structures
+    if (saveData.structures && Array.isArray(saveData.structures)) {
+      saveData.structures.forEach((structureData) => {
+        // Type is inferred from SaveData
+        if (
+          structureData.type &&
+          structureData.position &&
+          itemDefinitions[structureData.type]
+        ) {
+          // Check type exists in definitions
+          // createStructureAtPosition handles adding to scene/craftedObjects array
+          createStructureAtPosition(
+            structureData.type,
+            structureData.position.x,
+            structureData.position.y,
+            structureData.position.z,
+            structureData.rotation || 0,
+          );
+        } else {
+          console.warn(
+            "Skipping invalid or unknown structure data during load:",
+            structureData,
+          );
         }
       });
-    } else if (resource.isMesh) {
-      resource.geometry.dispose();
-      if (resource.material.isMaterial) {
-        resource.material.dispose();
-      } else {
-        resource.material.forEach((material) => material.dispose());
-      }
     }
-  });
-  resources.length = 0;
 
-  // Clear crafted objects
-  craftedObjects.forEach((obj) => {
-    scene.remove(obj);
-    if (obj.geometry) obj.geometry.dispose();
-    if (obj.material) {
-      if (obj.material.isMaterial) {
-        obj.material.dispose();
-      } else {
-        obj.material.forEach((material) => material.dispose());
-      }
-    }
-  });
-  craftedObjects.length = 0;
+    // Respawn resources (optional - current approach respawns on init/reset)
+    // If you want resources to persist, you'd need to save/load them too.
+    // For now, loading effectively resets resources.
+    spawnResources("wood", 100); // Respawn after reset
+    spawnResources("stone", 80);
 
-  // Reset inventory and player inventory
-  for (const key in inventory) {
-    inventory[key] = 0;
+    // Update all UI components
+    updateInventoryUI();
+    updateInventoryDisplay();
+    updateToolIndicator();
+
+    addMessage("Game loaded successfully!");
+    // console.log("Game loaded:", saveData);
+    return true;
+  } catch (error) {
+    console.error("Error loading game:", error);
+    addMessage("Error loading game! Save data might be corrupted.", true);
+    // Attempt to reset to a clean state if loading fails badly
+    resetGameState();
+    spawnResources("wood", 100);
+    spawnResources("stone", 80);
+    updateInventoryUI();
+    updateInventoryDisplay();
+    updateToolIndicator();
+    return false;
   }
-  playerInventory.length = 0;
-
-  // Reset tool
-  activeToolType = null;
-  updateToolIndicator();
-
-  // Reset selection
-  selectedItemIndex = -1;
 }
 
-// Helper function to spawn a resource at a specific position
-function spawnResourceAtPosition(type, x, y, z) {
-  let resourceObject;
-
-  if (type === "wood") {
-    // Create a Tree (Group of trunk and leaves)
-    const tree = new THREE.Group();
-
-    // Trunk
-    const trunkHeight = Math.random() * 2 + 1.5; // Random height
-    const trunkRadius = 0.2 + Math.random() * 0.1;
-    const trunkGeometry = new THREE.CylinderGeometry(
-      trunkRadius * 0.8,
-      trunkRadius,
-      trunkHeight,
-      8,
-    );
-    const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513 }); // Brown
-    const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-    trunk.castShadow = true;
-    trunk.receiveShadow = true;
-    trunk.position.y = trunkHeight / 2;
-    tree.add(trunk);
-
-    // Leaves (simple cone)
-    const leavesHeight = trunkHeight * 1.5 + Math.random() * 0.5;
-    const leavesRadius = trunkRadius * 4 + Math.random() * 1;
-    const leavesGeometry = new THREE.ConeGeometry(
-      leavesRadius,
-      leavesHeight,
-      8,
-    );
-    const leavesMaterial = new THREE.MeshStandardMaterial({ color: 0x2e8b57 }); // Sea green
-    const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
-    leaves.castShadow = true;
-    leaves.position.y = trunkHeight + leavesHeight * 0.4;
-    tree.add(leaves);
-
-    resourceObject = tree;
-  } else {
-    // Stone
-    const rockRadius = 0.4 + Math.random() * 0.3;
-    const rockGeometry = new THREE.IcosahedronGeometry(rockRadius, 0);
-    const rockMaterial = new THREE.MeshStandardMaterial({
-      color: 0x808080,
-      flatShading: true,
-    });
-    const rock = new THREE.Mesh(rockGeometry, rockMaterial);
-    rock.castShadow = true;
-    rock.receiveShadow = true;
-    resourceObject = rock;
-    resourceObject.position.y = rockRadius * 0.8;
-  }
-
-  // Set position
-  resourceObject.position.x = x;
-  resourceObject.position.y = y;
-  resourceObject.position.z = z;
-
-  resourceObject.userData = { type: type };
-  scene.add(resourceObject);
-  resources.push(resourceObject);
-
-  return resourceObject;
-}
-
-// Helper function to create a hut at a specific position
-function createHutAtPosition(x, y, z) {
-  const hutGeometry = new THREE.BoxGeometry(3, 2, 3);
-  const hutMaterial = new THREE.MeshStandardMaterial({ color: 0xd2b48c }); // Tan
-  const hut = new THREE.Mesh(hutGeometry, hutMaterial);
-
-  hut.position.set(x, y, z);
-  hut.castShadow = true;
-  hut.receiveShadow = true;
-
-  scene.add(hut);
-  craftedObjects.push(hut);
-
-  return hut;
-}
-
-// UI notification for save/load
-function showSaveNotification(message, isError = false) {
-  // Check if notification element exists, create if not
-  let notification = document.getElementById("save-notification");
-  if (!notification) {
-    notification = document.createElement("div");
-    notification.id = "save-notification";
-    document.body.appendChild(notification);
-
-    // Add styles
-    const style = document.createElement("style");
-    style.textContent = `
-      #save-notification {
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background-color: rgba(0, 0, 0, 0.8);
-        color: white;
-        padding: 10px 20px;
-        border-radius: 5px;
-        z-index: 1000;
-        opacity: 0;
-        transition: opacity 0.3s;
-      }
-      #save-notification.success {
-        border-left: 4px solid #4CAF50;
-      }
-      #save-notification.error {
-        border-left: 4px solid #F44336;
-      }
-      #save-notification.visible {
-        opacity: 1;
-      }
-    `;
-    document.head.appendChild(style);
-  }
-
-  // Set message and show notification
-  notification.textContent = message;
-  notification.className = isError ? "error" : "success";
-  notification.classList.add("visible");
-
-  // Hide notification after 3 seconds
-  setTimeout(() => {
-    notification.classList.remove("visible");
-  }, 3000);
-}
-
-// Add to init() function:
+// Add Save/Load Buttons (with null check)
 function addSaveLoadButtons() {
-  const gameControls = document.querySelector(".game-controls");
+  if (!gameControls) return; // Already checked in init, but good practice
+
+  // Prevent adding multiple times if init is called again
+  if (document.getElementById("save-game-btn")) return;
 
   // Create save button
   const saveButton = document.createElement("button");
-  saveButton.textContent = "💾 Save Game";
+  saveButton.textContent = "💾 Save"; // Shorter text
+  saveButton.title = "Save Game (Ctrl+S)";
   saveButton.id = "save-game-btn";
-  saveButton.className = "game-btn";
+  saveButton.className = "game-btn"; // Add class for styling
   saveButton.addEventListener("click", saveGame);
 
   // Create load button
   const loadButton = document.createElement("button");
-  loadButton.textContent = "📂 Load Game";
+  loadButton.textContent = "📂 Load"; // Shorter text
+  loadButton.title = "Load Game (Ctrl+L)";
   loadButton.id = "load-game-btn";
-  loadButton.className = "game-btn";
+  loadButton.className = "game-btn"; // Add class for styling
   loadButton.addEventListener("click", loadGame);
 
   // Add buttons to UI
   gameControls.appendChild(saveButton);
   gameControls.appendChild(loadButton);
 
-  // Add keyboard shortcuts
-  document.addEventListener("keydown", (event) => {
-    // Ctrl+S to save
-    if (event.key.toLowerCase() === "s" && event.ctrlKey) {
-      event.preventDefault(); // Prevent browser save dialog
-      saveGame();
-    }
+  // Add keyboard shortcuts listener (only once using a flag)
+  if (!(window as any).__saveLoadListenerAdded) {
+    // Use a flag to prevent multiple listeners
+    document.addEventListener("keydown", (event) => {
+      // Check if typing in an input field, if so, ignore shortcuts
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement ||
+        (event.target instanceof HTMLElement && event.target.isContentEditable)
+      ) {
+        return;
+      }
 
-    // Ctrl+L to load
-    if (event.key.toLowerCase() === "l" && event.ctrlKey) {
-      event.preventDefault();
-      loadGame();
-    }
-  });
+      const keyLower = event.key.toLowerCase();
+      const isCtrlOrMeta = event.ctrlKey || event.metaKey; // Ctrl on Win/Linux, Cmd on Mac
+
+      // Ctrl+S to save
+      if (keyLower === "s" && isCtrlOrMeta) {
+        event.preventDefault(); // Prevent browser save dialog
+        saveGame();
+      }
+
+      // Ctrl+L to load
+      if (keyLower === "l" && isCtrlOrMeta) {
+        event.preventDefault(); // Prevent browser load action (if any)
+        loadGame();
+      }
+    });
+    (window as any).__saveLoadListenerAdded = true;
+  }
 }
 
-// --- Resource Gathering ---
+// --- Updated Resource Spawning ---
+function spawnResources(type: string, count: number) {
+  if (count <= 0) return;
+
+  // --- UPDATED: Use rock model, remove tree model logic ---
+  let modelToClone: THREE.Group | null = null;
+  let fallbackGeometry: THREE.BufferGeometry | null = null;
+  let fallbackMaterial: THREE.Material | null = null;
+  let useProcedural = false;
+
+  if (type === "wood") {
+    // Wood type now uses the procedural generator directly
+    useProcedural = true;
+  } else if (type === "stone") {
+    modelToClone = rockModel; // Use the loaded rock model if available
+    // Fallback if rock model failed to load
+    if (!modelToClone) {
+      fallbackGeometry = new THREE.DodecahedronGeometry(0.5, 0); // Simple poly shape
+      fallbackMaterial = new THREE.MeshStandardMaterial({
+        color: 0x888888,
+        roughness: 0.8,
+      });
+    }
+  } else {
+    console.warn(`Unknown resource type: ${type}`);
+    return;
+  }
+
+  for (let i = 0; i < count; i++) {
+    let resourceObject: THREE.Object3D | null = null; // Initialize as null
+
+    // --- UPDATED: Generate tree or clone rock ---
+    if (useProcedural && type === "wood") {
+      resourceObject = createLowPolyTree(); // Generate a new tree
+    } else if (type === "stone") {
+      if (modelToClone) {
+        resourceObject = modelToClone.clone(); // Clone the preloaded rock model
+        // Apply random rotation to cloned rocks for variety
+        resourceObject.rotation.y = Math.random() * Math.PI * 2;
+        resourceObject.scale.set(
+          THREE.MathUtils.randFloat(0.4, 0.6),
+          THREE.MathUtils.randFloat(0.4, 0.6),
+          THREE.MathUtils.randFloat(0.4, 0.6),
+        );
+      } else if (fallbackGeometry && fallbackMaterial) {
+        // Use fallback geometry if rock model loading failed
+        resourceObject = new THREE.Mesh(fallbackGeometry, fallbackMaterial);
+        resourceObject.castShadow = true;
+        resourceObject.receiveShadow = true;
+        // Random rotation/scale for fallback rocks too
+        resourceObject.rotation.y = Math.random() * Math.PI * 2;
+        resourceObject.scale.set(
+          THREE.MathUtils.randFloat(0.8, 1.2),
+          THREE.MathUtils.randFloat(0.8, 1.2),
+          THREE.MathUtils.randFloat(0.8, 1.2),
+        );
+      }
+    }
+
+    // If resourceObject couldn't be created, skip this iteration
+    if (!resourceObject) {
+      console.error(
+        `Cannot spawn resource ${type}, no model, fallback, or procedural generator.`,
+      );
+      continue;
+    }
+
+    // Random position within a radius, avoiding center spawn area
+    const spawnRadiusMin = 5; // Don't spawn too close to 0,0
+    const spawnRadiusMax = 55; // Max distance from center
+    const angle = Math.random() * Math.PI * 2;
+    const radius = THREE.MathUtils.randFloat(spawnRadiusMin, spawnRadiusMax);
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+
+    // Ensure resources spawn on the ground (y=0)
+    // The generated tree's base is already at y=0
+    // Cloned models might need y adjustment if their origin isn't at the base
+    resourceObject.position.set(x, 0, z); // Set position
+
+    // Add the 'userData' property
+    resourceObject.userData = { type };
+
+    // Add shadows (already set on model/fallback/generated parts, but safe to re-set/ensure)
+    resourceObject.traverse((node) => {
+      if (node instanceof THREE.Mesh) {
+        node.castShadow = true;
+        // Only trunk and rocks receive shadows well, leaves often look odd
+        node.receiveShadow =
+          type === "stone" || node.geometry instanceof THREE.CylinderGeometry;
+      }
+    });
+
+    // Add to scene and resources array (no cast needed, it's Object3D)
+    scene.add(resourceObject);
+    resources.push(resourceObject);
+  }
+
+  // console.log(`Spawned ${count} ${type} resources`);
+}
+
+function onWindowResize() {
+  // Update camera aspect ratio
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+
+  // Update renderer size
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  // Optional: adjust UI elements if needed
+  // For example, reposition tool indicators, inventory panels, etc.
+
+  // console.log("Window resized - viewport adjusted");
+}
+function animate() {
+  // DIAGNOSTIC LOG: Check if animate is running
+  // console.log("animate() frame"); // Uncomment for verbose logging if needed
+  requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+
+  // Update animations
+  if (mixer) mixer.update(delta);
+
+  // Update physics (handles gravity, jump arc, ground collision)
+  updatePhysics(delta);
+
+  // Handle movement (player input, camera follow, object move)
+  handleMovement(delta);
+
+  // Update placement preview if active
+  if (isInPlacementMode) updatePlacementPreview();
+
+  // Render scene (camera position is relative to player)
+  // Ensure renderer and scene are valid before rendering
+  if (renderer && scene && camera) {
+      renderer.render(scene, camera);
+  } else {
+      console.error("Render call skipped: Renderer, Scene, or Camera not initialized properly.");
+      // Optionally stop the loop if this error occurs:
+      // return;
+  }
+}
+
+// --- Updated Physics ---
+function updatePhysics(delta: number) {
+  // Apply gravity only if not on the ground
+  if (!isOnGround) {
+    playerVelocity.y -= GRAVITY * delta;
+  }
+
+  // Apply velocity to position
+  player.position.y += playerVelocity.y * delta;
+
+  // Ground collision check
+  if (player.position.y < 0) {
+    // Assuming ground is at y=0
+    player.position.y = 0;
+    playerVelocity.y = 0; // Stop vertical movement
+
+    if (!isOnGround) {
+      // Check if we *just* landed
+      isOnGround = true;
+      isJumping = false; // Can jump again
+
+      // Play landing animation or transition back to idle/run
+      // Find appropriate grounded anim (idle if not moving, run/walk otherwise)
+      const groundedAnim = findAnimation(
+        keys["w"] || keys["s"] ? ["run", "walk"] : ["idle", "stand"],
+      );
+      if (groundedAnim && currentAnimation !== groundedAnim) {
+        playAnimation(groundedAnim, 0.2);
+      }
+      // console.log("Landed");
+    }
+  } else {
+    // If player is above ground, they are potentially not on the ground
+    // A raycast downwards could be more robust for isOnGround checks on uneven terrain
+    // For now, assume any Y > 0 means potentially airborne unless just landed
+    // isOnGround = false; // Setting this here causes issues, only set false when jumping
+  }
+
+  // Optional: Jump height limit (prevent infinite rise if jump held)
+  // const maxJumpHeight = jumpStartY + 2.0;
+  // if (isJumping && player.position.y >= maxJumpHeight && playerVelocity.y > 0) {
+  //     playerVelocity.y = 0; // Stop rising further
+  // }
+}
+
+function resetGameState() {
+  console.log("Resetting game state...");
+  // Clean up resources (array of THREE.Object3D)
+  resources.forEach((resource) => {
+    scene.remove(resource);
+    disposeObject3D(resource);
+  });
+  resources.length = 0; // Clear array
+
+  // Clean up crafted objects (array of THREE.Mesh)
+  craftedObjects.forEach((obj) => {
+    scene.remove(obj);
+    disposeObject3D(obj); // disposeObject3D handles Meshes correctly
+  });
+  craftedObjects.length = 0; // Clear array
+
+  // Clean up placement preview if exists
+  if (placementPreviewObject) {
+    scene.remove(placementPreviewObject);
+    disposeObject3D(placementPreviewObject);
+    placementPreviewObject = null;
+  }
+
+  // Reset placement mode
+  isInPlacementMode = false;
+  placementItemType = null;
+  placementIsValid = false;
+  supported = false;
+
+  // Reset move mode
+  moveMode = false;
+  selectedObject = null;
+
+  // Reset inventory counts
+  inventory.wood = 0;
+  inventory.stone = 0;
+  // Add other resources here if needed
+
+  // Reset player inventory items
+  playerInventory.fill(null);
+
+  // Reset selected item index
+  selectedItemIndex = -1;
+
+  // Reset active tool
+  activeToolType = null;
+
+  // Reset player position and physics (optional, good for full reset)
+  player.position.set(0, 0, 0);
+  player.rotation.set(0, 0, 0);
+  playerVelocity.set(0, 0, 0);
+  isOnGround = true;
+  isJumping = false;
+
+  // Update UI
+  updateInventoryUI();
+  updateInventoryDisplay();
+  updateToolIndicator();
+
+  // Clear messages
+  if (messageLog) messageLog.innerHTML = "";
+  addMessage("Game state reset.");
+
+  console.log("Game state reset complete.");
+}
+
+// Initialize the inventory system (with type safety)
+function initInventorySystem() {
+  if (!inventoryGrid) {
+    console.error("Inventory grid element not found during init!");
+    return; // Should have been caught in init() already
+  }
+  // Create inventory grid slots
+  inventoryGrid.innerHTML = ""; // Clear previous slots if any
+  for (let i = 0; i < inventorySize; i++) {
+    const slot = document.createElement("div");
+    slot.className = "inventory-slot";
+    // Use index for dataset, useful for debugging/styling
+    slot.dataset.index = String(i);
+
+    // Click handler for slots
+    slot.addEventListener("click", () => {
+      selectInventorySlot(i); // Pass the index directly
+    });
+
+    inventoryGrid.appendChild(slot);
+  }
+
+  // Update initial inventory display (empty slots)
+  updateInventoryDisplay();
+}
+
+// Toggle inventory visibility (with null check)
+function toggleInventory() {
+  if (!inventoryPanel) return;
+  const isOpen = inventoryPanel.style.display === "block";
+  inventoryPanel.style.display = isOpen ? "none" : "block";
+  if (!isOpen) {
+    updateInventoryDisplay(); // Refresh display only when opening
+    // Deselect item when closing inventory? Optional.
+    // if (selectedItemIndex !== -1) {
+    //     selectedItemIndex = -1;
+    //     addMessage("Deselected item.");
+    // }
+  }
+}
+
+// Close inventory (with null check)
+function closeInventory() {
+  if (inventoryPanel) {
+    inventoryPanel.style.display = "none";
+    // Deselect item when closing inventory? Optional.
+    // if (selectedItemIndex !== -1) {
+    //     selectedItemIndex = -1;
+    //     addMessage("Deselected item.");
+    //     updateInventoryDisplay();
+    // }
+  }
+}
+
+// Update Move UI (Highlighting)
+function updateMoveUI(active: boolean) {
+  // Remove highlight from ALL crafted objects first
+  craftedObjects.forEach((obj) => {
+    // Check material exists and is not an array
+    if (obj.material && !Array.isArray(obj.material)) {
+      // Check if material has emissive property (common in MeshStandardMaterial/MeshPhysicalMaterial)
+      if ("emissive" in obj.material) {
+        // Cast to a type that has emissive or use optional chaining if unsure
+        (
+          obj.material as
+            | THREE.MeshStandardMaterial
+            | THREE.MeshPhysicalMaterial
+        ).emissive?.setHex(0x000000);
+      }
+    }
+  });
+
+  // If activating and an object is selected, add highlight TO THAT OBJECT
+  if (active && selectedObject) {
+    if (selectedObject.material && !Array.isArray(selectedObject.material)) {
+      if ("emissive" in selectedObject.material) {
+        (
+          selectedObject.material as
+            | THREE.MeshStandardMaterial
+            | THREE.MeshPhysicalMaterial
+        ).emissive?.setHex(0x886633); // Highlight color
+      }
+    }
+  }
+}
+
+// Toggle Move Mode
+function toggleMoveMode() {
+  if (isInPlacementMode) {
+    addMessage("Cannot enter move mode while placing an object.", true);
+    return;
+  }
+
+  if (moveMode) {
+    // --- Cancel Move Mode ---
+    moveMode = false;
+    if (selectedObject) {
+      // Access userData safely
+      const objectType = selectedObject.userData?.type || "object";
+      addMessage(`Cancelled moving ${objectType}.`);
+      // Highlight removal is handled by updateMoveUI(false) below
+      selectedObject = null; // Deselect
+    } else {
+      addMessage("Move mode cancelled.");
+    }
+    updateMoveUI(false); // Remove highlight from all objects
+  } else {
+    // --- Enter Move Mode ---
+    let closestObject: THREE.Mesh | null = null; // Expecting a Mesh
+    let closestDistance = Infinity;
+
+    craftedObjects.forEach((obj) => {
+      // obj is THREE.Mesh, so .position exists
+      const distance = player.position.distanceTo(obj.position);
+      // Check distance and ensure it's not the player itself (if player parts were accidentally added)
+      if (distance < closestDistance && distance < 5 && obj !== player) {
+        closestObject = obj;
+        closestDistance = distance;
+      }
+    });
+
+    if (closestObject) {
+      moveMode = true;
+      selectedObject = closestObject;
+      // Access userData safely
+      const objectType = selectedObject.userData?.type || "object";
+      addMessage(`Moving ${objectType}. WASD=Move, Enter=Confirm, Esc=Cancel.`);
+      updateMoveUI(true); // Add highlight TO THE SELECTED OBJECT
+    } else {
+      moveMode = false; // Ensure it's false if no object found
+      addMessage("No crafted objects nearby to move.");
+    }
+  }
+}
+
+// Handle Movement (Player and Moved Object)
+function handleMovement(delta: number) {
+  const moveDistance = moveSpeed * delta;
+  const playerMoveDirection = new THREE.Vector3();
+  const objectMoveDirection = new THREE.Vector3(); // For moving objects
+
+  // Get player's forward and right directions (based on player group's orientation)
+  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(
+    player.quaternion,
+  );
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(player.quaternion);
+
+  let isPlayerMoving = false;
+  let isObjectMoving = false;
+
+  // --- Object Movement Input (if in move mode) ---
+  if (moveMode && selectedObject) {
+    // Use player's view direction for object movement control
+    if (keys["w"]) objectMoveDirection.add(forward);
+    if (keys["s"]) objectMoveDirection.sub(forward);
+    if (keys["a"]) objectMoveDirection.sub(right); // Strafe object left relative to player view
+    if (keys["d"]) objectMoveDirection.add(right); // Strafe object right relative to player view
+
+    if (objectMoveDirection.lengthSq() > 0) {
+      isObjectMoving = true;
+      objectMoveDirection.normalize();
+      // Apply movement directly to the selected object (it's a Mesh)
+      selectedObject.position.addScaledVector(
+        objectMoveDirection,
+        moveDistance,
+      );
+      // Optional: Add collision detection for the moving object here (or in confirmMove)
+      // Optional: Snap to grid while moving?
+      // selectedObject.position.x = Math.round(selectedObject.position.x / 3) * 3;
+      // selectedObject.position.z = Math.round(selectedObject.position.z / 3) * 3;
+    }
+  }
+  // --- Player Movement Input (if NOT in move mode or placement mode) ---
+  else if (!isInPlacementMode) {
+    if (keys["w"]) playerMoveDirection.add(forward);
+    if (keys["s"]) playerMoveDirection.sub(forward);
+    // A/D now control ROTATION, not strafing, for tank controls feel
+    if (keys["a"]) player.rotation.y += delta * 2.0; // Rotate left
+    if (keys["d"]) player.rotation.y -= delta * 2.0; // Rotate right
+
+    if (playerMoveDirection.lengthSq() > 0) {
+      isPlayerMoving = true;
+      playerMoveDirection.normalize();
+
+      // Calculate target position
+      const targetPosition = player.position
+        .clone()
+        .addScaledVector(playerMoveDirection, moveDistance);
+
+      // --- Basic Collision Detection ---
+      // Define player collider (adjust size/offset as needed)
+      const playerColliderSize = new THREE.Vector3(0.6, 1.7, 0.6); // Slightly wider/deeper
+      const playerColliderOffset = new THREE.Vector3(
+        0,
+        playerColliderSize.y / 2,
+        0,
+      ); // Center at base
+      const targetPlayerBox = new THREE.Box3().setFromCenterAndSize(
+        targetPosition.clone().add(playerColliderOffset),
+        playerColliderSize,
+      );
+
+      let collisionOccurred = false;
+      // Check against crafted objects
+      for (const obj of craftedObjects) {
+        const objBox = new THREE.Box3().setFromObject(obj);
+        if (targetPlayerBox.intersectsBox(objBox)) {
+          collisionOccurred = true;
+          break; // Stop checking after first collision
+        }
+      }
+      // Check against resources (optional, maybe allow walking through trees/rocks?)
+      // if (!collisionOccurred) {
+      //     for (const res of resources) {
+      //         const resBox = new THREE.Box3().setFromObject(res);
+      //         if (targetPlayerBox.intersectsBox(resBox)) {
+      //             collisionOccurred = true;
+      //             break;
+      //         }
+      //     }
+      // }
+      // --- End Collision Detection ---
+
+      // Apply the position only if no collision occurred
+      if (!collisionOccurred) {
+        player.position.copy(targetPosition);
+      } else {
+        // Optional: Add slight slide effect along the collision surface instead of just stopping
+        // This is more complex, involves calculating penetration depth and direction
+        isPlayerMoving = false; // Treat as not moving if blocked
+      }
+    }
+  }
+
+  // --- Animation Handling ---
+  if (mixer) {
+    let targetAnimationKey: string | null = null;
+
+    if (isPlayerMoving) {
+      targetAnimationKey = findAnimation(["run", "walk"]);
+    } else if (isJumping) {
+      // Jump animation is triggered in startJump, maybe a looping mid-air anim?
+      targetAnimationKey = findAnimation([
+        "jump_idle",
+        "air",
+        "jump_loop",
+        "jump",
+      ]); // Find a looping jump/air anim
+    } else if (!isOnGround && playerVelocity.y < -0.5) {
+      // Check for falling state
+      targetAnimationKey = findAnimation(["fall", "falling"]);
+    } else {
+      // Idle state (on ground, not moving, not jumping/falling)
+      targetAnimationKey = findAnimation(["idle", "stand"]); // Default to idle
+    }
+
+    // Play animation only if it's different from the current one or if the current one finished (e.g., jump start -> jump loop)
+    if (targetAnimationKey && currentAnimation !== targetAnimationKey) {
+      playAnimation(targetAnimationKey, 0.2);
+    } else if (
+      !targetAnimationKey &&
+      currentAnimation !== "idle" &&
+      isOnGround
+    ) {
+      // Fallback to idle if no specific animation found and on ground
+      const idleAnim = findAnimation(["idle", "stand"]);
+      if (idleAnim) playAnimation(idleAnim, 0.3);
+    }
+  }
+  // --- End Animation Handling ---
+}
+
+// Resource Gathering
 function tryGatherResource() {
   let gathered = false;
   for (let i = resources.length - 1; i >= 0; i--) {
-    const resource = resources[i];
-    // Calculate distance ignoring Y axis for simpler ground-based check
+    const resource = resources[i]; // Type is THREE.Object3D
+    if (!resource?.userData?.type) continue; // Check userData and type exist
+
+    // Calculate distance (2D)
     const playerPos2D = new THREE.Vector2(player.position.x, player.position.z);
-    const resourcePos2D = new THREE.Vector2(
-      resource.position.x,
-      resource.position.z,
-    );
+    // resource.position exists on Object3D
+    const resourcePos = resource.position;
+    const resourcePos2D = new THREE.Vector2(resourcePos.x, resourcePos.z);
     const distance = playerPos2D.distanceTo(resourcePos2D);
 
     if (distance < gatherDistance) {
-      const type = resource.userData.type;
+      const type = resource.userData.type as string;
 
       // Apply tool effects
       let gatherAmount = 1;
       let toolBonus = "";
-
-      // If axe is active and gathering wood
       if (activeToolType === "axe" && type === "wood") {
-        gatherAmount = 2; // Double the wood gathered
+        gatherAmount = 2;
         toolBonus = " (Axe bonus!)";
       }
+      // Add other tool effects here (e.g., pickaxe for stone)
 
-      inventory[type] += gatherAmount;
-      addMessage(`Gathered ${gatherAmount} ${type}${toolBonus}!`);
-
-      scene.remove(resource); // Remove from scene
-      // If it's a group (like a tree), recursively dispose of geometry/material
-      if (resource.isGroup) {
-        resource.traverse((child) => {
-          if (child.isMesh) {
-            child.geometry.dispose();
-            if (child.material.isMaterial) {
-              child.material.dispose();
-            } else {
-              // Array of materials
-              child.material.forEach((material) => material.dispose());
-            }
-          }
-        });
-      } else if (resource.isMesh) {
-        // Single mesh like a rock
-        resource.geometry.dispose();
-        if (resource.material.isMaterial) {
-          resource.material.dispose();
-        } else {
-          resource.material.forEach((material) => material.dispose());
-        }
+      // Ensure inventory type exists before adding
+      if (inventory.hasOwnProperty(type)) {
+        inventory[type] += gatherAmount;
+        addMessage(`Gathered ${gatherAmount} ${type}${toolBonus}!`);
+      } else {
+        console.warn(
+          `Gathered resource type "${type}" which is not tracked in inventory object.`,
+        );
+        addMessage(`Gathered unknown resource: ${type}`);
       }
-      resources.splice(i, 1); // Remove from array
+
+      // Remove and dispose
+      scene.remove(resource);
+      disposeObject3D(resource); // Use helper to dispose geometry/material
+      resources.splice(i, 1);
+
       updateInventoryUI();
       gathered = true;
       break; // Gather only one resource per key press
     }
   }
   if (!gathered) {
-    // Optional: Add message if E is pressed but nothing is nearby
-    // addMessage("No resources nearby to gather.");
+    // Optional: addMessage("No resources nearby to gather.");
   }
 }
 
-// --- Placing Structures (Example - currently not called automatically) ---
-function placeHut() {
-  // Simple placement in front of player
-  const hutGeometry = new THREE.BoxGeometry(3, 2, 3);
-  const hutMaterial = new THREE.MeshStandardMaterial({
-    color: 0xd2b48c,
-  }); // Tan
-  const hut = new THREE.Mesh(hutGeometry, hutMaterial);
+// --- Final Cleanup ---
+// Add cleanup for placement materials and other assets
+function cleanupGameAssets() {
+  console.log("Cleaning up game assets...");
+  // Dispose shared placement materials
+  disposeMaterial(placementMaterialValid);
+  disposeMaterial(placementMaterialInvalid);
 
-  const forward = new THREE.Vector3();
-  player.getWorldDirection(forward);
-  forward.y = 0;
-  forward.normalize();
+  // Dispose scene objects during reset or full cleanup
+  resetGameState(); // Calls disposeObject3D for resources/crafted items
 
-  const placementOffset = 4; // Place slightly further
-  hut.position.copy(player.position).addScaledVector(forward, placementOffset);
-  hut.position.y = 1; // Base on ground
+  // Dispose renderer, scene, camera if needed for full teardown
+  renderer?.dispose();
+  // Let garbage collector handle scene contents if resetGameState cleaned them
+  // scene = null; // Avoid setting to null if you might re-init
+  // camera = null; // Avoid setting to null
+  mixer = null; // Clear mixer reference
 
-  hut.castShadow = true;
-  hut.receiveShadow = true;
-  scene.add(hut);
-  craftedObjects.push(hut);
-  addMessage("Placed Hut!");
-  // Decide if inventory['hut'] should be consumed upon placement
-  // inventory['hut']--;
-  // updateInventoryUI();
+  // Remove event listeners
+  document.removeEventListener("keydown", handleKeyDown);
+  document.removeEventListener("keyup", handleKeyUp);
+  window.removeEventListener("resize", onWindowResize);
+  if ((window as any).__saveLoadListenerAdded) {
+    // Need to store the listener function itself to remove it,
+    // or just let it be (usually harmless if the game context is gone)
+    console.warn("Save/Load keydown listener not explicitly removed.");
+  }
+
+  console.log("Game assets cleanup finished.");
 }
 
-// --- UI Updates ---
-function updateInventoryUI() {
-  document.getElementById("inv-wood").textContent = `Wood: ${inventory.wood}`;
-  document.getElementById("inv-stone").textContent =
-    `Stone: ${inventory.stone}`;
-
-  const axeInv = document.getElementById("inv-axe");
-  const hutInv = document.getElementById("inv-hut");
-  axeInv.style.display = inventory.axe > 0 ? "block" : "none";
-  hutInv.style.display = inventory.hut > 0 ? "block" : "none";
-
-  // Disable craft buttons if resources are insufficient
-  for (const itemName in recipes) {
-    const button = document.getElementById(`craft-${itemName}`);
-    if (button) {
-      let canCraft = true;
-      const recipe = recipes[itemName];
-      for (const resourceType in recipe) {
-        if (inventory[resourceType] < recipe[resourceType]) {
-          canCraft = false;
-          break;
-        }
-      }
-      button.disabled = !canCraft;
-    }
-  }
-}
-
-function addMessage(text) {
-  const messageLog = document.getElementById("message-log");
-  const p = document.createElement("p");
-  p.textContent = `> ${text}`;
-  // Prepend new messages to the top
-  messageLog.insertBefore(p, messageLog.firstChild);
-
-  // Limit number of messages by removing the oldest ones from the bottom
-  const maxMessages = 7;
-  while (messageLog.children.length > maxMessages) {
-    messageLog.removeChild(messageLog.lastChild);
-  }
-}
-
-// --- Window Resize ---
-function onWindowResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-function createAnimalPlayer() {
-  // Create a group to hold all parts of the animal
-  const animalGroup = new THREE.Group();
-
-  // Color palette for fox
-  const bodyColor = 0xe67e22; // Orange/fox color
-  const bellyColor = 0xf5e8dc; // Light cream
-  const faceColor = 0xd35400; // Darker orange for face
-  const eyeColor = 0x2c3e50; // Dark blue eyes
-  const noseColor = 0x34495e; // Dark nose
-
-  // Materials
-  const bodyMaterial = new THREE.MeshStandardMaterial({ color: bodyColor });
-  const bellyMaterial = new THREE.MeshStandardMaterial({ color: bellyColor });
-  const faceMaterial = new THREE.MeshStandardMaterial({ color: faceColor });
-  const eyeMaterial = new THREE.MeshStandardMaterial({ color: eyeColor });
-  const noseMaterial = new THREE.MeshStandardMaterial({ color: noseColor });
-
-  // Body - smoother elongated sphere
-  const bodyGeometry = new THREE.SphereGeometry(0.5, 32, 24);
-  const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-  body.position.y = 0.45; // Positioned above ground
-  body.scale.set(1, 0.8, 1.2); // Make it oval-shaped
-  body.castShadow = true;
-  animalGroup.add(body);
-
-  // Belly patch (flattened sphere)
-  const bellyGeometry = new THREE.SphereGeometry(
-    0.35,
-    32,
-    24,
-    0,
-    Math.PI * 2,
-    0,
-    Math.PI * 0.6,
-  );
-  const belly = new THREE.Mesh(bellyGeometry, bellyMaterial);
-  belly.rotation.x = Math.PI / 2;
-  belly.position.set(0, 0.4, 0.25);
-  belly.scale.set(0.8, 1, 0.5);
-  animalGroup.add(belly);
-
-  // Head - sphere
-  const headGeometry = new THREE.SphereGeometry(0.35, 16, 12);
-  const head = new THREE.Mesh(headGeometry, bodyMaterial);
-  head.position.set(0, 0.7, 0.5);
-  head.castShadow = true;
-  animalGroup.add(head);
-
-  // Snout/face
-  const snoutGeometry = new THREE.ConeGeometry(0.2, 0.4, 4);
-  const snout = new THREE.Mesh(snoutGeometry, faceMaterial);
-  snout.rotation.x = -Math.PI / 2;
-  snout.position.set(0, 0.65, 0.85);
-  snout.castShadow = true;
-  animalGroup.add(snout);
-
-  // Eyes with more detail
-  function createEye(xPos) {
-    // Main eyeball
-    const eyeGeometry = new THREE.SphereGeometry(0.06, 24, 24);
-    const eye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-    eye.position.set(xPos, 0.78, 0.7);
-    animalGroup.add(eye);
-
-    // Pupil
-    const pupilGeometry = new THREE.SphereGeometry(0.03, 16, 16);
-    const pupil = new THREE.Mesh(
-      pupilGeometry,
-      new THREE.MeshBasicMaterial({ color: 0x000000 }),
-    );
-    pupil.position.set(xPos + 0.04, 0.78, 0.72);
-    animalGroup.add(pupil);
-
-    // Highlight
-    const highlightGeometry = new THREE.SphereGeometry(0.015, 16, 16);
-    const highlight = new THREE.Mesh(
-      highlightGeometry,
-      new THREE.MeshBasicMaterial({ color: 0xffffff }),
-    );
-    highlight.position.set(xPos + 0.05, 0.79, 0.725);
-    animalGroup.add(highlight);
-
-    // Eyelid (top)
-    const eyelidGeometry = new THREE.SphereGeometry(
-      0.065,
-      24,
-      24,
-      0,
-      Math.PI * 2,
-      0,
-      Math.PI * 0.5,
-    );
-    const eyelid = new THREE.Mesh(
-      eyelidGeometry,
-      new THREE.MeshBasicMaterial({ color: faceMaterial.color }),
-    );
-    eyelid.position.set(xPos, 0.78, 0.7);
-    eyelid.rotation.x = Math.PI / 2;
-    animalGroup.add(eyelid);
-    eye.userData.eyelid = eyelid; // Store reference for animation
-  }
-
-  createEye(-0.15); // Left eye
-  createEye(0.15); // Right eye
-
-  // Nose tip
-  const noseGeometry = new THREE.SphereGeometry(0.08, 10, 10);
-  const nose = new THREE.Mesh(noseGeometry, noseMaterial);
-  nose.position.set(0, 0.65, 1);
-  nose.scale.set(1, 0.8, 0.8);
-  animalGroup.add(nose);
-
-  // Whiskers
-  const whiskerMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  for (let i = 0; i < 6; i++) {
-    const whiskerGeometry = new THREE.CylinderGeometry(0.01, 0.005, 0.3, 4);
-    const whisker = new THREE.Mesh(whiskerGeometry, whiskerMaterial);
-
-    // Position whiskers on either side of nose
-    const side = i < 3 ? -1 : 1;
-    const row = i % 3;
-
-    whisker.position.set(0.1 * side, 0.65 - row * 0.05, 0.95);
-    whisker.rotation.z = (Math.PI / 6) * side;
-    whisker.rotation.y = (Math.PI / 8) * (row - 1);
-
-    animalGroup.add(whisker);
-  }
-
-  // Ears - two triangular prisms
-  function createEar(xPos, zRot) {
-    const earGeometry = new THREE.ConeGeometry(0.12, 0.25, 3);
-    const ear = new THREE.Mesh(earGeometry, bodyMaterial);
-    ear.position.set(xPos, 1, 0.4);
-    ear.rotation.x = -Math.PI / 4;
-    ear.rotation.z = zRot;
-    ear.castShadow = true;
-    animalGroup.add(ear);
-
-    // Inner ear
-    const innerEarGeometry = new THREE.ConeGeometry(0.06, 0.15, 3);
-    const innerEar = new THREE.Mesh(innerEarGeometry, bellyMaterial);
-    innerEar.position.set(xPos, 0.98, 0.41);
-    innerEar.rotation.x = -Math.PI / 4;
-    innerEar.rotation.z = zRot;
-    animalGroup.add(innerEar);
-  }
-
-  createEar(-0.22, -Math.PI / 5); // Left ear
-  createEar(0.22, Math.PI / 5); // Right ear
-
-  // Legs
-  function createLeg(xPos, zPos) {
-    const legGeometry = new THREE.CylinderGeometry(0.08, 0.05, 0.4, 8);
-    const leg = new THREE.Mesh(legGeometry, bodyMaterial);
-    leg.position.set(xPos, 0.2, zPos);
-    leg.castShadow = true;
-    animalGroup.add(leg);
-
-    // Paw
-    const pawGeometry = new THREE.SphereGeometry(0.07, 8, 8);
-    const paw = new THREE.Mesh(pawGeometry, faceMaterial);
-    paw.position.set(xPos, 0, zPos);
-    paw.scale.set(1, 0.5, 1.2);
-    paw.castShadow = true;
-    animalGroup.add(paw);
-  }
-
-  // Create four legs
-  createLeg(-0.25, 0.3); // Front left
-  createLeg(0.25, 0.3); // Front right
-  createLeg(-0.25, -0.35); // Back left
-  createLeg(0.25, -0.35); // Back right
-
-  // Tail - curved cone
-  const tailGeometry = new THREE.CylinderGeometry(0.05, 0.15, 0.6, 8);
-  const tail = new THREE.Mesh(tailGeometry, bodyMaterial);
-  tail.position.set(0, 0.5, -0.5);
-  tail.rotation.x = Math.PI / 3;
-  tail.castShadow = true;
-  animalGroup.add(tail);
-
-  // Tail tip with different color
-  const tailTipGeometry = new THREE.SphereGeometry(0.12, 10, 10);
-  const tailTip = new THREE.Mesh(tailTipGeometry, bellyMaterial);
-  tailTip.position.set(0, 0.5, -0.8);
-  tailTip.castShadow = true;
-  animalGroup.add(tailTip);
-
-  // Animation properties
-  animalGroup.userData = {
-    legSwingPhase: 0,
-    tailSwingPhase: 0,
-    headBobPhase: 0,
-    blinkPhase: 0,
-    isBlinking: false,
-  };
-
-  // Whole group is slightly rotated to face forward
-  animalGroup.rotation.y = Math.PI; // Face forward
-
-  return animalGroup;
-}
-
-// Add this to your animation loop for cute animal animations
-function animateAnimal(delta) {
-  if (!player || !player.userData) return;
-
-  // Only animate when moving
-  const isMoving = keys["w"] || keys["a"] || keys["s"] || keys["d"];
-
-  // Update animation phases
-  if (isMoving) {
-    player.userData.legSwingPhase += delta * 8;
-    player.userData.tailSwingPhase += delta * 4;
-    player.userData.headBobPhase += delta * 6;
-  } else {
-    // Idle animation - slower
-    player.userData.tailSwingPhase += delta * 2;
-    player.userData.headBobPhase += delta;
-  }
-
-  // Leg movement
-  if (player.children) {
-    // Assuming legs are at specific child indices - adjust based on your model
-    const legIndices = [10, 11, 12, 13]; // Update these based on your model
-    for (let i = 0; i < legIndices.length; i++) {
-      const legIndex = legIndices[i];
-      if (player.children[legIndex]) {
-        // Legs move in pairs (diagonal legs move together)
-        const legPhase = player.userData.legSwingPhase + (i % 2 ? 0 : Math.PI);
-
-        if (isMoving) {
-          // When moving, legs swing back and forth
-          player.children[legIndex].rotation.x = Math.sin(legPhase) * 0.3;
-        } else {
-          // Reset leg positions when idle
-          player.children[legIndex].rotation.x = 0;
-        }
-      }
-    }
-
-    // Tail wagging - more fluid movement
-    const tailIndex = 14; // Update based on your model
-    if (player.children[tailIndex]) {
-      const tail = player.children[tailIndex];
-      const baseAngle = Math.sin(player.userData.tailSwingPhase) * 0.3;
-      const tipAngle = Math.sin(player.userData.tailSwingPhase * 1.5) * 0.15;
-
-      // Animate base of tail
-      tail.rotation.z = baseAngle;
-
-      // Animate tail tip separately for more fluid motion
-      if (tail.children && tail.children[0]) {
-        tail.children[0].rotation.z = tipAngle;
-      }
-
-      // Add slight up/down movement when running
-      if (isMoving) {
-        tail.rotation.x = Math.sin(player.userData.tailSwingPhase * 2) * 0.1;
-      } else {
-        tail.rotation.x = 0;
-      }
-    }
-
-    // Head bobbing
-    const headIndex = 2; // Update based on your model
-    if (player.children[headIndex]) {
-      if (isMoving) {
-        // Subtle head bob when moving
-        player.children[headIndex].position.y =
-          0.7 + Math.sin(player.userData.headBobPhase) * 0.02;
-      } else {
-        // Occasional "looking around" when idle
-        const lookAround = Math.sin(player.userData.headBobPhase * 0.5) * 0.3;
-        player.children[headIndex].rotation.y = lookAround;
-
-        // Idle blinking (more relaxed)
-        if (Math.random() < 0.005) {
-          // ~every 200 frames
-          player.userData.isBlinking = true;
-          player.userData.blinkPhase = 0;
-        }
-      }
-
-      // Handle blinking animation if active
-      if (player.userData.isBlinking) {
-        player.userData.blinkPhase += delta * 8; // Blink speed
-
-        // Get eyes (indices 3 and 4 for left/right eyes)
-        const leftEye = player.children[3];
-        const rightEye = player.children[4];
-
-        if (
-          leftEye &&
-          leftEye.userData.eyelid &&
-          rightEye &&
-          rightEye.userData.eyelid
-        ) {
-          // Close eyelids during blink
-          if (player.userData.blinkPhase < Math.PI) {
-            const blinkProgress = Math.sin(player.userData.blinkPhase);
-            leftEye.userData.eyelid.position.y = 0.78 + blinkProgress * 0.05;
-            rightEye.userData.eyelid.position.y = 0.78 + blinkProgress * 0.05;
-          }
-          // Finished blinking
-          else {
-            player.userData.isBlinking = false;
-            leftEye.userData.eyelid.position.y = 0.78;
-            rightEye.userData.eyelid.position.y = 0.78;
-          }
-        }
-      }
-    }
-  }
-}
-
-// --- Start ---
-// Use window.onload to ensure everything including fonts is ready
-window.onload = function () {
-  init();
+// Call init on window load
+window.onload = () => {
+  init(); // Now async
 };
+
+// Optional: Add beforeunload listener (can be unreliable, use for saving maybe)
+// window.addEventListener('beforeunload', (event) => {
+//     // Attempt to save game? Risky, might not complete.
+//     // saveGame();
+//     // Standard practice for preventing accidental closure:
+//     // event.preventDefault(); // Standard way, might not work in all browsers
+//     // event.returnValue = ''; // Legacy way
+// });
+
+// Optional: Full cleanup if the page is truly being left
+// window.addEventListener('unload', cleanupGameAssets); // Even less reliable than beforeunload
