@@ -1,5 +1,19 @@
 // --- Basic Setup ---
-let scene, camera, renderer, player, clock;
+import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+
+// Type declarations for HTML elements
+const invWoodEl = document.getElementById("inv-wood") as HTMLElement;
+const invStoneEl = document.getElementById("inv-stone") as HTMLElement;
+const axeInvEl = document.getElementById("inv-axe") as HTMLElement;
+const hutInvEl = document.getElementById("inv-hut") as HTMLElement;
+const messageLogEl = document.getElementById("message-log") as HTMLElement;
+
+let scene: THREE.Scene,
+  camera: THREE.PerspectiveCamera,
+  renderer: THREE.WebGLRenderer,
+  player: THREE.Group,
+  clock: THREE.Clock;
 let moveMode = false;
 let selectedObject = null;
 const moveSpeed = 8.0;
@@ -13,6 +27,16 @@ const playerInventory = []; // Array to store inventory items
 let selectedItemIndex = -1;
 let activeToolType = null; // Tracks currently active tool
 
+let mixer: THREE.AnimationMixer;
+let playerAnimations: { [key: string]: THREE.AnimationAction } = {}; // Animation actions
+let currentAnimation: string = "idle"; // Currently playing animation
+// Jump physics variables
+const GRAVITY = 9.8; // acceleration due to gravity
+const JUMP_FORCE = 5.0; // initial jump velocity
+let playerVelocity = new THREE.Vector3(0, 0, 0);
+let isOnGround = true;
+let isJumping = false;
+let jumpStartY = 0; // track the y-position when jump started
 // Items definitions
 const itemDefinitions = {
   axe: {
@@ -38,6 +62,66 @@ const recipes = {
   axe: { wood: 5, stone: 2 },
   hut: { wood: 10, stone: 5 },
 };
+
+// Initiate a jump
+function startJump() {
+  if (isOnGround) {
+    isJumping = true;
+    isOnGround = false;
+    jumpStartY = player.position.y;
+    playerVelocity.y = JUMP_FORCE;
+
+    // Play jump animation
+    const jumpAnim = findAnimation(["jump", "leap"]);
+    if (jumpAnim) {
+      playAnimation(jumpAnim, 0.1);
+    }
+
+    addMessage("Jumped!");
+  }
+}
+
+// Apply gravity and handle landing
+function updateJump(delta) {
+  if (!isOnGround) {
+    // Apply gravity
+    playerVelocity.y -= GRAVITY * delta;
+
+    // Update position
+    player.position.y += playerVelocity.y * delta;
+
+    // Check for landing (ground is at y=0)
+    if (player.position.y <= 0) {
+      player.position.y = 0; // Snap to ground
+      playerVelocity.y = 0;
+      isOnGround = true;
+      isJumping = false;
+
+      // Play landing animation if available, otherwise idle
+      const landAnim = findAnimation(["land", "landing"]);
+      if (landAnim) {
+        playAnimation(landAnim, 0.1);
+
+        // Switch back to idle after landing animation finishes
+        if (mixer && playerAnimations[landAnim]) {
+          const duration = playerAnimations[landAnim]._clip.duration;
+          setTimeout(() => {
+            if (!keys["w"] && !keys["a"] && !keys["s"] && !keys["d"]) {
+              const idleAnim = findAnimation(["idle", "stand"]);
+              if (idleAnim) playAnimation(idleAnim, 0.3);
+            }
+          }, duration * 800); // Slightly shorter than full duration
+        }
+      } else {
+        // No landing animation, go straight to idle
+        if (!keys["w"] && !keys["a"] && !keys["s"] && !keys["d"]) {
+          const idleAnim = findAnimation(["idle", "stand"]);
+          if (idleAnim) playAnimation(idleAnim, 0.3);
+        }
+      }
+    }
+  }
+}
 
 function createToolIndicator() {
   const toolIndicator = document.createElement("div");
@@ -337,6 +421,152 @@ function cheatCreateHut() {
   addItemToInventory("hut");
 }
 
+function loadPlayerModel(modelPath) {
+  return new Promise((resolve, reject) => {
+    const loader = new GLTFLoader();
+
+    loader.load(
+      modelPath,
+      (gltf) => {
+        // Success callback
+        const model = gltf.scene;
+        model.traverse((node) => {
+          if (node.isMesh) {
+            node.castShadow = true;
+            node.receiveShadow = true;
+          }
+        });
+
+        // Scale and position adjustments if needed
+        model.scale.set(0.01, 0.01, 0.01); // Adjust scale as needed
+        model.position.y = 0; // Adjust vertical position as needed
+
+        // Set up animations
+        if (gltf.animations && gltf.animations.length) {
+          console.log(
+            "Available animations:",
+            gltf.animations.map((a) => a.name),
+          );
+
+          // Create animation mixer
+          mixer = new THREE.AnimationMixer(model);
+
+          // Process and store animations
+          gltf.animations.forEach((clip) => {
+            const name = clip.name.toLowerCase().replace(/\s+/g, "_");
+            playerAnimations[name] = mixer.clipAction(clip);
+          });
+
+          // Try to play an idle animation
+          const idleAnim = findAnimation(["idle", "stand", "default"]);
+          if (idleAnim) {
+            playAnimation(idleAnim);
+          } else if (Object.keys(playerAnimations).length > 0) {
+            // Play first animation if no idle found
+            playAnimation(Object.keys(playerAnimations)[0]);
+          }
+
+          // Create debug UI for easier testing
+          createAnimationDebugUI();
+        }
+        resolve(model);
+      },
+      // Progress callback
+      (xhr) => {
+        console.log(`${(xhr.loaded / xhr.total) * 100}% loaded`);
+      },
+      // Error callback
+      (error) => {
+        console.error("Error loading model:", error);
+        reject(error);
+      },
+    );
+  });
+}
+function createAnimationDebugUI() {
+  if (!playerAnimations || Object.keys(playerAnimations).length === 0) {
+    return;
+  }
+
+  const debugPanel = document.createElement("div");
+  debugPanel.style.position = "fixed";
+  debugPanel.style.top = "10px";
+  debugPanel.style.left = "10px";
+  debugPanel.style.backgroundColor = "rgba(0,0,0,0.7)";
+  debugPanel.style.color = "white";
+  debugPanel.style.padding = "10px";
+  debugPanel.style.borderRadius = "5px";
+  debugPanel.style.zIndex = "1000";
+  debugPanel.style.maxHeight = "300px";
+  debugPanel.style.overflowY = "auto";
+
+  const title = document.createElement("div");
+  title.textContent = "Animations";
+  title.style.fontWeight = "bold";
+  title.style.marginBottom = "5px";
+  debugPanel.appendChild(title);
+
+  // Create buttons for each animation
+  Object.keys(playerAnimations).forEach((name) => {
+    const button = document.createElement("button");
+    button.textContent = name;
+    button.style.display = "block";
+    button.style.margin = "2px 0";
+    button.style.padding = "2px 5px";
+    button.addEventListener("click", () => playAnimation(name));
+    debugPanel.appendChild(button);
+  });
+
+  // Close button
+  const closeBtn = document.createElement("button");
+  closeBtn.textContent = "Close";
+  closeBtn.style.marginTop = "10px";
+  closeBtn.addEventListener("click", () => {
+    document.body.removeChild(debugPanel);
+  });
+  debugPanel.appendChild(closeBtn);
+
+  document.body.appendChild(debugPanel);
+}
+
+// Find animation by keywords
+function findAnimation(keywords: string[]): string | null {
+  if (!playerAnimations || Object.keys(playerAnimations).length === 0) {
+    return null;
+  }
+
+  for (const keyword of keywords) {
+    const match = Object.keys(playerAnimations).find((name) =>
+      name.includes(keyword),
+    );
+    if (match) return match;
+  }
+
+  return null;
+}
+
+// Play animation with crossfade
+function playAnimation(name: string, duration: number = 0.5) {
+  if (!playerAnimations[name]) {
+    console.warn(`Animation "${name}" not found!`);
+    return false;
+  }
+
+  if (currentAnimation === name) return true;
+
+  const action = playerAnimations[name];
+
+  if (currentAnimation && playerAnimations[currentAnimation]) {
+    playerAnimations[currentAnimation].fadeOut(duration);
+  }
+
+  action.reset().fadeIn(duration).play();
+  currentAnimation = name;
+
+  console.log(`Playing animation: ${name}`);
+  return true;
+}
+
 // --- Initialization ---
 function init() {
   createToolIndicator();
@@ -347,6 +577,39 @@ function init() {
   scene.background = new THREE.Color(0x87ceeb); // Sky blue background
   scene.fog = new THREE.Fog(0x87ceeb, 15, 60); // Adjusted fog
 
+  const tempGeometry = new THREE.BoxGeometry(0.5, 1.8, 0.5);
+  const tempMaterial = new THREE.MeshStandardMaterial({
+    color: 0x0000ff,
+    transparent: true,
+    opacity: 0.5,
+  });
+  player = new THREE.Group();
+  const tempCube = new THREE.Mesh(tempGeometry, tempMaterial);
+  tempCube.position.y = 0.9;
+  player.add(tempCube);
+  scene.add(player);
+
+  loadPlayerModel("./imp.glb")
+    .then((model) => {
+      // Remove the temporary cube
+      player.remove(tempCube);
+      tempCube.geometry.dispose();
+      tempCube.material.dispose();
+
+      // Add the loaded model to the player group
+      player.add(model);
+
+      console.log("Player model loaded successfully");
+    })
+    .catch((error) => {
+      console.error("Failed to load player model:", error);
+      addMessage("Failed to load player model. Using fallback.");
+    });
+
+  // player = createAnimalPlayer();
+  // player.position.y = 0; // Position the base at ground level
+  // player.castShadow = true;
+  // scene.add(player);
   // Camera
   camera = new THREE.PerspectiveCamera(
     75,
@@ -404,14 +667,16 @@ function init() {
   scene.add(ground);
 
   // Player (simple cube)
-  const playerGeometry = new THREE.BoxGeometry(0.5, 1.8, 0.5); // Approx human height
-  const playerMaterial = new THREE.MeshStandardMaterial({
-    color: 0x0000ff,
-  }); // Blue player
-  player = new THREE.Mesh(playerGeometry, playerMaterial);
-  player.position.y = 0.9; // Position player slightly above ground base
-  player.castShadow = true;
-  scene.add(player);
+  // const playerGeometry = new THREE.BoxGeometry(0.5, 1.8, 0.5); // Approx human height
+  // const playerMaterial = new THREE.MeshStandardMaterial({
+  //   color: 0x0000ff,
+  // }); // Blue player
+  // player = new THREE.Mesh(playerGeometry, playerMaterial);
+  // player.position.y = 0.9; // Position player slightly above ground base
+  // player.castShadow = true;
+  // scene.add(player);
+  //
+  //
 
   // Spawn initial resources
   spawnResources("wood", 100); // More trees
@@ -431,6 +696,14 @@ function init() {
     // Press 'M' to toggle move mode
     if (event.key.toLowerCase() === "m") {
       toggleMoveMode();
+    }
+
+    // Spacebar to jump
+    if (event.key === " ") {
+      startJump();
+
+      // Prevent default to avoid page scrolling
+      event.preventDefault();
     }
 
     // In move mode, press 'Enter' to place the selected object
@@ -615,9 +888,12 @@ function spawnResources(type, count) {
 function animate() {
   requestAnimationFrame(animate);
   const delta = clock.getDelta(); // Time since last frame
-
+  updateJump(delta);
   handleMovement(delta);
-
+  // Update animations
+  if (mixer) {
+    mixer.update(delta);
+  }
   renderer.render(scene, camera);
 }
 
@@ -1155,6 +1431,324 @@ function onWindowResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function createAnimalPlayer() {
+  // Create a group to hold all parts of the animal
+  const animalGroup = new THREE.Group();
+
+  // Color palette for fox
+  const bodyColor = 0xe67e22; // Orange/fox color
+  const bellyColor = 0xf5e8dc; // Light cream
+  const faceColor = 0xd35400; // Darker orange for face
+  const eyeColor = 0x2c3e50; // Dark blue eyes
+  const noseColor = 0x34495e; // Dark nose
+
+  // Materials
+  const bodyMaterial = new THREE.MeshStandardMaterial({ color: bodyColor });
+  const bellyMaterial = new THREE.MeshStandardMaterial({ color: bellyColor });
+  const faceMaterial = new THREE.MeshStandardMaterial({ color: faceColor });
+  const eyeMaterial = new THREE.MeshStandardMaterial({ color: eyeColor });
+  const noseMaterial = new THREE.MeshStandardMaterial({ color: noseColor });
+
+  // Body - smoother elongated sphere
+  const bodyGeometry = new THREE.SphereGeometry(0.5, 32, 24);
+  const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+  body.position.y = 0.45; // Positioned above ground
+  body.scale.set(1, 0.8, 1.2); // Make it oval-shaped
+  body.castShadow = true;
+  animalGroup.add(body);
+
+  // Belly patch (flattened sphere)
+  const bellyGeometry = new THREE.SphereGeometry(
+    0.35,
+    32,
+    24,
+    0,
+    Math.PI * 2,
+    0,
+    Math.PI * 0.6,
+  );
+  const belly = new THREE.Mesh(bellyGeometry, bellyMaterial);
+  belly.rotation.x = Math.PI / 2;
+  belly.position.set(0, 0.4, 0.25);
+  belly.scale.set(0.8, 1, 0.5);
+  animalGroup.add(belly);
+
+  // Head - sphere
+  const headGeometry = new THREE.SphereGeometry(0.35, 16, 12);
+  const head = new THREE.Mesh(headGeometry, bodyMaterial);
+  head.position.set(0, 0.7, 0.5);
+  head.castShadow = true;
+  animalGroup.add(head);
+
+  // Snout/face
+  const snoutGeometry = new THREE.ConeGeometry(0.2, 0.4, 4);
+  const snout = new THREE.Mesh(snoutGeometry, faceMaterial);
+  snout.rotation.x = -Math.PI / 2;
+  snout.position.set(0, 0.65, 0.85);
+  snout.castShadow = true;
+  animalGroup.add(snout);
+
+  // Eyes with more detail
+  function createEye(xPos) {
+    // Main eyeball
+    const eyeGeometry = new THREE.SphereGeometry(0.06, 24, 24);
+    const eye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+    eye.position.set(xPos, 0.78, 0.7);
+    animalGroup.add(eye);
+
+    // Pupil
+    const pupilGeometry = new THREE.SphereGeometry(0.03, 16, 16);
+    const pupil = new THREE.Mesh(
+      pupilGeometry,
+      new THREE.MeshBasicMaterial({ color: 0x000000 }),
+    );
+    pupil.position.set(xPos + 0.04, 0.78, 0.72);
+    animalGroup.add(pupil);
+
+    // Highlight
+    const highlightGeometry = new THREE.SphereGeometry(0.015, 16, 16);
+    const highlight = new THREE.Mesh(
+      highlightGeometry,
+      new THREE.MeshBasicMaterial({ color: 0xffffff }),
+    );
+    highlight.position.set(xPos + 0.05, 0.79, 0.725);
+    animalGroup.add(highlight);
+
+    // Eyelid (top)
+    const eyelidGeometry = new THREE.SphereGeometry(
+      0.065,
+      24,
+      24,
+      0,
+      Math.PI * 2,
+      0,
+      Math.PI * 0.5,
+    );
+    const eyelid = new THREE.Mesh(
+      eyelidGeometry,
+      new THREE.MeshBasicMaterial({ color: faceMaterial.color }),
+    );
+    eyelid.position.set(xPos, 0.78, 0.7);
+    eyelid.rotation.x = Math.PI / 2;
+    animalGroup.add(eyelid);
+    eye.userData.eyelid = eyelid; // Store reference for animation
+  }
+
+  createEye(-0.15); // Left eye
+  createEye(0.15); // Right eye
+
+  // Nose tip
+  const noseGeometry = new THREE.SphereGeometry(0.08, 10, 10);
+  const nose = new THREE.Mesh(noseGeometry, noseMaterial);
+  nose.position.set(0, 0.65, 1);
+  nose.scale.set(1, 0.8, 0.8);
+  animalGroup.add(nose);
+
+  // Whiskers
+  const whiskerMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  for (let i = 0; i < 6; i++) {
+    const whiskerGeometry = new THREE.CylinderGeometry(0.01, 0.005, 0.3, 4);
+    const whisker = new THREE.Mesh(whiskerGeometry, whiskerMaterial);
+
+    // Position whiskers on either side of nose
+    const side = i < 3 ? -1 : 1;
+    const row = i % 3;
+
+    whisker.position.set(0.1 * side, 0.65 - row * 0.05, 0.95);
+    whisker.rotation.z = (Math.PI / 6) * side;
+    whisker.rotation.y = (Math.PI / 8) * (row - 1);
+
+    animalGroup.add(whisker);
+  }
+
+  // Ears - two triangular prisms
+  function createEar(xPos, zRot) {
+    const earGeometry = new THREE.ConeGeometry(0.12, 0.25, 3);
+    const ear = new THREE.Mesh(earGeometry, bodyMaterial);
+    ear.position.set(xPos, 1, 0.4);
+    ear.rotation.x = -Math.PI / 4;
+    ear.rotation.z = zRot;
+    ear.castShadow = true;
+    animalGroup.add(ear);
+
+    // Inner ear
+    const innerEarGeometry = new THREE.ConeGeometry(0.06, 0.15, 3);
+    const innerEar = new THREE.Mesh(innerEarGeometry, bellyMaterial);
+    innerEar.position.set(xPos, 0.98, 0.41);
+    innerEar.rotation.x = -Math.PI / 4;
+    innerEar.rotation.z = zRot;
+    animalGroup.add(innerEar);
+  }
+
+  createEar(-0.22, -Math.PI / 5); // Left ear
+  createEar(0.22, Math.PI / 5); // Right ear
+
+  // Legs
+  function createLeg(xPos, zPos) {
+    const legGeometry = new THREE.CylinderGeometry(0.08, 0.05, 0.4, 8);
+    const leg = new THREE.Mesh(legGeometry, bodyMaterial);
+    leg.position.set(xPos, 0.2, zPos);
+    leg.castShadow = true;
+    animalGroup.add(leg);
+
+    // Paw
+    const pawGeometry = new THREE.SphereGeometry(0.07, 8, 8);
+    const paw = new THREE.Mesh(pawGeometry, faceMaterial);
+    paw.position.set(xPos, 0, zPos);
+    paw.scale.set(1, 0.5, 1.2);
+    paw.castShadow = true;
+    animalGroup.add(paw);
+  }
+
+  // Create four legs
+  createLeg(-0.25, 0.3); // Front left
+  createLeg(0.25, 0.3); // Front right
+  createLeg(-0.25, -0.35); // Back left
+  createLeg(0.25, -0.35); // Back right
+
+  // Tail - curved cone
+  const tailGeometry = new THREE.CylinderGeometry(0.05, 0.15, 0.6, 8);
+  const tail = new THREE.Mesh(tailGeometry, bodyMaterial);
+  tail.position.set(0, 0.5, -0.5);
+  tail.rotation.x = Math.PI / 3;
+  tail.castShadow = true;
+  animalGroup.add(tail);
+
+  // Tail tip with different color
+  const tailTipGeometry = new THREE.SphereGeometry(0.12, 10, 10);
+  const tailTip = new THREE.Mesh(tailTipGeometry, bellyMaterial);
+  tailTip.position.set(0, 0.5, -0.8);
+  tailTip.castShadow = true;
+  animalGroup.add(tailTip);
+
+  // Animation properties
+  animalGroup.userData = {
+    legSwingPhase: 0,
+    tailSwingPhase: 0,
+    headBobPhase: 0,
+    blinkPhase: 0,
+    isBlinking: false,
+  };
+
+  // Whole group is slightly rotated to face forward
+  animalGroup.rotation.y = Math.PI; // Face forward
+
+  return animalGroup;
+}
+
+// Add this to your animation loop for cute animal animations
+function animateAnimal(delta) {
+  if (!player || !player.userData) return;
+
+  // Only animate when moving
+  const isMoving = keys["w"] || keys["a"] || keys["s"] || keys["d"];
+
+  // Update animation phases
+  if (isMoving) {
+    player.userData.legSwingPhase += delta * 8;
+    player.userData.tailSwingPhase += delta * 4;
+    player.userData.headBobPhase += delta * 6;
+  } else {
+    // Idle animation - slower
+    player.userData.tailSwingPhase += delta * 2;
+    player.userData.headBobPhase += delta;
+  }
+
+  // Leg movement
+  if (player.children) {
+    // Assuming legs are at specific child indices - adjust based on your model
+    const legIndices = [10, 11, 12, 13]; // Update these based on your model
+    for (let i = 0; i < legIndices.length; i++) {
+      const legIndex = legIndices[i];
+      if (player.children[legIndex]) {
+        // Legs move in pairs (diagonal legs move together)
+        const legPhase = player.userData.legSwingPhase + (i % 2 ? 0 : Math.PI);
+
+        if (isMoving) {
+          // When moving, legs swing back and forth
+          player.children[legIndex].rotation.x = Math.sin(legPhase) * 0.3;
+        } else {
+          // Reset leg positions when idle
+          player.children[legIndex].rotation.x = 0;
+        }
+      }
+    }
+
+    // Tail wagging - more fluid movement
+    const tailIndex = 14; // Update based on your model
+    if (player.children[tailIndex]) {
+      const tail = player.children[tailIndex];
+      const baseAngle = Math.sin(player.userData.tailSwingPhase) * 0.3;
+      const tipAngle = Math.sin(player.userData.tailSwingPhase * 1.5) * 0.15;
+
+      // Animate base of tail
+      tail.rotation.z = baseAngle;
+
+      // Animate tail tip separately for more fluid motion
+      if (tail.children && tail.children[0]) {
+        tail.children[0].rotation.z = tipAngle;
+      }
+
+      // Add slight up/down movement when running
+      if (isMoving) {
+        tail.rotation.x = Math.sin(player.userData.tailSwingPhase * 2) * 0.1;
+      } else {
+        tail.rotation.x = 0;
+      }
+    }
+
+    // Head bobbing
+    const headIndex = 2; // Update based on your model
+    if (player.children[headIndex]) {
+      if (isMoving) {
+        // Subtle head bob when moving
+        player.children[headIndex].position.y =
+          0.7 + Math.sin(player.userData.headBobPhase) * 0.02;
+      } else {
+        // Occasional "looking around" when idle
+        const lookAround = Math.sin(player.userData.headBobPhase * 0.5) * 0.3;
+        player.children[headIndex].rotation.y = lookAround;
+
+        // Idle blinking (more relaxed)
+        if (Math.random() < 0.005) {
+          // ~every 200 frames
+          player.userData.isBlinking = true;
+          player.userData.blinkPhase = 0;
+        }
+      }
+
+      // Handle blinking animation if active
+      if (player.userData.isBlinking) {
+        player.userData.blinkPhase += delta * 8; // Blink speed
+
+        // Get eyes (indices 3 and 4 for left/right eyes)
+        const leftEye = player.children[3];
+        const rightEye = player.children[4];
+
+        if (
+          leftEye &&
+          leftEye.userData.eyelid &&
+          rightEye &&
+          rightEye.userData.eyelid
+        ) {
+          // Close eyelids during blink
+          if (player.userData.blinkPhase < Math.PI) {
+            const blinkProgress = Math.sin(player.userData.blinkPhase);
+            leftEye.userData.eyelid.position.y = 0.78 + blinkProgress * 0.05;
+            rightEye.userData.eyelid.position.y = 0.78 + blinkProgress * 0.05;
+          }
+          // Finished blinking
+          else {
+            player.userData.isBlinking = false;
+            leftEye.userData.eyelid.position.y = 0.78;
+            rightEye.userData.eyelid.position.y = 0.78;
+          }
+        }
+      }
+    }
+  }
 }
 
 // --- Start ---
