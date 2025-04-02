@@ -128,6 +128,113 @@
                 /* Inherits .ui-panel styles */
                 /* align-self: flex-end; is handled by parent .ui-col-right */
             }
+
+            .diablo-inventory {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 350px;
+                background-color: rgba(0, 0, 0, 0.85);
+                border: 2px solid #8b0000;
+                box-shadow: 0 0 20px rgba(139, 0, 0, 0.6);
+                z-index: 100;
+            }
+
+            .close-btn {
+                float: right;
+                cursor: pointer;
+                font-size: 18px;
+                color: #ff0000;
+            }
+
+            .inventory-grid {
+                display: grid;
+                grid-template-columns: repeat(6, 1fr);
+                gap: 4px;
+                padding: 10px;
+            }
+
+            .inventory-slot {
+                width: 50px;
+                height: 50px;
+                background-color: rgba(50, 50, 50, 0.7);
+                border: 1px solid #555;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                cursor: pointer;
+                position: relative;
+                transition: all 0.2s;
+            }
+
+            .inventory-slot:hover {
+                border-color: #ff9900;
+                box-shadow: 0 0 5px #ff9900;
+            }
+
+            .inventory-slot.occupied {
+                background-color: rgba(80, 80, 80, 0.7);
+            }
+
+            .inventory-slot img {
+                max-width: 85%;
+                max-height: 85%;
+            }
+
+            .item-tooltip {
+                position: absolute;
+                background-color: rgba(0, 0, 0, 0.9);
+                border: 1px solid #8b0000;
+                padding: 8px;
+                width: 180px;
+                font-size: 10px;
+                color: #fff;
+                z-index: 101;
+                pointer-events: none;
+                visibility: hidden;
+                opacity: 0;
+                transition: opacity 0.2s;
+            }
+
+            .inventory-slot:hover .item-tooltip {
+                visibility: visible;
+                opacity: 1;
+            }
+
+            .item-name {
+                color: #ffd700;
+                margin-bottom: 5px;
+                font-weight: bold;
+            }
+
+            .item-description {
+                color: #ccc;
+                font-size: 9px;
+            }
+
+            .inventory-btn {
+                background-color: #8b0000;
+                color: #fff;
+                border: 1px solid #ff0000;
+                padding: 5px 10px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-family: "Press Start 2P", cursive;
+                font-size: 10px;
+                margin-top: 10px;
+                transition: background-color 0.2s;
+            }
+
+            .inventory-btn:hover {
+                background-color: #a00;
+            }
+
+            /* Selected item highlight */
+            .inventory-slot.selected {
+                border: 2px solid #ffd700;
+                box-shadow: 0 0 10px #ffd700;
+            }
         </style>
     </head>
     <body>
@@ -148,6 +255,27 @@
                                     Hut: 1
                                 </li>
                             </ul>
+                        </div>
+                        <div
+                            id="inventory-panel"
+                            class="ui-panel diablo-inventory"
+                            style="display: none"
+                        >
+                            <h3>
+                                Inventory
+                                <span class="close-btn" id="close-inventory"
+                                    >×</span
+                                >
+                            </h3>
+                            <div class="inventory-grid">
+                                <!-- Grid slots will be generated dynamically -->
+                            </div>
+                            <button
+                                id="show-inventory-btn"
+                                class="inventory-btn"
+                            >
+                                Open Inventory [I]
+                            </button>
                         </div>
                         <div id="crafting" class="ui-panel">
                             <h3>Crafting (Press E near resources)</h3>
@@ -188,12 +316,37 @@
         <script type="module">
             // --- Basic Setup ---
             let scene, camera, renderer, player, clock;
-            const moveSpeed = 5.0;
+            let moveMode = false;
+            let selectedObject = null;
+            const moveSpeed = 8.0;
             const keys = {}; // Keep track of pressed keys
             const resources = []; // Store collectible resource objects (now groups)
             const craftedObjects = []; // Store placed objects like huts
             const inventory = { wood: 0, stone: 0, axe: 0, hut: 0 };
             const gatherDistance = 2.0; // Slightly increased gather distance for larger models
+            const inventorySize = 24; // 6x4 grid
+            const playerInventory = []; // Array to store inventory items
+            let selectedItemIndex = -1;
+
+            // Items definitions
+            const itemDefinitions = {
+                axe: {
+                    name: "Wooden Axe",
+                    description: "A simple axe for chopping trees faster.",
+                    icon: "🪓", // Can be replaced with actual image URL
+                    width: 1,
+                    height: 2,
+                    effect: "increases wood gathering by 2x",
+                },
+                hut: {
+                    name: "Small Hut",
+                    description: "A basic shelter to keep you safe.",
+                    icon: "🏠", // Can be replaced with actual image URL
+                    width: 2,
+                    height: 2,
+                    placeable: true,
+                },
+            };
 
             // Crafting Recipes
             const recipes = {
@@ -201,8 +354,257 @@
                 hut: { wood: 10, stone: 5 },
             };
 
+            // Initialize the inventory system
+            function initInventorySystem() {
+                // Create inventory grid
+                const grid = document.querySelector(".inventory-grid");
+                for (let i = 0; i < inventorySize; i++) {
+                    const slot = document.createElement("div");
+                    slot.className = "inventory-slot";
+                    slot.dataset.index = i;
+
+                    // Click handler for slots
+                    slot.addEventListener("click", () => {
+                        selectInventorySlot(i);
+                    });
+
+                    grid.appendChild(slot);
+                }
+
+                // Set up event listeners
+                document
+                    .getElementById("show-inventory-btn")
+                    .addEventListener("click", toggleInventory);
+                document
+                    .getElementById("close-inventory")
+                    .addEventListener("click", closeInventory);
+
+                // Also allow 'I' key to toggle inventory
+                document.addEventListener("keydown", (event) => {
+                    if (event.key.toLowerCase() === "i") {
+                        toggleInventory();
+                    }
+
+                    // Use selected item with 'U' key
+                    if (
+                        event.key.toLowerCase() === "u" &&
+                        selectedItemIndex >= 0
+                    ) {
+                        useSelectedItem();
+                    }
+                });
+
+                // Update initial inventory display
+                updateInventoryDisplay();
+            }
+
+            // Toggle inventory visibility
+            function toggleInventory() {
+                const inventoryPanel =
+                    document.getElementById("inventory-panel");
+                if (inventoryPanel.style.display === "none") {
+                    inventoryPanel.style.display = "block";
+                    updateInventoryDisplay(); // Refresh display
+                } else {
+                    inventoryPanel.style.display = "none";
+                }
+            }
+
+            function closeInventory() {
+                document.getElementById("inventory-panel").style.display =
+                    "none";
+            }
+
+            // Update the visual display of the inventory
+            function updateInventoryDisplay() {
+                const slots = document.querySelectorAll(".inventory-slot");
+
+                // Clear all slots first
+                slots.forEach((slot) => {
+                    slot.innerHTML = "";
+                    slot.classList.remove("occupied", "selected");
+                });
+
+                // Fill slots with items
+                playerInventory.forEach((item, index) => {
+                    if (!item) return;
+
+                    const slot = slots[index];
+                    slot.classList.add("occupied");
+
+                    if (index === selectedItemIndex) {
+                        slot.classList.add("selected");
+                    }
+
+                    // Create item display
+                    const itemDef = itemDefinitions[item.type];
+
+                    // Create icon (text or image)
+                    if (itemDef.icon.startsWith("http")) {
+                        // It's an image URL
+                        const img = document.createElement("img");
+                        img.src = itemDef.icon;
+                        img.alt = itemDef.name;
+                        slot.appendChild(img);
+                    } else {
+                        // It's an emoji or text
+                        const icon = document.createElement("div");
+                        icon.style.fontSize = "24px";
+                        icon.textContent = itemDef.icon;
+                        slot.appendChild(icon);
+                    }
+
+                    // Create tooltip
+                    const tooltip = document.createElement("div");
+                    tooltip.className = "item-tooltip";
+
+                    const nameElement = document.createElement("div");
+                    nameElement.className = "item-name";
+                    nameElement.textContent = itemDef.name;
+                    tooltip.appendChild(nameElement);
+
+                    const descElement = document.createElement("div");
+                    descElement.className = "item-description";
+                    descElement.textContent = itemDef.description;
+                    tooltip.appendChild(descElement);
+
+                    if (itemDef.effect) {
+                        const effectElement = document.createElement("div");
+                        effectElement.className = "item-description";
+                        effectElement.textContent = `Effect: ${itemDef.effect}`;
+                        tooltip.appendChild(effectElement);
+                    }
+
+                    slot.appendChild(tooltip);
+                });
+            }
+
+            // Select an inventory slot
+            function selectInventorySlot(index) {
+                if (playerInventory[index]) {
+                    // Toggle selection
+                    if (selectedItemIndex === index) {
+                        selectedItemIndex = -1; // Deselect
+                    } else {
+                        selectedItemIndex = index;
+                    }
+
+                    // Show what item was selected
+                    if (selectedItemIndex >= 0) {
+                        const item = playerInventory[selectedItemIndex];
+                        const itemDef = itemDefinitions[item.type];
+                        addMessage(
+                            `Selected: ${itemDef.name}. Press 'U' to use.`,
+                        );
+                    }
+
+                    updateInventoryDisplay();
+                }
+            }
+
+            // Use the selected item
+            function useSelectedItem() {
+                if (
+                    selectedItemIndex < 0 ||
+                    !playerInventory[selectedItemIndex]
+                )
+                    return;
+
+                const item = playerInventory[selectedItemIndex];
+                const itemDef = itemDefinitions[item.type];
+
+                if (itemDef.placeable) {
+                    // Placeable items (like huts)
+                    placeHut(); // Using existing placement function
+                    addMessage(`Placed ${itemDef.name}`);
+
+                    // Remove from inventory after placing
+                    playerInventory[selectedItemIndex] = null;
+                    selectedItemIndex = -1;
+                } else {
+                    // Equip/use other items like tools
+                    addMessage(`Using ${itemDef.name}`);
+                    // For axe, we could implement faster gathering here
+                }
+
+                updateInventoryDisplay();
+            }
+
+            // Add item to inventory (modified from existing craft function)
+            function addItemToInventory(itemType) {
+                // Find first empty slot
+                const emptySlot = playerInventory.findIndex(
+                    (slot) => slot === null || slot === undefined,
+                );
+
+                if (emptySlot >= 0 || playerInventory.length < inventorySize) {
+                    const newItem = { type: itemType };
+
+                    if (emptySlot >= 0) {
+                        playerInventory[emptySlot] = newItem;
+                    } else {
+                        playerInventory.push(newItem);
+                    }
+
+                    addMessage(
+                        `Added ${itemDefinitions[itemType].name} to inventory`,
+                    );
+                    updateInventoryDisplay();
+                    return true;
+                } else {
+                    addMessage("Inventory is full!");
+                    return false;
+                }
+            }
+
+            // Modify the existing craft functions to use the new inventory
+            function craftItem(itemName) {
+                const recipe = recipes[itemName];
+                if (!recipe) {
+                    addMessage(`Unknown recipe: ${itemName}`);
+                    return;
+                }
+
+                // Check if player has enough resources
+                let canCraft = true;
+                for (const resourceType in recipe) {
+                    if (inventory[resourceType] < recipe[resourceType]) {
+                        canCraft = false;
+                        addMessage(
+                            `Not enough ${resourceType}. Need ${recipe[resourceType]}.`,
+                        );
+                        break;
+                    }
+                }
+
+                if (canCraft) {
+                    // Deduct resources
+                    for (const resourceType in recipe) {
+                        inventory[resourceType] -= recipe[resourceType];
+                    }
+
+                    // Instead of adding to old inventory, add to new Diablo-style inventory
+                    if (addItemToInventory(itemName)) {
+                        addMessage(`Crafted 1 ${itemName}!`);
+                    } else {
+                        // Refund resources if inventory is full
+                        for (const resourceType in recipe) {
+                            inventory[resourceType] += recipe[resourceType];
+                        }
+                    }
+
+                    updateInventoryUI(); // Update the resources display
+                }
+            }
+
+            // For the cheat code, modify to use new inventory
+            function cheatCreateHut() {
+                addItemToInventory("hut");
+            }
+
             // --- Initialization ---
             function init() {
+                initInventorySystem();
                 // Scene
                 scene = new THREE.Scene();
                 scene.background = new THREE.Color(0x87ceeb); // Sky blue background
@@ -278,14 +680,87 @@
                 scene.add(player);
 
                 // Spawn initial resources
-                spawnResources("wood", 30); // More trees
-                spawnResources("stone", 25); // More rocks
+                spawnResources("wood", 80); // More trees
+                spawnResources("stone", 60); // More rocks
 
                 // Event Listeners
                 window.addEventListener("resize", onWindowResize, false);
                 document.addEventListener("keydown", (event) => {
                     keys[event.key.toLowerCase()] = true;
+
+                    // Cheat code: Shift+H to instantly create a hut
+                    if (event.key.toLowerCase() === "h" && event.shiftKey) {
+                        cheatCreateHut();
+                        addMessage("🔮 CHEAT ACTIVATED: Free hut created!");
+                    }
+
+                    // Press 'M' to toggle move mode
+                    if (event.key.toLowerCase() === "m") {
+                        toggleMoveMode();
+                    }
+
+                    // In move mode, press 'Enter' to place the selected object
+                    if (event.key === "Enter" && moveMode && selectedObject) {
+                        moveMode = false;
+                        selectedObject = null;
+                        addMessage("Hut placement confirmed!");
+                        updateMoveUI(false);
+                    }
                 });
+
+                // Add these new functions to handle moving huts
+                function toggleMoveMode() {
+                    moveMode = !moveMode;
+
+                    if (moveMode) {
+                        // Enter move mode - try to select the closest hut
+                        selectClosestHut();
+                    } else {
+                        // Exit move mode
+                        selectedObject = null;
+                    }
+
+                    updateMoveUI(moveMode);
+                }
+
+                function selectClosestHut() {
+                    let closestDistance = Infinity;
+                    let closestHut = null;
+
+                    for (let i = 0; i < craftedObjects.length; i++) {
+                        const object = craftedObjects[i];
+                        // Only consider huts (you could add a type check if you have multiple object types)
+
+                        const distance = player.position.distanceTo(
+                            object.position,
+                        );
+                        if (distance < closestDistance && distance < 10) {
+                            // Only select if within 10 units
+                            closestDistance = distance;
+                            closestHut = object;
+                        }
+                    }
+
+                    if (closestHut) {
+                        selectedObject = closestHut;
+                        addMessage(
+                            "Hut selected for moving. Use WASD to position, Enter to place.",
+                        );
+                    } else {
+                        addMessage("No huts found nearby to move.");
+                        moveMode = false;
+                    }
+                }
+
+                // Add this new function for the cheat
+                function cheatCreateHut() {
+                    // Add hut to inventory
+                    inventory["hut"]++;
+                    updateInventoryUI();
+
+                    // Also place the hut in front of the player
+                    placeHut();
+                }
                 document.addEventListener("keyup", (event) => {
                     keys[event.key.toLowerCase()] = false;
                     if (event.key.toLowerCase() === "e") {
@@ -305,6 +780,30 @@
                 animate();
                 updateInventoryUI(); // Initial UI update
                 addMessage("Game started. Find resources!");
+            }
+
+            // Add this function to update UI when in move mode
+            function updateMoveUI(active) {
+                if (active) {
+                    addMessage(
+                        "MOVE MODE: Use WASD to position hut, Enter to confirm.",
+                    );
+                    // Optionally add visual indicator like highlighting the selected hut
+                    if (selectedObject) {
+                        // You could add a highlight effect here
+                        selectedObject.material.emissive = new THREE.Color(
+                            0x553311,
+                        );
+                    }
+                } else {
+                    addMessage("Move mode deactivated.");
+                    // Remove any visual indicators
+                    if (selectedObject) {
+                        selectedObject.material.emissive = new THREE.Color(
+                            0x000000,
+                        );
+                    }
+                }
             }
 
             // --- Resource Spawning ---
@@ -424,53 +923,53 @@
                 const right = new THREE.Vector3();
                 right.crossVectors(camera.up, forward).normalize(); // Right is perpendicular to up and forward
 
-                if (keys["w"]) {
-                    moveDirection.add(forward);
-                }
-                if (keys["s"]) {
-                    moveDirection.sub(forward);
-                }
-                // --- CORRECTED STRAFE ---
-                if (keys["a"]) {
-                    moveDirection.sub(right); // Strafe Left (Subtract Right Vector)
-                }
-                if (keys["d"]) {
-                    moveDirection.add(right); // Strafe Right (Add Right Vector)
-                }
+                if (moveMode && selectedObject) {
+                    // Move the selected object instead of the player
+                    if (keys["w"]) moveDirection.add(forward);
+                    if (keys["s"]) moveDirection.sub(forward);
+                    if (keys["a"]) moveDirection.sub(right);
+                    if (keys["d"]) moveDirection.add(right);
 
-                // Normalize diagonal movement to prevent faster speed
-                if (moveDirection.lengthSq() > 0) {
-                    // Use lengthSq for efficiency
-                    moveDirection.normalize();
-                    player.position.addScaledVector(
-                        moveDirection,
-                        moveDistance,
-                    );
+                    // Move the selected object
+                    if (moveDirection.lengthSq() > 0) {
+                        moveDirection.normalize();
+                        selectedObject.position.addScaledVector(
+                            moveDirection,
+                            moveDistance,
+                        );
+                    }
+                } else {
+                    // Normal player movement (existing code)
+                    if (keys["w"]) moveDirection.add(forward);
+                    if (keys["s"]) moveDirection.sub(forward);
+                    if (keys["a"]) moveDirection.add(right);
+                    if (keys["d"]) moveDirection.sub(right);
 
-                    // --- Simpler First-Person Style Camera ---
-                    // Make camera follow player directly
-                    // Calculate the offset based on where the camera *should* be relative to player's front
-                    const cameraOffsetBehind = 3; // How far behind
-                    const cameraOffsetY = 0.7; // How high up (eye level)
+                    // Normalize diagonal movement to prevent faster speed
+                    if (moveDirection.lengthSq() > 0) {
+                        moveDirection.normalize();
+                        player.position.addScaledVector(
+                            moveDirection,
+                            moveDistance,
+                        );
 
-                    // Calculate the position directly behind the player based on the forward vector
-                    // We use the *negated* forward vector to find the point behind.
-                    const cameraTargetPosition = player.position.clone();
-                    cameraTargetPosition.addScaledVector(
-                        forward.negate(),
-                        cameraOffsetBehind,
-                    ); // Move behind
-                    cameraTargetPosition.y = player.position.y + cameraOffsetY; // Adjust height
-
-                    // Smoothly interpolate camera position
-                    camera.position.lerp(cameraTargetPosition, 0.15); // Adjust lerp factor (0.1 to 0.3) for smoothness
-
-                    // Always look at a point slightly above the player's base
-                    camera.lookAt(
-                        player.position.x,
-                        player.position.y + 0.5,
-                        player.position.z,
-                    );
+                        // Camera following logic (existing code)
+                        const cameraOffsetBehind = 3;
+                        const cameraOffsetY = 0.7;
+                        const cameraTargetPosition = player.position.clone();
+                        cameraTargetPosition.addScaledVector(
+                            forward.negate(),
+                            cameraOffsetBehind,
+                        );
+                        cameraTargetPosition.y =
+                            player.position.y + cameraOffsetY;
+                        camera.position.lerp(cameraTargetPosition, 0.15);
+                        camera.lookAt(
+                            player.position.x,
+                            player.position.y + 0.5,
+                            player.position.z,
+                        );
+                    }
                 }
             }
 
@@ -530,50 +1029,6 @@
                 if (!gathered) {
                     // Optional: Add message if E is pressed but nothing is nearby
                     // addMessage("No resources nearby to gather.");
-                }
-            }
-
-            // --- Crafting ---
-            function craftItem(itemName) {
-                const recipe = recipes[itemName];
-                if (!recipe) {
-                    addMessage(`Unknown recipe: ${itemName}`);
-                    return;
-                }
-
-                // Check if player has enough resources
-                let canCraft = true;
-                for (const resourceType in recipe) {
-                    if (inventory[resourceType] < recipe[resourceType]) {
-                        canCraft = false;
-                        addMessage(
-                            `Not enough ${resourceType}. Need ${recipe[resourceType]}.`,
-                        );
-                        break;
-                    }
-                }
-
-                if (canCraft) {
-                    // Deduct resources
-                    for (const resourceType in recipe) {
-                        inventory[resourceType] -= recipe[resourceType];
-                    }
-
-                    // Add crafted item to inventory
-                    inventory[itemName]++;
-                    addMessage(`Crafted 1 ${itemName}!`);
-
-                    if (itemName === "hut") {
-                        // Don't place immediately, maybe require placement mode later?
-                        // For now, just incrementing inventory count.
-                        // placeHut(); // We can re-enable placement if desired
-                        addMessage("Hut added to inventory (placement TBD).");
-                    }
-                    if (itemName === "axe") {
-                        addMessage("Axe equipped! (Effect TBD).");
-                    }
-
-                    updateInventoryUI();
                 }
             }
 
