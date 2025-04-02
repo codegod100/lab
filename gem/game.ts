@@ -283,7 +283,7 @@ function updatePlacementPreview() {
     return;
 
   // --- DEBUG LOG ---
-  console.log(`UpdatePreview Start: Pos x:${placementPreviewObject.position.x.toFixed(2)}, z:${placementPreviewObject.position.z.toFixed(2)}`);
+  // console.log(`UpdatePreview Start: Pos x:${placementPreviewObject.position.x.toFixed(2)}, z:${placementPreviewObject.position.z.toFixed(2)}`);
   // --- END DEBUG LOG ---
 
   const definition = itemDefinitions[placementItemType];
@@ -294,18 +294,18 @@ function updatePlacementPreview() {
 
   // --- Snapping Logic (Grid) ---
   // Snap the CURRENT X/Z position (moved by WASD in handleMovement)
-  // const snappedX = Math.round(placementPreviewObject.position.x / gridSize) * gridSize; // <-- COMMENT OUT
-  // const snappedZ = Math.round(placementPreviewObject.position.z / gridSize) * gridSize; // <-- COMMENT OUT
+  const snappedX = Math.round(placementPreviewObject.position.x / gridSize) * gridSize; // <-- UNCOMMENT
+  const snappedZ = Math.round(placementPreviewObject.position.z / gridSize) * gridSize; // <-- UNCOMMENT
   // --- DEBUG LOG ---
   // Only log if snapping changes the position significantly
-  // if (Math.abs(snappedX - placementPreviewObject.position.x) > 0.01 || Math.abs(snappedZ - placementPreviewObject.position.z) > 0.01) {
-  //   console.log(`  Snapping: From x:${placementPreviewObject.position.x.toFixed(2)}, z:${placementPreviewObject.position.z.toFixed(2)} To x:${snappedX.toFixed(2)}, z:${snappedZ.toFixed(2)}`);
-  // }
+  if (Math.abs(snappedX - placementPreviewObject.position.x) > 0.01 || Math.abs(snappedZ - placementPreviewObject.position.z) > 0.01) {
+    console.log(`  Placement Snapping: From x:${placementPreviewObject.position.x.toFixed(2)}, z:${placementPreviewObject.position.z.toFixed(2)} To x:${snappedX.toFixed(2)}, z:${snappedZ.toFixed(2)}`);
+  }
   // --- END DEBUG LOG ---
-  // placementPreviewObject.position.x = snappedX; // <-- COMMENT OUT
-  // placementPreviewObject.position.z = snappedZ; // <-- COMMENT OUT
+  placementPreviewObject.position.x = snappedX; // <-- UNCOMMENT
+  placementPreviewObject.position.z = snappedZ; // <-- UNCOMMENT
 
-  // --- Calculate Y based on support below the CURRENT X/Z ---
+  // --- Calculate Y based on support below the *SNAPPED* X/Z ---
   let itemGeometry: THREE.BufferGeometry | null = null;
   try {
     itemGeometry = definition.geometry();
