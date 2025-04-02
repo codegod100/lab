@@ -8,7 +8,7 @@ const resources = []; // Store collectible resource objects (now groups)
 const craftedObjects = []; // Store placed objects like huts
 const inventory = { wood: 0, stone: 0, axe: 0, hut: 0 };
 const gatherDistance = 2.0; // Slightly increased gather distance for larger models
-const inventorySize = 24; // 6x4 grid
+const inventorySize = 20; // 6x4 grid
 const playerInventory = []; // Array to store inventory items
 let selectedItemIndex = -1;
 let activeToolType = null; // Tracks currently active tool
@@ -341,6 +341,7 @@ function cheatCreateHut() {
 function init() {
   createToolIndicator();
   initInventorySystem();
+  addSaveLoadButtons();
   // Scene
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x87ceeb); // Sky blue background
@@ -413,8 +414,8 @@ function init() {
   scene.add(player);
 
   // Spawn initial resources
-  spawnResources("wood", 80); // More trees
-  spawnResources("stone", 60); // More rocks
+  spawnResources("wood", 100); // More trees
+  spawnResources("stone", 80); // More rocks
 
   // Event Listeners
   window.addEventListener("resize", onWindowResize, false);
@@ -676,6 +677,343 @@ function handleMovement(delta) {
       );
     }
   }
+}
+
+// --- Save/Load Game Functions ---
+function saveGame() {
+  // Create a game state object to store all important data
+  const gameState = {
+    inventory: inventory,
+    playerInventory: playerInventory,
+    playerPosition: {
+      x: player.position.x,
+      y: player.position.y,
+      z: player.position.z,
+    },
+    resources: resources.map((resource) => ({
+      type: resource.userData.type,
+      position: {
+        x: resource.position.x,
+        y: resource.position.y,
+        z: resource.position.z,
+      },
+    })),
+    craftedObjects: craftedObjects.map((obj) => ({
+      // Assuming these are huts for now
+      type: "hut",
+      position: {
+        x: obj.position.x,
+        y: obj.position.y,
+        z: obj.position.z,
+      },
+    })),
+    activeToolType: activeToolType,
+    selectedItemIndex: selectedItemIndex,
+  };
+
+  // Save to localStorage
+  try {
+    localStorage.setItem("gemGameSave", JSON.stringify(gameState));
+    addMessage("Game saved successfully!");
+    showSaveNotification("Game saved successfully!");
+  } catch (e) {
+    console.error("Failed to save game:", e);
+    addMessage("Failed to save game. Error: " + e.message);
+    showSaveNotification("Failed to save game!", true);
+  }
+}
+
+function loadGame() {
+  try {
+    const savedData = localStorage.getItem("gemGameSave");
+    if (!savedData) {
+      addMessage("No saved game found.");
+      showSaveNotification("No saved game found!", true);
+      return false;
+    }
+
+    const gameState = JSON.parse(savedData);
+
+    // 1. Reset the current game state
+    resetGameState();
+
+    // 2. Load inventory
+    Object.assign(inventory, gameState.inventory);
+
+    // 3. Load player inventory items
+    gameState.playerInventory.forEach((item, index) => {
+      playerInventory[index] = item;
+    });
+    selectedItemIndex = gameState.selectedItemIndex;
+    activeToolType = gameState.activeToolType;
+    updateToolIndicator();
+
+    // 4. Set player position
+    player.position.set(
+      gameState.playerPosition.x,
+      gameState.playerPosition.y,
+      gameState.playerPosition.z,
+    );
+
+    // 5. Spawn resources
+    gameState.resources.forEach((resourceData) => {
+      spawnResourceAtPosition(
+        resourceData.type,
+        resourceData.position.x,
+        resourceData.position.y,
+        resourceData.position.z,
+      );
+    });
+
+    // 6. Recreate crafted objects (like huts)
+    gameState.craftedObjects.forEach((objData) => {
+      if (objData.type === "hut") {
+        createHutAtPosition(
+          objData.position.x,
+          objData.position.y,
+          objData.position.z,
+        );
+      }
+    });
+
+    // 7. Update UI
+    updateInventoryUI();
+    updateInventoryDisplay();
+
+    addMessage("Game loaded successfully!");
+    showSaveNotification("Game loaded successfully!");
+    return true;
+  } catch (e) {
+    console.error("Failed to load game:", e);
+    addMessage("Failed to load game. Error: " + e.message);
+    showSaveNotification("Failed to load game!", true);
+    return false;
+  }
+}
+
+// Helper function to reset the current game state
+function resetGameState() {
+  // Clear current resources
+  resources.forEach((resource) => {
+    scene.remove(resource);
+    // Dispose of geometries and materials
+    if (resource.isGroup) {
+      resource.traverse((child) => {
+        if (child.isMesh) {
+          child.geometry.dispose();
+          if (child.material.isMaterial) {
+            child.material.dispose();
+          } else {
+            child.material.forEach((material) => material.dispose());
+          }
+        }
+      });
+    } else if (resource.isMesh) {
+      resource.geometry.dispose();
+      if (resource.material.isMaterial) {
+        resource.material.dispose();
+      } else {
+        resource.material.forEach((material) => material.dispose());
+      }
+    }
+  });
+  resources.length = 0;
+
+  // Clear crafted objects
+  craftedObjects.forEach((obj) => {
+    scene.remove(obj);
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+      if (obj.material.isMaterial) {
+        obj.material.dispose();
+      } else {
+        obj.material.forEach((material) => material.dispose());
+      }
+    }
+  });
+  craftedObjects.length = 0;
+
+  // Reset inventory and player inventory
+  for (const key in inventory) {
+    inventory[key] = 0;
+  }
+  playerInventory.length = 0;
+
+  // Reset tool
+  activeToolType = null;
+  updateToolIndicator();
+
+  // Reset selection
+  selectedItemIndex = -1;
+}
+
+// Helper function to spawn a resource at a specific position
+function spawnResourceAtPosition(type, x, y, z) {
+  let resourceObject;
+
+  if (type === "wood") {
+    // Create a Tree (Group of trunk and leaves)
+    const tree = new THREE.Group();
+
+    // Trunk
+    const trunkHeight = Math.random() * 2 + 1.5; // Random height
+    const trunkRadius = 0.2 + Math.random() * 0.1;
+    const trunkGeometry = new THREE.CylinderGeometry(
+      trunkRadius * 0.8,
+      trunkRadius,
+      trunkHeight,
+      8,
+    );
+    const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513 }); // Brown
+    const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+    trunk.castShadow = true;
+    trunk.receiveShadow = true;
+    trunk.position.y = trunkHeight / 2;
+    tree.add(trunk);
+
+    // Leaves (simple cone)
+    const leavesHeight = trunkHeight * 1.5 + Math.random() * 0.5;
+    const leavesRadius = trunkRadius * 4 + Math.random() * 1;
+    const leavesGeometry = new THREE.ConeGeometry(
+      leavesRadius,
+      leavesHeight,
+      8,
+    );
+    const leavesMaterial = new THREE.MeshStandardMaterial({ color: 0x2e8b57 }); // Sea green
+    const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
+    leaves.castShadow = true;
+    leaves.position.y = trunkHeight + leavesHeight * 0.4;
+    tree.add(leaves);
+
+    resourceObject = tree;
+  } else {
+    // Stone
+    const rockRadius = 0.4 + Math.random() * 0.3;
+    const rockGeometry = new THREE.IcosahedronGeometry(rockRadius, 0);
+    const rockMaterial = new THREE.MeshStandardMaterial({
+      color: 0x808080,
+      flatShading: true,
+    });
+    const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+    rock.castShadow = true;
+    rock.receiveShadow = true;
+    resourceObject = rock;
+    resourceObject.position.y = rockRadius * 0.8;
+  }
+
+  // Set position
+  resourceObject.position.x = x;
+  resourceObject.position.y = y;
+  resourceObject.position.z = z;
+
+  resourceObject.userData = { type: type };
+  scene.add(resourceObject);
+  resources.push(resourceObject);
+
+  return resourceObject;
+}
+
+// Helper function to create a hut at a specific position
+function createHutAtPosition(x, y, z) {
+  const hutGeometry = new THREE.BoxGeometry(3, 2, 3);
+  const hutMaterial = new THREE.MeshStandardMaterial({ color: 0xd2b48c }); // Tan
+  const hut = new THREE.Mesh(hutGeometry, hutMaterial);
+
+  hut.position.set(x, y, z);
+  hut.castShadow = true;
+  hut.receiveShadow = true;
+
+  scene.add(hut);
+  craftedObjects.push(hut);
+
+  return hut;
+}
+
+// UI notification for save/load
+function showSaveNotification(message, isError = false) {
+  // Check if notification element exists, create if not
+  let notification = document.getElementById("save-notification");
+  if (!notification) {
+    notification = document.createElement("div");
+    notification.id = "save-notification";
+    document.body.appendChild(notification);
+
+    // Add styles
+    const style = document.createElement("style");
+    style.textContent = `
+      #save-notification {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      #save-notification.success {
+        border-left: 4px solid #4CAF50;
+      }
+      #save-notification.error {
+        border-left: 4px solid #F44336;
+      }
+      #save-notification.visible {
+        opacity: 1;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // Set message and show notification
+  notification.textContent = message;
+  notification.className = isError ? "error" : "success";
+  notification.classList.add("visible");
+
+  // Hide notification after 3 seconds
+  setTimeout(() => {
+    notification.classList.remove("visible");
+  }, 3000);
+}
+
+// Add to init() function:
+function addSaveLoadButtons() {
+  const gameControls = document.querySelector(".game-controls");
+
+  // Create save button
+  const saveButton = document.createElement("button");
+  saveButton.textContent = "💾 Save Game";
+  saveButton.id = "save-game-btn";
+  saveButton.className = "game-btn";
+  saveButton.addEventListener("click", saveGame);
+
+  // Create load button
+  const loadButton = document.createElement("button");
+  loadButton.textContent = "📂 Load Game";
+  loadButton.id = "load-game-btn";
+  loadButton.className = "game-btn";
+  loadButton.addEventListener("click", loadGame);
+
+  // Add buttons to UI
+  gameControls.appendChild(saveButton);
+  gameControls.appendChild(loadButton);
+
+  // Add keyboard shortcuts
+  document.addEventListener("keydown", (event) => {
+    // Ctrl+S to save
+    if (event.key.toLowerCase() === "s" && event.ctrlKey) {
+      event.preventDefault(); // Prevent browser save dialog
+      saveGame();
+    }
+
+    // Ctrl+L to load
+    if (event.key.toLowerCase() === "l" && event.ctrlKey) {
+      event.preventDefault();
+      loadGame();
+    }
+  });
 }
 
 // --- Resource Gathering ---
