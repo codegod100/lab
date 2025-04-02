@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Three.js Survival Crafting</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            body {
+                margin: 0;
+                overflow: hidden;
+                font-family: "Press Start 2P", cursive;
+                background-color: #222;
+                color: #fff;
+            }
+            #game-container {
+                position: relative;
+                width: 100vw;
+                height: 100vh;
+            }
+            #canvas {
+                display: block;
+            }
+            #ui-container {
+                position: absolute;
+                top: 0; /* Changed to 0 */
+                left: 0; /* Changed to 0 */
+                right: 0; /* Changed to 0 */
+                bottom: 0; /* Changed to 0 */
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between; /* Pushes top/bottom rows apart */
+                pointer-events: none; /* Allow clicking through the container */
+                padding: 15px; /* Consistent padding */
+                font-size: 12px; /* Smaller font for game UI */
+            }
+            .ui-panel {
+                background-color: rgba(0, 0, 0, 0.7);
+                padding: 15px;
+                border-radius: 8px; /* Rounded corners */
+                border: 2px solid #444;
+                pointer-events: auto; /* Enable interaction for panels */
+                margin-bottom: 10px; /* Spacing between panels if stacked */
+                max-width: 300px; /* Limit width */
+            }
+            .ui-panel h3 {
+                margin-top: 0;
+                margin-bottom: 10px;
+                color: #0f0; /* Greenish text */
+                border-bottom: 1px solid #444;
+                padding-bottom: 5px;
+            }
+            #inventory ul,
+            #crafting ul {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+            }
+            #inventory li,
+            #crafting li {
+                margin-bottom: 5px;
+            }
+            #crafting button {
+                background-color: #555;
+                color: #fff;
+                border: 1px solid #777;
+                padding: 5px 10px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-family: "Press Start 2P", cursive;
+                font-size: 10px; /* Smaller button text */
+                margin-left: 10px;
+                transition: background-color 0.2s ease;
+                box-shadow: 2px 2px 0px #333; /* Button shadow */
+            }
+            #crafting button:hover {
+                background-color: #777;
+            }
+            #crafting button:active {
+                background-color: #444;
+                box-shadow: 1px 1px 0px #333;
+                transform: translate(1px, 1px);
+            }
+            #crafting button:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+
+            /* Row containers for layout */
+            .ui-row {
+                display: flex;
+                justify-content: space-between;
+                width: 100%;
+            }
+            .ui-row-bottom {
+                align-items: flex-end; /* Align items to bottom within the row */
+            }
+            .ui-col-left {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start; /* Align panels to the left */
+            }
+            .ui-col-right {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end; /* Align panels to the right */
+            }
+
+            #message-log {
+                /* Inherits .ui-panel styles */
+                max-height: 120px; /* Slightly more height */
+                overflow-y: auto;
+                width: 100%; /* Take available width in its column */
+                max-width: 400px; /* Limit width */
+                /* Removed align-self: center */
+            }
+            #message-log p {
+                margin: 0 0 5px 0;
+                color: #ff0; /* Yellowish messages */
+                word-wrap: break-word; /* Wrap long messages */
+            }
+            #controls-info {
+                /* Inherits .ui-panel styles */
+                /* align-self: flex-end; is handled by parent .ui-col-right */
+            }
+        </style>
+    </head>
+    <body>
+        <div id="game-container">
+            <canvas id="canvas"></canvas>
+            <div id="ui-container">
+                <div class="ui-row">
+                    <div class="ui-col-left">
+                        <div id="inventory" class="ui-panel">
+                            <h3>Inventory</h3>
+                            <ul>
+                                <li id="inv-wood">Wood: 0</li>
+                                <li id="inv-stone">Stone: 0</li>
+                                <li id="inv-axe" style="display: none">
+                                    Axe: 1
+                                </li>
+                                <li id="inv-hut" style="display: none">
+                                    Hut: 1
+                                </li>
+                            </ul>
+                        </div>
+                        <div id="crafting" class="ui-panel">
+                            <h3>Crafting (Press E near resources)</h3>
+                            <ul>
+                                <li>
+                                    Axe (5 Wood, 2 Stone)
+                                    <button id="craft-axe">Craft</button>
+                                </li>
+                                <li>
+                                    Hut (10 Wood, 5 Stone)
+                                    <button id="craft-hut">Craft</button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div></div>
+                </div>
+
+                <div class="ui-row ui-row-bottom">
+                    <div class="ui-col-left">
+                        <div id="message-log" class="ui-panel">
+                            <p>Welcome! Use WASD to move.</p>
+                            <p>Collect resources (trees/rocks).</p>
+                        </div>
+                    </div>
+                    <div class="ui-col-right">
+                        <div id="controls-info" class="ui-panel">
+                            <h3>Controls</h3>
+                            <p>W/S: Forward/Backward</p>
+                            <p>A/D: Strafe Left/Right</p>
+                            <p>E: Gather Resource (when close)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script type="module">
+            // --- Basic Setup ---
+            let scene, camera, renderer, player, clock;
+            const moveSpeed = 5.0;
+            const keys = {}; // Keep track of pressed keys
+            const resources = []; // Store collectible resource objects (now groups)
+            const craftedObjects = []; // Store placed objects like huts
+            const inventory = { wood: 0, stone: 0, axe: 0, hut: 0 };
+            const gatherDistance = 2.0; // Slightly increased gather distance for larger models
+
+            // Crafting Recipes
+            const recipes = {
+                axe: { wood: 5, stone: 2 },
+                hut: { wood: 10, stone: 5 },
+            };
+
+            // --- Initialization ---
+            function init() {
+                // Scene
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x87ceeb); // Sky blue background
+                scene.fog = new THREE.Fog(0x87ceeb, 15, 60); // Adjusted fog
+
+                // Camera
+                camera = new THREE.PerspectiveCamera(
+                    75,
+                    window.innerWidth / window.innerHeight,
+                    0.1,
+                    1000,
+                );
+                camera.position.set(0, 1.7, 5); // Positioned slightly above ground, looking forward
+                camera.lookAt(0, 1, 0);
+
+                // Renderer
+                renderer = new THREE.WebGLRenderer({
+                    canvas: document.getElementById("canvas"),
+                    antialias: true,
+                });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.shadowMap.enabled = true; // Enable shadows
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
+
+                // Clock for delta time
+                clock = new THREE.Clock();
+
+                // Lighting
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // Soft ambient light
+                scene.add(ambientLight);
+
+                const directionalLight = new THREE.DirectionalLight(
+                    0xffffff,
+                    0.9,
+                ); // Slightly brighter Sun light
+                directionalLight.position.set(15, 20, 10); // Adjusted position
+                directionalLight.castShadow = true;
+                // Configure shadow properties
+                directionalLight.shadow.mapSize.width = 1024; // Keep reasonable shadow map size
+                directionalLight.shadow.mapSize.height = 1024;
+                directionalLight.shadow.camera.near = 0.5;
+                directionalLight.shadow.camera.far = 60; // Match fog distance
+                directionalLight.shadow.camera.left = -30; // Increase shadow area
+                directionalLight.shadow.camera.right = 30;
+                directionalLight.shadow.camera.top = 30;
+                directionalLight.shadow.camera.bottom = -30;
+                scene.add(directionalLight);
+                // Optional: Add a light helper to visualize direction
+                // const lightHelper = new THREE.DirectionalLightHelper(directionalLight, 5);
+                // scene.add(lightHelper);
+                // const shadowCameraHelper = new THREE.CameraHelper(directionalLight.shadow.camera);
+                // scene.add(shadowCameraHelper);
+
+                // Ground
+                const groundGeometry = new THREE.PlaneGeometry(120, 120); // Larger ground
+                const groundMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x228b22,
+                    side: THREE.DoubleSide,
+                }); // Forest green
+                const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+                ground.rotation.x = -Math.PI / 2; // Rotate to be flat
+                ground.receiveShadow = true; // Allow ground to receive shadows
+                scene.add(ground);
+
+                // Player (simple cube)
+                const playerGeometry = new THREE.BoxGeometry(0.5, 1.8, 0.5); // Approx human height
+                const playerMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x0000ff,
+                }); // Blue player
+                player = new THREE.Mesh(playerGeometry, playerMaterial);
+                player.position.y = 0.9; // Position player slightly above ground base
+                player.castShadow = true;
+                scene.add(player);
+
+                // Spawn initial resources
+                spawnResources("wood", 30); // More trees
+                spawnResources("stone", 25); // More rocks
+
+                // Event Listeners
+                window.addEventListener("resize", onWindowResize, false);
+                document.addEventListener("keydown", (event) => {
+                    keys[event.key.toLowerCase()] = true;
+                });
+                document.addEventListener("keyup", (event) => {
+                    keys[event.key.toLowerCase()] = false;
+                    if (event.key.toLowerCase() === "e") {
+                        tryGatherResource();
+                    }
+                });
+
+                // Crafting Button Listeners
+                document
+                    .getElementById("craft-axe")
+                    .addEventListener("click", () => craftItem("axe"));
+                document
+                    .getElementById("craft-hut")
+                    .addEventListener("click", () => craftItem("hut"));
+
+                // Start the game loop
+                animate();
+                updateInventoryUI(); // Initial UI update
+                addMessage("Game started. Find resources!");
+            }
+
+            // --- Resource Spawning ---
+            function spawnResources(type, count) {
+                const spread = 100; // How far resources spread from center
+
+                for (let i = 0; i < count; i++) {
+                    let resourceObject; // This will be the Mesh or Group
+
+                    if (type === "wood") {
+                        // Create a Tree (Group of trunk and leaves)
+                        const tree = new THREE.Group();
+
+                        // Trunk
+                        const trunkHeight = Math.random() * 2 + 1.5; // Random height
+                        const trunkRadius = 0.2 + Math.random() * 0.1;
+                        const trunkGeometry = new THREE.CylinderGeometry(
+                            trunkRadius * 0.8,
+                            trunkRadius,
+                            trunkHeight,
+                            8,
+                        );
+                        const trunkMaterial = new THREE.MeshStandardMaterial({
+                            color: 0x8b4513,
+                        }); // Brown
+                        const trunk = new THREE.Mesh(
+                            trunkGeometry,
+                            trunkMaterial,
+                        );
+                        trunk.castShadow = true;
+                        trunk.receiveShadow = true; // Trunk can receive shadow from leaves
+                        trunk.position.y = trunkHeight / 2; // Base at y=0
+                        tree.add(trunk);
+
+                        // Leaves (simple cone)
+                        const leavesHeight =
+                            trunkHeight * 1.5 + Math.random() * 0.5;
+                        const leavesRadius =
+                            trunkRadius * 4 + Math.random() * 1;
+                        const leavesGeometry = new THREE.ConeGeometry(
+                            leavesRadius,
+                            leavesHeight,
+                            8,
+                        );
+                        const leavesMaterial = new THREE.MeshStandardMaterial({
+                            color: 0x2e8b57,
+                        }); // Sea green
+                        const leaves = new THREE.Mesh(
+                            leavesGeometry,
+                            leavesMaterial,
+                        );
+                        leaves.castShadow = true;
+                        leaves.position.y = trunkHeight + leavesHeight * 0.4; // Position above trunk
+                        tree.add(leaves);
+
+                        resourceObject = tree;
+                        resourceObject.position.y = 0; // Group's base is at ground level
+                    } else {
+                        // Stone
+                        // Create a Rock (Jagged shape)
+                        const rockRadius = 0.4 + Math.random() * 0.3;
+                        // IcosahedronGeometry gives a more jagged look than Sphere
+                        const rockGeometry = new THREE.IcosahedronGeometry(
+                            rockRadius,
+                            0,
+                        ); // Detail level 0 for fewer faces
+                        const rockMaterial = new THREE.MeshStandardMaterial({
+                            color: 0x808080,
+                            flatShading: true,
+                        }); // Grey, flat shading emphasizes facets
+                        const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+                        rock.castShadow = true;
+                        rock.receiveShadow = true; // Rocks can receive shadows
+                        resourceObject = rock;
+                        resourceObject.position.y = rockRadius * 0.8; // Position slightly above ground based on radius
+                    }
+
+                    // Set position and add to scene/array
+                    resourceObject.position.x = (Math.random() - 0.5) * spread;
+                    resourceObject.position.z = (Math.random() - 0.5) * spread;
+
+                    // Ensure resources don't spawn too close to the center (player start)
+                    if (resourceObject.position.length() < 5) {
+                        resourceObject.position.setLength(
+                            5 + Math.random() * (spread / 2 - 5),
+                        ); // Move it further out
+                    }
+
+                    resourceObject.userData = { type: type }; // Store resource type in the group/mesh
+                    scene.add(resourceObject);
+                    resources.push(resourceObject);
+                }
+            }
+
+            // --- Game Loop ---
+            function animate() {
+                requestAnimationFrame(animate);
+                const delta = clock.getDelta(); // Time since last frame
+
+                handleMovement(delta);
+
+                renderer.render(scene, camera);
+            }
+
+            // --- Player Movement ---
+            function handleMovement(delta) {
+                const moveDistance = moveSpeed * delta;
+                const moveDirection = new THREE.Vector3();
+
+                // Get forward/backward direction based on camera
+                const forward = new THREE.Vector3();
+                camera.getWorldDirection(forward);
+                forward.y = 0; // Keep movement horizontal
+                forward.normalize();
+
+                // Get right/left direction (strafe)
+                const right = new THREE.Vector3();
+                right.crossVectors(camera.up, forward).normalize(); // Right is perpendicular to up and forward
+
+                if (keys["w"]) {
+                    moveDirection.add(forward);
+                }
+                if (keys["s"]) {
+                    moveDirection.sub(forward);
+                }
+                // --- CORRECTED STRAFE ---
+                if (keys["a"]) {
+                    moveDirection.sub(right); // Strafe Left (Subtract Right Vector)
+                }
+                if (keys["d"]) {
+                    moveDirection.add(right); // Strafe Right (Add Right Vector)
+                }
+
+                // Normalize diagonal movement to prevent faster speed
+                if (moveDirection.lengthSq() > 0) {
+                    // Use lengthSq for efficiency
+                    moveDirection.normalize();
+                    player.position.addScaledVector(
+                        moveDirection,
+                        moveDistance,
+                    );
+
+                    // --- Simpler First-Person Style Camera ---
+                    // Make camera follow player directly
+                    // Calculate the offset based on where the camera *should* be relative to player's front
+                    const cameraOffsetBehind = 3; // How far behind
+                    const cameraOffsetY = 0.7; // How high up (eye level)
+
+                    // Calculate the position directly behind the player based on the forward vector
+                    // We use the *negated* forward vector to find the point behind.
+                    const cameraTargetPosition = player.position.clone();
+                    cameraTargetPosition.addScaledVector(
+                        forward.negate(),
+                        cameraOffsetBehind,
+                    ); // Move behind
+                    cameraTargetPosition.y = player.position.y + cameraOffsetY; // Adjust height
+
+                    // Smoothly interpolate camera position
+                    camera.position.lerp(cameraTargetPosition, 0.15); // Adjust lerp factor (0.1 to 0.3) for smoothness
+
+                    // Always look at a point slightly above the player's base
+                    camera.lookAt(
+                        player.position.x,
+                        player.position.y + 0.5,
+                        player.position.z,
+                    );
+                }
+            }
+
+            // --- Resource Gathering ---
+            function tryGatherResource() {
+                let gathered = false;
+                for (let i = resources.length - 1; i >= 0; i--) {
+                    const resource = resources[i];
+                    // Calculate distance ignoring Y axis for simpler ground-based check
+                    const playerPos2D = new THREE.Vector2(
+                        player.position.x,
+                        player.position.z,
+                    );
+                    const resourcePos2D = new THREE.Vector2(
+                        resource.position.x,
+                        resource.position.z,
+                    );
+                    const distance = playerPos2D.distanceTo(resourcePos2D);
+
+                    if (distance < gatherDistance) {
+                        const type = resource.userData.type;
+                        inventory[type]++;
+                        addMessage(`Gathered 1 ${type}!`);
+                        scene.remove(resource); // Remove from scene
+                        // If it's a group (like a tree), recursively dispose of geometry/material
+                        if (resource.isGroup) {
+                            resource.traverse((child) => {
+                                if (child.isMesh) {
+                                    child.geometry.dispose();
+                                    if (child.material.isMaterial) {
+                                        child.material.dispose();
+                                    } else {
+                                        // Array of materials
+                                        child.material.forEach((material) =>
+                                            material.dispose(),
+                                        );
+                                    }
+                                }
+                            });
+                        } else if (resource.isMesh) {
+                            // Single mesh like a rock
+                            resource.geometry.dispose();
+                            if (resource.material.isMaterial) {
+                                resource.material.dispose();
+                            } else {
+                                resource.material.forEach((material) =>
+                                    material.dispose(),
+                                );
+                            }
+                        }
+                        resources.splice(i, 1); // Remove from array
+                        updateInventoryUI();
+                        gathered = true;
+                        break; // Gather only one resource per key press
+                    }
+                }
+                if (!gathered) {
+                    // Optional: Add message if E is pressed but nothing is nearby
+                    // addMessage("No resources nearby to gather.");
+                }
+            }
+
+            // --- Crafting ---
+            function craftItem(itemName) {
+                const recipe = recipes[itemName];
+                if (!recipe) {
+                    addMessage(`Unknown recipe: ${itemName}`);
+                    return;
+                }
+
+                // Check if player has enough resources
+                let canCraft = true;
+                for (const resourceType in recipe) {
+                    if (inventory[resourceType] < recipe[resourceType]) {
+                        canCraft = false;
+                        addMessage(
+                            `Not enough ${resourceType}. Need ${recipe[resourceType]}.`,
+                        );
+                        break;
+                    }
+                }
+
+                if (canCraft) {
+                    // Deduct resources
+                    for (const resourceType in recipe) {
+                        inventory[resourceType] -= recipe[resourceType];
+                    }
+
+                    // Add crafted item to inventory
+                    inventory[itemName]++;
+                    addMessage(`Crafted 1 ${itemName}!`);
+
+                    if (itemName === "hut") {
+                        // Don't place immediately, maybe require placement mode later?
+                        // For now, just incrementing inventory count.
+                        // placeHut(); // We can re-enable placement if desired
+                        addMessage("Hut added to inventory (placement TBD).");
+                    }
+                    if (itemName === "axe") {
+                        addMessage("Axe equipped! (Effect TBD).");
+                    }
+
+                    updateInventoryUI();
+                }
+            }
+
+            // --- Placing Structures (Example - currently not called automatically) ---
+            function placeHut() {
+                // Simple placement in front of player
+                const hutGeometry = new THREE.BoxGeometry(3, 2, 3);
+                const hutMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xd2b48c,
+                }); // Tan
+                const hut = new THREE.Mesh(hutGeometry, hutMaterial);
+
+                const forward = new THREE.Vector3();
+                player.getWorldDirection(forward);
+                forward.y = 0;
+                forward.normalize();
+
+                const placementOffset = 4; // Place slightly further
+                hut.position
+                    .copy(player.position)
+                    .addScaledVector(forward, placementOffset);
+                hut.position.y = 1; // Base on ground
+
+                hut.castShadow = true;
+                hut.receiveShadow = true;
+                scene.add(hut);
+                craftedObjects.push(hut);
+                addMessage("Placed Hut!");
+                // Decide if inventory['hut'] should be consumed upon placement
+                // inventory['hut']--;
+                // updateInventoryUI();
+            }
+
+            // --- UI Updates ---
+            function updateInventoryUI() {
+                document.getElementById("inv-wood").textContent =
+                    `Wood: ${inventory.wood}`;
+                document.getElementById("inv-stone").textContent =
+                    `Stone: ${inventory.stone}`;
+
+                const axeInv = document.getElementById("inv-axe");
+                const hutInv = document.getElementById("inv-hut");
+                axeInv.style.display = inventory.axe > 0 ? "block" : "none";
+                hutInv.style.display = inventory.hut > 0 ? "block" : "none";
+
+                // Disable craft buttons if resources are insufficient
+                for (const itemName in recipes) {
+                    const button = document.getElementById(`craft-${itemName}`);
+                    if (button) {
+                        let canCraft = true;
+                        const recipe = recipes[itemName];
+                        for (const resourceType in recipe) {
+                            if (
+                                inventory[resourceType] < recipe[resourceType]
+                            ) {
+                                canCraft = false;
+                                break;
+                            }
+                        }
+                        button.disabled = !canCraft;
+                    }
+                }
+            }
+
+            function addMessage(text) {
+                const messageLog = document.getElementById("message-log");
+                const p = document.createElement("p");
+                p.textContent = `> ${text}`;
+                // Prepend new messages to the top
+                messageLog.insertBefore(p, messageLog.firstChild);
+
+                // Limit number of messages by removing the oldest ones from the bottom
+                const maxMessages = 7;
+                while (messageLog.children.length > maxMessages) {
+                    messageLog.removeChild(messageLog.lastChild);
+                }
+            }
+
+            // --- Window Resize ---
+            function onWindowResize() {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            // --- Start ---
+            // Use window.onload to ensure everything including fonts is ready
+            window.onload = function () {
+                init();
+            };
+        </script>
+    </body>
+</html>
