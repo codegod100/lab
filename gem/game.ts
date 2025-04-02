@@ -1120,8 +1120,20 @@ async function init() {
   createToolIndicator(); // Create the indicator element
   addSaveLoadButtons(); // Add save/load buttons
 
+  // --- NEW: Add Crafting Button Event Listeners ---
+  for (const itemName in recipes) {
+    const button = document.getElementById(`craft-${itemName}-btn`);
+    if (button) {
+      // Add listener to call craftItem with the correct item name
+      button.addEventListener("click", () => craftItem(itemName));
+    } else {
+      console.warn(`Crafting button element "craft-${itemName}-btn" not found during init.`);
+    }
+  }
+  // --- END NEW ---
+
   // Initial UI Update
-  updateInventoryUI();
+  updateInventoryUI(); // This will correctly set initial disabled state
   updateToolIndicator(); // Update display (should be hidden initially)
 
   // Event Listeners
@@ -1310,85 +1322,43 @@ function updateInventoryUI() {
   if (invWoodEl) invWoodEl.textContent = String(inventory.wood);
   if (invStoneEl) invStoneEl.textContent = String(inventory.stone);
 
-  // Update craft button states based on resources (example for axe)
-  const craftAxeBtn = document.getElementById(
-    "craft-axe-btn",
-  ) as HTMLButtonElement | null;
-  if (craftAxeBtn) {
-    const canCraftAxe =
-      inventory.wood >= recipes.axe.wood &&
-      inventory.stone >= recipes.axe.stone;
-    craftAxeBtn.disabled = !canCraftAxe;
-    craftAxeBtn.title = canCraftAxe
-      ? "Craft Wooden Axe (Cost: 5 Wood, 2 Stone)"
-      : `Need ${recipes.axe.wood} Wood, ${recipes.axe.stone} Stone`;
-  }
-  // Update other craft buttons similarly
-  const craftHutBtn = document.getElementById(
-    "craft-hut-btn",
-  ) as HTMLButtonElement | null;
-  if (craftHutBtn) {
-    const canCraftHut =
-      inventory.wood >= recipes.hut.wood &&
-      inventory.stone >= recipes.hut.stone;
-    craftHutBtn.disabled = !canCraftHut;
-    craftHutBtn.title = canCraftHut
-      ? `Craft Small Hut (Cost: ${recipes.hut.wood} Wood, ${recipes.hut.stone} Stone)`
-      : `Need ${recipes.hut.wood} Wood, ${recipes.hut.stone} Stone`;
-  }
-  const craftWallBtn = document.getElementById(
-    "craft-wall-btn",
-  ) as HTMLButtonElement | null;
-  if (craftWallBtn) {
-    const canCraftWall = inventory.wood >= recipes.wall.wood;
-    craftWallBtn.disabled = !canCraftWall;
-    craftWallBtn.title = canCraftWall
-      ? `Craft Wooden Wall (Cost: ${recipes.wall.wood} Wood)`
-      : `Need ${recipes.wall.wood} Wood`;
-  }
-  const craftFloorBtn = document.getElementById(
-    "craft-floor-btn",
-  ) as HTMLButtonElement | null;
-  if (craftFloorBtn) {
-    const canCraftFloor = inventory.wood >= recipes.floor.wood;
-    craftFloorBtn.disabled = !canCraftFloor;
-    craftFloorBtn.title = canCraftFloor
-      ? `Craft Wooden Floor (Cost: ${recipes.floor.wood} Wood)`
-      : `Need ${recipes.floor.wood} Wood`;
-  }
-
-  // Add logic for other craftable items here...
+  // Generic loop handles all craftable items based on recipes
   for (const itemName in recipes) {
     const button = document.getElementById(
       `craft-${itemName}-btn`,
     ) as HTMLButtonElement | null;
     if (button) {
       let canCraft = true;
-      // FIX: Explicitly type 'needed' as string[]
-      let needed: string[] = [];
-      for (const resourceType in recipes[itemName]) {
-        // Ensure inventory has the property before checking value
+      let needed: string[] = []; // Explicitly type 'needed' as string[]
+      const currentRecipe = recipes[itemName]; // Cache recipe for readability
+
+      for (const resourceType in currentRecipe) {
+        // Ensure inventory has the property AND enough quantity
         if (
-            !inventory.hasOwnProperty(resourceType) || // Check if resource exists in inventory
-            inventory[resourceType] < recipes[itemName][resourceType]
-           ) {
+          !inventory.hasOwnProperty(resourceType) || // Check if resource type exists in inventory
+          inventory[resourceType] < currentRecipe[resourceType] // Check quantity
+        ) {
           canCraft = false;
-          needed.push(`${recipes[itemName][resourceType]} ${resourceType}`);
+          needed.push(`${currentRecipe[resourceType]} ${resourceType}`);
         }
       }
-      button.disabled = !canCraft;
+
+      button.disabled = !canCraft; // Disable button if cannot craft
+
       if (!canCraft) {
+        // Set tooltip to show needed resources
         button.title = `Need: ${needed.join(", ")}`;
       } else {
-        const costString = Object.entries(recipes[itemName])
+        // Set tooltip to show item name and cost
+        const costString = Object.entries(currentRecipe)
           .map(([res, amount]) => `${amount} ${res}`)
           .join(", ");
         const itemDef = itemDefinitions[itemName];
         button.title = `Craft ${itemDef ? itemDef.name : itemName} (Cost: ${costString})`;
       }
     } else {
-      // Don't warn every frame, maybe just once in init if needed
-      // console.warn(`Craft button for "${itemName}" not found.`);
+      // Optional: Warn if a button defined in HTML isn't found for a recipe
+      // console.warn(`Craft button element "craft-${itemName}-btn" not found.`);
     }
   }
 }
@@ -2274,47 +2244,54 @@ function handleMovement(delta: number) {
   const playerMoveDirection = new THREE.Vector3();
   const objectMoveDirection = new THREE.Vector3(); // For moving objects
 
-  // Get player's forward and right directions (based on player group's orientation)
+  // --- Player Rotation (Allow always, except when moving an object) ---
+  // Handle rotation first, so forward/right vectors are updated before use.
+  if (!moveMode) { // Prevent player rotation while actively moving an object
+    if (keys["a"]) player.rotation.y += delta * 2.0; // Rotate left
+    if (keys["d"]) player.rotation.y -= delta * 2.0; // Rotate right
+  }
+
+  // Get player's forward and right directions (based on potentially updated rotation)
   const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(
     player.quaternion,
   );
   const right = new THREE.Vector3(1, 0, 0).applyQuaternion(player.quaternion);
 
-  let isPlayerMoving = false;
+  let isPlayerMoving = false; // Tracks if player *translates*
   let isObjectMoving = false;
 
   // --- Object Movement Input (if in move mode) ---
   if (moveMode && selectedObject) {
+    isObjectMoving = true; // Assume moving if in move mode and keys are pressed
     // Use player's view direction for object movement control
     if (keys["w"]) objectMoveDirection.add(forward);
     if (keys["s"]) objectMoveDirection.sub(forward);
-    if (keys["a"]) objectMoveDirection.sub(right); // Strafe object left relative to player view
-    if (keys["d"]) objectMoveDirection.add(right); // Strafe object right relative to player view
+    // Use A/D for strafing the object relative to player view
+    if (keys["a"]) objectMoveDirection.sub(right);
+    if (keys["d"]) objectMoveDirection.add(right);
 
     if (objectMoveDirection.lengthSq() > 0) {
-      isObjectMoving = true;
       objectMoveDirection.normalize();
       // Apply movement directly to the selected object (it's a Mesh)
       selectedObject.position.addScaledVector(
         objectMoveDirection,
         moveDistance,
       );
-      // Optional: Add collision detection for the moving object here (or in confirmMove)
+      // Optional: Add collision detection for the moving object here
       // Optional: Snap to grid while moving?
-      // selectedObject.position.x = Math.round(selectedObject.position.x / 3) * 3;
-      // selectedObject.position.z = Math.round(selectedObject.position.z / 3) * 3;
+    } else {
+        isObjectMoving = false; // No direction keys pressed for object
     }
   }
-  // --- Player Movement Input (if NOT in move mode or placement mode) ---
-  else if (!isInPlacementMode) {
+  // --- Player Translation Input (if NOT in move mode AND NOT in placement mode) ---
+  // This block handles W/S movement. It's skipped if moveMode or isInPlacementMode is true.
+  else if (!isInPlacementMode) { // Checks !moveMode implicitly (due to else if) AND !isInPlacementMode
     if (keys["w"]) playerMoveDirection.add(forward);
     if (keys["s"]) playerMoveDirection.sub(forward);
-    // A/D now control ROTATION, not strafing, for tank controls feel
-    if (keys["a"]) player.rotation.y += delta * 2.0; // Rotate left
-    if (keys["d"]) player.rotation.y -= delta * 2.0; // Rotate right
+    // A/D rotation is handled above
 
     if (playerMoveDirection.lengthSq() > 0) {
-      isPlayerMoving = true;
+      // Player is trying to translate
       playerMoveDirection.normalize();
 
       // Calculate target position
@@ -2323,83 +2300,66 @@ function handleMovement(delta: number) {
         .addScaledVector(playerMoveDirection, moveDistance);
 
       // --- Basic Collision Detection ---
-      // Define player collider (adjust size/offset as needed)
-      const playerColliderSize = new THREE.Vector3(0.6, 1.7, 0.6); // Slightly wider/deeper
-      const playerColliderOffset = new THREE.Vector3(
-        0,
-        playerColliderSize.y / 2,
-        0,
-      ); // Center at base
+      const playerColliderSize = new THREE.Vector3(0.6, 1.7, 0.6);
+      const playerColliderOffset = new THREE.Vector3(0, playerColliderSize.y / 2, 0);
       const targetPlayerBox = new THREE.Box3().setFromCenterAndSize(
         targetPosition.clone().add(playerColliderOffset),
         playerColliderSize,
       );
 
       let collisionOccurred = false;
-      // Check against crafted objects
       for (const obj of craftedObjects) {
         const objBox = new THREE.Box3().setFromObject(obj);
         if (targetPlayerBox.intersectsBox(objBox)) {
           collisionOccurred = true;
-          break; // Stop checking after first collision
+          break;
         }
       }
-      // Check against resources (optional, maybe allow walking through trees/rocks?)
-      // if (!collisionOccurred) {
-      //     for (const res of resources) {
-      //         const resBox = new THREE.Box3().setFromObject(res);
-      //         if (targetPlayerBox.intersectsBox(resBox)) {
-      //             collisionOccurred = true;
-      //             break;
-      //         }
-      //     }
-      // }
-      // --- End Collision Detection ---
+      // Optional: Check against resources
+      // ...
 
       // Apply the position only if no collision occurred
       if (!collisionOccurred) {
         player.position.copy(targetPosition);
+        isPlayerMoving = true; // Player successfully translated
       } else {
-        // Optional: Add slight slide effect along the collision surface instead of just stopping
-        // This is more complex, involves calculating penetration depth and direction
-        isPlayerMoving = false; // Treat as not moving if blocked
+        // Collision occurred, player did not move forward/backward
+        isPlayerMoving = false;
       }
     }
-  }
+  } // End Player Translation block
 
   // --- Animation Handling ---
+  // (Animation logic remains the same, based on isPlayerMoving, isJumping, etc.)
   if (mixer) {
     let targetAnimationKey: string | null = null;
 
-    if (isPlayerMoving) {
+    // Determine animation based on state (moving, jumping, falling, idle)
+    if (isPlayerMoving && isOnGround) { // Check isOnGround for run/walk
       targetAnimationKey = findAnimation(["run", "walk"]);
     } else if (isJumping) {
-      // Jump animation is triggered in startJump, maybe a looping mid-air anim?
-      targetAnimationKey = findAnimation([
-        "jump_idle",
-        "air",
-        "jump_loop",
-        "jump",
-      ]); // Find a looping jump/air anim
-    } else if (!isOnGround && playerVelocity.y < -0.5) {
-      // Check for falling state
-      targetAnimationKey = findAnimation(["fall", "falling"]);
-    } else {
-      // Idle state (on ground, not moving, not jumping/falling)
-      targetAnimationKey = findAnimation(["idle", "stand"]); // Default to idle
+      targetAnimationKey = findAnimation(["jump_idle", "air", "jump_loop", "jump"]);
+    } else if (!isOnGround && playerVelocity.y < -0.1) { // Added threshold for falling anim
+      targetAnimationKey = findAnimation(["fall", "falling", "air"]); // Include air as fallback
+    } else if (isOnGround) { // Idle only if on ground and not moving/jumping
+      targetAnimationKey = findAnimation(["idle", "stand"]);
     }
 
-    // Play animation only if it's different from the current one or if the current one finished (e.g., jump start -> jump loop)
+    // Play the determined animation
     if (targetAnimationKey && currentAnimation !== targetAnimationKey) {
-      playAnimation(targetAnimationKey, 0.2);
-    } else if (
-      !targetAnimationKey &&
-      currentAnimation !== "idle" &&
-      isOnGround
-    ) {
-      // Fallback to idle if no specific animation found and on ground
+      // Ensure the action exists before playing
+      if (playerAnimations[targetAnimationKey]) {
+          playAnimation(targetAnimationKey, 0.2);
+      } else {
+          // Fallback to idle if target animation is missing but should exist
+          console.warn(`Target animation "${targetAnimationKey}" not found, attempting idle.`);
+          const idleAnim = findAnimation(["idle", "stand"]);
+          if (idleAnim && currentAnimation !== idleAnim) playAnimation(idleAnim, 0.3);
+      }
+    } else if (!targetAnimationKey && currentAnimation !== "idle" && isOnGround) {
+      // Explicit fallback to idle if no other state matches and on ground
       const idleAnim = findAnimation(["idle", "stand"]);
-      if (idleAnim) playAnimation(idleAnim, 0.3);
+      if (idleAnim && currentAnimation !== idleAnim) playAnimation(idleAnim, 0.3);
     }
   }
   // --- End Animation Handling ---
