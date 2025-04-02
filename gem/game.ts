@@ -63,6 +63,7 @@ const craftedObjects: THREE.Mesh[] = []; // Store placed objects like huts, wall
 const inventory: { [key: string]: number } = { wood: 0, stone: 0 };
 const gatherDistance = 2.0;
 const inventorySize = 20; // 5x4 grid
+const SNAP_DISTANCE = 0.5; // Max distance for edges to snap in move mode
 // Initialize inventory with nulls
 const playerInventory: (InventoryItem | null)[] = new Array(inventorySize).fill(
   null,
@@ -74,6 +75,7 @@ let placementPreviewObject: THREE.Mesh | null = null; // Preview is always a Mes
 let placementItemType: string | null = null;
 let placementIsValid = false;
 let supported = false; // Variable to track if placement is supported (used in confirmPlacement message)
+let rayHelper: THREE.Line | null = null; // For debugging raycaster
 
 let mixer: THREE.AnimationMixer | null = null; // Initialize as null
 let playerAnimations: { [key: string]: THREE.AnimationAction } = {};
@@ -526,25 +528,16 @@ function confirmPlacement() {
 
 // Cancel placement (minor update for cleanup)
 function cancelPlacement() {
-  if (!isInPlacementMode) return;
-
-  addMessage("Placement cancelled.");
-
-  // --- Clean up placement mode ---
-  if (placementPreviewObject) {
+  if (isInPlacementMode && placementPreviewObject) {
     scene.remove(placementPreviewObject);
-    // Dispose geometry and the *cloned* preview material
-    placementPreviewObject.geometry?.dispose();
-    disposeMaterial(placementPreviewObject.material);
+    disposeObject3D(placementPreviewObject); // Dispose geometry/material
+    placementPreviewObject = null;
+    placementItemType = null;
+    isInPlacementMode = false;
+    addMessage("Placement cancelled.");
+    updateGameControls();
+    removeRaycastHelper(); // Clean up helper
   }
-  placementPreviewObject = null;
-  isInPlacementMode = false;
-  placementItemType = null;
-  placementIsValid = false;
-  supported = false; // Reset supported flag
-
-  // No need to give item back, as it wasn't removed yet.
-  updateInventoryDisplay(); // Refresh UI in case selection changed visually
 }
 
 // Use the selected item (updated for generic placement)
@@ -1160,92 +1153,161 @@ async function init() {
 
 // Separate KeyDown Handler
 function handleKeyDown(event: KeyboardEvent) {
-  // Ignore key presses if typing in an input/textarea
-  if (
-    event.target instanceof HTMLInputElement ||
-    event.target instanceof HTMLTextAreaElement ||
-    (event.target instanceof HTMLElement && event.target.isContentEditable)
-  ) {
-    return;
+  keys[event.key.toLowerCase()] = true;
+
+  // --- Inventory Hotkeys (1-5) ---
+  if (["1", "2", "3", "4", "5"].includes(event.key)) {
+    const index = parseInt(event.key) - 1;
+    selectInventoryItem(index);
   }
 
-  const keyLower = event.key.toLowerCase();
-  keys[keyLower] = true;
+  // --- Jump ---
+  if (event.key === " " && isOnGround && !moveMode && !isInPlacementMode) {
+    isJumping = true;
+    isOnGround = false;
+    playerVelocity.y = JUMP_FORCE;
+    jumpStartY = player.position.y; // Record starting height for potential jump limit
+    playAnimation(findAnimation(["jump_start", "jump"]) || "jump", 0.1); // Play jump start animation
+  }
 
-  // Handle single-press actions
-  switch (keyLower) {
-    case "e": // Gather resource OR Confirm Placement
-      if (isInPlacementMode) {
-        confirmPlacement();
-      } else if (!moveMode) {
-        // Don't gather if moving object
-        tryGatherResource();
+  // --- Gather Resource ---
+  if (event.key.toLowerCase() === "e" && !moveMode && !isInPlacementMode) {
+    tryGatherResource();
+  }
+
+  // --- Place Item (Confirm Placement) ---
+  if (event.key.toLowerCase() === "e" && isInPlacementMode) {
+    confirmPlacement();
+    removeRaycastHelper(); // Clean up if user places while helper is visible
+  }
+
+  // --- Rotate Item (Placement or Move Mode) ---
+  if (event.key.toLowerCase() === "r") {
+    if (isInPlacementMode && placementPreviewObject) {
+      placementPreviewObject.rotation.y += Math.PI / 2; // Rotate 90 degrees
+      updatePlacementPreview(); // Update validity after rotation
+    } else if (moveMode && selectedObject) {
+      selectedObject.rotation.y += Math.PI / 2; // Rotate selected object
+      // Snapping logic might need adjustment for rotated objects if not already handled
+    }
+  }
+
+  // --- Use Selected Item / Start Placement ---
+  if (event.key.toLowerCase() === "u" && !moveMode && !isInPlacementMode) {
+    useSelectedItem();
+  }
+
+  // --- Cancel Placement ---
+  if (event.key === "Escape" && isInPlacementMode) {
+    cancelPlacement();
+    removeRaycastHelper(); // Clean up helper on cancel
+  }
+
+  // --- Toggle Move Mode ---
+  if (event.key.toLowerCase() === "m") {
+    if (isInPlacementMode) {
+        console.log("M Key: Cannot enter move mode while placing."); // DEBUG
+        return;
+    }
+
+    if (!moveMode) {
+      // --- Attempt to enter move mode: Select nearest object ---
+      console.log("M Key: Attempting to enter move mode..."); // DEBUG
+
+      // --- Get Camera World Position and Direction ---
+      const cameraWorldPosition = new THREE.Vector3();
+      camera.getWorldPosition(cameraWorldPosition); // Get world position
+
+      const cameraDirection = new THREE.Vector3();
+      camera.getWorldDirection(cameraDirection); // Get world direction
+      // ---
+
+      console.log(`  Camera World Position: x:${cameraWorldPosition.x.toFixed(2)}, y:${cameraWorldPosition.y.toFixed(2)}, z:${cameraWorldPosition.z.toFixed(2)}`); // DEBUG WORLD POS
+
+      // --- DEBUG CRAFTED OBJECTS ---
+      // ... (logging crafted objects - unchanged) ...
+      console.log(`  Crafted Objects (${craftedObjects.length}):`);
+      craftedObjects.forEach((obj, index) => {
+          const box = new THREE.Box3().setFromObject(obj);
+          const size = box.getSize(new THREE.Vector3());
+          console.log(`    [${index}] UUID: ${obj.uuid}, Type: ${obj.userData?.type || 'Unknown'}, Pos: x:${obj.position.x.toFixed(2)}, z:${obj.position.z.toFixed(2)}, Size: x:${size.x.toFixed(2)}, z:${size.z.toFixed(2)}`);
+      });
+      // --- END DEBUG ---
+
+      const raycaster = new THREE.Raycaster();
+      // --- Use World Position for Raycaster ---
+      raycaster.set(cameraWorldPosition, cameraDirection);
+      // ---
+
+      // --- Visualize Ray using World Position ---
+      showRaycastHelper(cameraWorldPosition, cameraDirection, 15); // Show a 15 unit long red line
+      // ---
+
+      // Only check intersections with craftedObjects
+      console.log(`M Key: Raycasting against ${craftedObjects.length} crafted objects.`); // DEBUG
+      const intersects = raycaster.intersectObjects(craftedObjects);
+      console.log(`M Key: Raycast found ${intersects.length} intersections.`); // DEBUG
+
+      if (intersects.length > 0) {
+        // Find the closest intersected object that is a Mesh within range
+        let closestMesh: THREE.Mesh | null = null;
+        let closestDistance = Infinity;
+
+        for (const intersect of intersects) {
+           console.log(`  Checking intersect: dist=${intersect.distance.toFixed(2)}, obj type=${intersect.object.constructor.name}`); // DEBUG
+          if (intersect.object instanceof THREE.Mesh && intersect.distance < closestDistance) {
+            if (intersect.distance < 10) { // Selection range check
+                console.log(`    Found potential Mesh within range: ${intersect.object.userData?.type || 'Unknown'}`); // DEBUG
+                closestMesh = intersect.object;
+                closestDistance = intersect.distance;
+            } else {
+                 console.log(`    Mesh too far: ${intersect.distance.toFixed(2)}`); // DEBUG
+            }
+          }
+        }
+
+        if (closestMesh) {
+          selectedObject = closestMesh; // Assign the selected mesh
+          moveMode = true; // Enter move mode ONLY if an object is selected
+          console.log(`M Key: Move Mode ON. Selected object UUID: ${selectedObject.uuid}`); // DEBUG
+          addMessage(
+            `Move Mode ON. Selected: ${selectedObject.userData?.type || 'Object'}. WASD=Move, R=Rotate, M=Confirm/Exit.`,
+          );
+          // Optional: Add visual indication (outline, different material)
+        } else {
+          console.log("M Key: No suitable mesh found nearby to move."); // DEBUG
+          addMessage("No suitable object found nearby to move.");
+          selectedObject = null;
+          moveMode = false;
+          // Don't remove ray helper here, let user see where it pointed
+        }
+      } else {
+        console.log("M Key: No objects found in line of sight to move."); // DEBUG
+        addMessage("No objects found in line of sight to move.");
+        selectedObject = null;
+        moveMode = false;
+        // Don't remove ray helper here
       }
-      break;
-    case " ": // Jump
-      if (isOnGround && !isJumping && !moveMode && !isInPlacementMode) {
-        // Prevent jumping in special modes
-        startJump();
+    } else {
+      // --- Exit move mode ---
+      console.log("M Key: Exiting move mode."); // DEBUG
+      moveMode = false;
+      removeRaycastHelper(); // Clean up helper when exiting mode
+      if (selectedObject) {
+        console.log(`M Key: Deselected object UUID: ${selectedObject.uuid}`); // DEBUG
+        addMessage(`Move Mode OFF. Final position for ${selectedObject.userData?.type || 'Object'}.`);
+        // Optional: Restore original material if changed
+        selectedObject = null; // Deselect
+      } else {
+        addMessage("Move Mode OFF.");
       }
-      break;
-    case "i": // Toggle Inventory
-      toggleInventory();
-      break;
-    case "u": // Use Selected Item (Place or Activate Tool)
-      useSelectedItem();
-      break;
-    case "m": // Toggle Move Mode
-      toggleMoveMode();
-      break;
-    case "enter": // Confirm Move
-      if (moveMode) {
-        confirmMove();
-      }
-      break;
-    case "escape": // Cancel Placement or Move Mode, Close Inventory
-      if (isInPlacementMode) {
-        cancelPlacement();
-      } else if (moveMode) {
-        toggleMoveMode(); // Use toggle to handle cancellation logic
-      } else if (inventoryPanel && inventoryPanel.style.display === "block") {
-        closeInventory();
-      }
-      break;
-    case "r": // Rotate Placement Preview
-      if (isInPlacementMode && placementPreviewObject) {
-        placementPreviewObject.rotation.y += Math.PI / 2; // Rotate 90 degrees
-        updatePlacementPreview(); // Update validity after rotation
-      }
-      break;
-    // --- Cheats ---
-    case "1": // Cheat: Add Wood
-      if (event.shiftKey) {
-        // Shift+1
-        inventory.wood += 10;
-        addMessage("Cheat: Added 10 wood.");
-        updateInventoryUI();
-      }
-      break;
-    case "2": // Cheat: Add Stone
-      if (event.shiftKey) {
-        // Shift+2
-        inventory.stone += 10;
-        addMessage("Cheat: Added 10 stone.");
-        updateInventoryUI();
-      }
-      break;
-    case "3": // Cheat: Add Axe
-      if (event.shiftKey) cheatCreateItem("axe");
-      break;
-    case "4": // Cheat: Add Hut Item
-      if (event.shiftKey) cheatCreateItem("hut");
-      break;
-    case "5": // Cheat: Add Wall Item
-      if (event.shiftKey) cheatCreateItem("wall");
-      break;
-    case "6": // Cheat: Add Floor Item
-      if (event.shiftKey) cheatCreateItem("floor");
-      break;
+    }
+  }
+
+  // --- Toggle Inventory ---
+  if (event.key.toLowerCase() === "i") {
+    toggleInventory();
+    removeRaycastHelper(); // Clean up if inventory opened
   }
 }
 
@@ -2247,27 +2309,23 @@ function toggleMoveMode() {
 
 // Handle Movement (Player and Moved Object)
 function handleMovement(delta: number) {
-  const moveDistance = moveSpeed * delta; // Use player move speed for preview for now
+  const moveDistance = moveSpeed * delta;
   const playerMoveDirection = new THREE.Vector3();
   const objectMoveDirection = new THREE.Vector3(); // For moving objects (M mode)
   const placementMoveDirection = new THREE.Vector3(); // For moving preview (U mode)
 
-  // Get player's forward and right directions (needed for relative preview movement)
+  // Get player's forward and right directions
   const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(
     player.quaternion,
   );
   const right = new THREE.Vector3(1, 0, 0).applyQuaternion(player.quaternion);
 
-  let isPlayerMoving = false; // Tracks if player *translates*
-  let isObjectMoving = false; // Tracks if M-mode object is moving
-  let isPreviewMoving = false; // Tracks if U-mode preview is moving
+  let isPlayerMoving = false;
+  let isObjectMoving = false;
+  let isPreviewMoving = false;
 
   // --- Placement Mode Preview Movement ---
   if (isInPlacementMode && placementPreviewObject) {
-    // --- DEBUG LOG ---
-    console.log(`Placement Tick. Keys: W:${keys['w']}, A:${keys['a']}, S:${keys['s']}, D:${keys['d']}`);
-    // --- END DEBUG LOG ---
-
     // Use WASD to move the preview object relative to the player's view
     if (keys["w"]) placementMoveDirection.add(forward); // Move preview forward
     if (keys["s"]) placementMoveDirection.sub(forward); // Move preview backward
@@ -2276,36 +2334,24 @@ function handleMovement(delta: number) {
 
     if (placementMoveDirection.lengthSq() > 0) {
       isPreviewMoving = true;
-      // --- DEBUG LOG ---
-      console.log(`  Raw Move Dir: x:${placementMoveDirection.x.toFixed(2)}, z:${placementMoveDirection.z.toFixed(2)}`);
-      // --- END DEBUG LOG ---
       placementMoveDirection.normalize();
-      // --- DEBUG LOG ---
-      const posBefore = placementPreviewObject.position.clone();
-      // --- END DEBUG LOG ---
-
       // Apply movement directly to the placement preview object
       const moveVector = new THREE.Vector3(placementMoveDirection.x, 0, placementMoveDirection.z);
       placementPreviewObject.position.addScaledVector(
           moveVector,
           moveDistance
       );
-
-      // --- DEBUG LOG ---
-      console.log(`  Applied Move: dist:${moveDistance.toFixed(3)}`);
-      console.log(`  Pos Before (handleMovement): x:${posBefore.x.toFixed(2)}, z:${posBefore.z.toFixed(2)}`);
-      console.log(`  Pos After (handleMovement):  x:${placementPreviewObject.position.x.toFixed(2)}, z:${placementPreviewObject.position.z.toFixed(2)}`);
-      // --- END DEBUG LOG ---
-
     }
-    // IMPORTANT: Skip all other movement logic
+    // IMPORTANT: Skip all other movement logic if in placement mode
+    // Player remains stationary. Animations will be handled based on isPlayerMoving = false.
 
   }
   // --- Object Movement Input (if in move mode - M key) ---
   else if (moveMode && selectedObject) {
-    // Player remains stationary in move mode too
-    isObjectMoving = true; // Assume moving if in move mode and keys are pressed
-    // Use WASD for object movement relative to player view
+    // Player remains stationary in move mode
+    isObjectMoving = true; // Assume moving if keys are pressed
+
+    // Calculate raw direction from input
     if (keys["w"]) objectMoveDirection.add(forward);
     if (keys["s"]) objectMoveDirection.sub(forward);
     if (keys["a"]) objectMoveDirection.sub(right);
@@ -2313,15 +2359,119 @@ function handleMovement(delta: number) {
 
     if (objectMoveDirection.lengthSq() > 0) {
       objectMoveDirection.normalize();
-      selectedObject.position.addScaledVector(
-        objectMoveDirection,
-        moveDistance,
-      );
+
+      // Calculate potential next position WITHOUT snapping first
+      const potentialPosition = selectedObject.position
+        .clone()
+        .addScaledVector(objectMoveDirection, moveDistance);
+
+      // --- DEBUG LOG: Potential Position ---
+      console.log(`MoveMode: Potential Pos: x:${potentialPosition.x.toFixed(2)}, z:${potentialPosition.z.toFixed(2)}`);
+      // ---
+
+      // --- Snapping Logic ---
+      let snappedPosition = potentialPosition.clone(); // Start with potential position
+      let didSnapX = false;
+      let didSnapZ = false;
+      const snapSearchRadiusSq = 10 * 10;
+
+      const selectedBox = new THREE.Box3().setFromObject(selectedObject);
+      const selectedSize = selectedBox.getSize(new THREE.Vector3());
+      const selectedCenterPotential = potentialPosition;
+
+      // --- DEBUG LOG: Selected Object Info ---
+      console.log(`  Selected Size: x:${selectedSize.x.toFixed(2)}, z:${selectedSize.z.toFixed(2)}`);
+      // ---
+
+      for (const targetObject of craftedObjects) {
+        if (targetObject === selectedObject) continue;
+        if (potentialPosition.distanceToSquared(targetObject.position) > snapSearchRadiusSq) {
+            continue;
+        }
+
+        const targetBox = new THREE.Box3().setFromObject(targetObject);
+        const targetSize = targetBox.getSize(new THREE.Vector3());
+        const targetCenter = targetBox.getCenter(new THREE.Vector3());
+
+        // --- DEBUG LOG: Target Object Info ---
+        console.log(`    Checking Target: ${targetObject.userData?.type || 'Unknown'} at x:${targetCenter.x.toFixed(2)}, z:${targetCenter.z.toFixed(2)}`);
+        console.log(`      Target Size: x:${targetSize.x.toFixed(2)}, z:${targetSize.z.toFixed(2)}`);
+        // ---
+
+        // Check X-axis snapping
+        if (!didSnapX) {
+          const selRight = selectedCenterPotential.x + selectedSize.x / 2;
+          const tarLeft = targetCenter.x - targetSize.x / 2;
+          const distX_RL = Math.abs(selRight - tarLeft);
+          // --- DEBUG LOG ---
+          console.log(`      X Snap (R->L): SelR:${selRight.toFixed(2)}, TarL:${tarLeft.toFixed(2)}, Dist:${distX_RL.toFixed(2)}`);
+          // ---
+          if (distX_RL < SNAP_DISTANCE) {
+            snappedPosition.x = tarLeft - selectedSize.x / 2;
+            didSnapX = true;
+            console.log(`        SNAP X! New snappedX: ${snappedPosition.x.toFixed(2)}`); // DEBUG LOG
+          }
+          if (!didSnapX) {
+             const selLeft = selectedCenterPotential.x - selectedSize.x / 2;
+             const tarRight = targetCenter.x + targetSize.x / 2;
+             const distX_LR = Math.abs(selLeft - tarRight);
+             // --- DEBUG LOG ---
+             console.log(`      X Snap (L->R): SelL:${selLeft.toFixed(2)}, TarR:${tarRight.toFixed(2)}, Dist:${distX_LR.toFixed(2)}`);
+             // ---
+             if (distX_LR < SNAP_DISTANCE) {
+               snappedPosition.x = tarRight + selectedSize.x / 2;
+               didSnapX = true;
+               console.log(`        SNAP X! New snappedX: ${snappedPosition.x.toFixed(2)}`); // DEBUG LOG
+             }
+          }
+        }
+        // Check Z-axis snapping
+        if (!didSnapZ) {
+          const selFront = selectedCenterPotential.z + selectedSize.z / 2;
+          const tarBack = targetCenter.z - targetSize.z / 2;
+          const distZ_FB = Math.abs(selFront - tarBack);
+           // --- DEBUG LOG ---
+           console.log(`      Z Snap (F->B): SelF:${selFront.toFixed(2)}, TarB:${tarBack.toFixed(2)}, Dist:${distZ_FB.toFixed(2)}`);
+           // ---
+          if (distZ_FB < SNAP_DISTANCE) {
+            snappedPosition.z = tarBack - selectedSize.z / 2;
+            didSnapZ = true;
+            console.log(`        SNAP Z! New snappedZ: ${snappedPosition.z.toFixed(2)}`); // DEBUG LOG
+          }
+           if (!didSnapZ) {
+              const selBack = selectedCenterPotential.z - selectedSize.z / 2;
+              const tarFront = targetCenter.z + targetSize.z / 2;
+              const distZ_BF = Math.abs(selBack - tarFront);
+              // --- DEBUG LOG ---
+              console.log(`      Z Snap (B->F): SelB:${selBack.toFixed(2)}, TarF:${tarFront.toFixed(2)}, Dist:${distZ_BF.toFixed(2)}`);
+              // ---
+              if (distZ_BF < SNAP_DISTANCE) {
+                snappedPosition.z = tarFront + selectedSize.z / 2;
+                didSnapZ = true;
+                console.log(`        SNAP Z! New snappedZ: ${snappedPosition.z.toFixed(2)}`); // DEBUG LOG
+              }
+           }
+        }
+        if (didSnapX && didSnapZ) break;
+      } // End loop through targetObjects
+
+      // Apply the final position (snapped or potential)
+      // --- DEBUG LOG: Final Position ---
+      if(didSnapX || didSnapZ) {
+          console.log(`  Applying Snapped Pos: x:${snappedPosition.x.toFixed(2)}, z:${snappedPosition.z.toFixed(2)}`);
+      } else {
+          console.log(`  Applying Potential Pos (No Snap): x:${potentialPosition.x.toFixed(2)}, z:${potentialPosition.z.toFixed(2)}`);
+      }
+      // ---
+      selectedObject.position.copy(snappedPosition);
+      // --- End Snapping Logic ---
+
     } else {
-        isObjectMoving = false; // No direction keys pressed for object
+      isObjectMoving = false; // No direction keys pressed for object
     }
+    // IMPORTANT: Skip player movement logic if in move mode
   }
-  // --- Normal Player Movement Input (if NOT in placement mode AND NOT in move mode) ---
+  // --- Normal Player Movement Input ---
   else {
     // --- START RESTORED PLAYER MOVEMENT LOGIC ---
     // Handle Player Rotation (A/D)
@@ -2350,6 +2500,8 @@ function handleMovement(delta: number) {
       );
       let collisionOccurred = false;
       for (const obj of craftedObjects) {
+        // Don't collide player with self if player model parts were added to craftedObjects
+        // if (obj === player) continue; // Assuming player group isn't in craftedObjects
         const objBox = new THREE.Box3().setFromObject(obj);
         if (targetPlayerBox.intersectsBox(objBox)) {
           collisionOccurred = true;
@@ -2361,34 +2513,42 @@ function handleMovement(delta: number) {
         player.position.copy(targetPosition);
         isPlayerMoving = true; // Player successfully translated
       } else {
-        isPlayerMoving = false;
+        isPlayerMoving = false; // Player did not move due to collision
       }
+    } else {
+        isPlayerMoving = false; // No translation keys pressed
     }
     // --- END RESTORED PLAYER MOVEMENT LOGIC ---
   } // End Normal Player Movement block
 
   // --- Animation Handling ---
-  // Player animation should be idle during placement/move modes as isPlayerMoving will be false
+  // This block runs regardless of which mode was active above,
+  // using the final state of isPlayerMoving, isJumping, isOnGround etc.
   if (mixer) {
     let targetAnimationKey: string | null = null;
-    if (isPlayerMoving && isOnGround) {
+    if (isPlayerMoving && isOnGround) { // Player is translating on the ground
       targetAnimationKey = findAnimation(["run", "walk"]);
-    } else if (isJumping) {
+    } else if (isJumping) { // Player initiated a jump
       targetAnimationKey = findAnimation(["jump_idle", "air", "jump_loop", "jump"]);
-    } else if (!isOnGround && playerVelocity.y < -0.1) {
+    } else if (!isOnGround && playerVelocity.y < -0.1) { // Player is falling
       targetAnimationKey = findAnimation(["fall", "falling", "air"]);
-    } else if (isOnGround) { // Includes idle during placement/move modes
+    } else if (isOnGround) { // Player is on ground and not moving/jumping (Idle)
+      // This covers idle state during normal gameplay AND during placement/move modes
       targetAnimationKey = findAnimation(["idle", "stand"]);
     }
-    // Play animation logic
+
+    // Play the determined animation if it's different or needed
     if (targetAnimationKey && currentAnimation !== targetAnimationKey) {
       if (playerAnimations[targetAnimationKey]) {
           playAnimation(targetAnimationKey, 0.2);
       } else {
+          // Fallback to idle if target animation is missing but should exist
+          console.warn(`Target animation "${targetAnimationKey}" not found, attempting idle.`);
           const idleAnim = findAnimation(["idle", "stand"]);
           if (idleAnim && currentAnimation !== idleAnim) playAnimation(idleAnim, 0.3);
       }
     } else if (!targetAnimationKey && currentAnimation !== "idle" && isOnGround) {
+      // Explicit fallback to idle if no other state matches and on ground
       const idleAnim = findAnimation(["idle", "stand"]);
       if (idleAnim && currentAnimation !== idleAnim) playAnimation(idleAnim, 0.3);
     }
@@ -2495,3 +2655,41 @@ window.onload = () => {
 
 // Optional: Full cleanup if the page is truly being left
 // window.addEventListener('unload', cleanupGameAssets); // Even less reliable than beforeunload
+
+// --- Helper Functions ---
+
+// Helper function to add/update ray visualization
+function showRaycastHelper(origin: THREE.Vector3, direction: THREE.Vector3, length: number = 20) {
+    // Remove previous helper if it exists
+    if (rayHelper) {
+        scene.remove(rayHelper);
+        if (rayHelper.geometry) rayHelper.geometry.dispose();
+        if (rayHelper.material) (rayHelper.material as THREE.Material).dispose();
+        rayHelper = null;
+    }
+
+    // Create new helper
+    const points = [];
+    points.push(origin.clone());
+    points.push(origin.clone().addScaledVector(direction.normalize(), length));
+
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({ color: 0xff0000, depthTest: false }); // Red line, ignore depth
+
+    rayHelper = new THREE.Line(geometry, material);
+    rayHelper.renderOrder = 999; // Draw on top
+    scene.add(rayHelper);
+
+    // Optional: Auto-remove after a delay
+    // setTimeout(removeRaycastHelper, 2000);
+}
+
+// Helper to remove the ray visualization
+function removeRaycastHelper() {
+     if (rayHelper) {
+        scene.remove(rayHelper);
+        if (rayHelper.geometry) rayHelper.geometry.dispose();
+        if (rayHelper.material) (rayHelper.material as THREE.Material).dispose();
+        rayHelper = null;
+    }
+}
