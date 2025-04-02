@@ -53,7 +53,7 @@ let clock: THREE.Clock;
 let moveMode = false;
 // Use THREE.Mesh directly for selected objects (structures are Meshes)
 let selectedObject: THREE.Mesh | null = null;
-const moveSpeed = 8.0;
+const moveSpeed = 20.0; // Temporarily increased from 8.0 for testing placement movement
 const keys: { [key: string]: boolean } = {}; // Keep track of pressed keys
 // Use THREE.Object3D for resources (can be Mesh or Group)
 const resources: THREE.Object3D[] = []; // Store collectible resource objects
@@ -280,30 +280,30 @@ function updatePlacementPreview() {
   if (!isInPlacementMode || !placementPreviewObject || !placementItemType)
     return;
 
+  // --- DEBUG LOG ---
+  console.log(`UpdatePreview Start: Pos x:${placementPreviewObject.position.x.toFixed(2)}, z:${placementPreviewObject.position.z.toFixed(2)}`);
+  // --- END DEBUG LOG ---
+
   const definition = itemDefinitions[placementItemType];
-  // Check for geometry function existence before calling it
   if (!definition?.placeable || typeof definition.geometry !== "function")
     return;
 
-  const placementDistance = 5; // How far in front of the player to place
-  const gridSize = 3.0; // Snap to a 3x3 grid (should match wall/floor dimensions)
-
-  // Calculate position in front of the player
-  const forward = new THREE.Vector3();
-  player.getWorldDirection(forward);
-  forward.y = 0; // Keep it level with the ground for placement
-  forward.normalize();
-
-  const targetPosition = player.position
-    .clone()
-    .addScaledVector(forward, placementDistance);
+  const gridSize = 3.0; // Snap to a 3x3 grid
 
   // --- Snapping Logic (Grid) ---
-  targetPosition.x = Math.round(targetPosition.x / gridSize) * gridSize;
-  targetPosition.z = Math.round(targetPosition.z / gridSize) * gridSize;
+  // Snap the CURRENT X/Z position (moved by WASD in handleMovement)
+  // const snappedX = Math.round(placementPreviewObject.position.x / gridSize) * gridSize; // <-- COMMENT OUT
+  // const snappedZ = Math.round(placementPreviewObject.position.z / gridSize) * gridSize; // <-- COMMENT OUT
+  // --- DEBUG LOG ---
+  // Only log if snapping changes the position significantly
+  // if (Math.abs(snappedX - placementPreviewObject.position.x) > 0.01 || Math.abs(snappedZ - placementPreviewObject.position.z) > 0.01) {
+  //   console.log(`  Snapping: From x:${placementPreviewObject.position.x.toFixed(2)}, z:${placementPreviewObject.position.z.toFixed(2)} To x:${snappedX.toFixed(2)}, z:${snappedZ.toFixed(2)}`);
+  // }
+  // --- END DEBUG LOG ---
+  // placementPreviewObject.position.x = snappedX; // <-- COMMENT OUT
+  // placementPreviewObject.position.z = snappedZ; // <-- COMMENT OUT
 
-  // Adjust Y based on item type and potential support
-  // Get geometry to calculate height, handle potential errors
+  // --- Calculate Y based on support below the CURRENT X/Z ---
   let itemGeometry: THREE.BufferGeometry | null = null;
   try {
     itemGeometry = definition.geometry();
@@ -311,87 +311,79 @@ function updatePlacementPreview() {
     console.error("Error getting geometry for height calculation:", e);
     return; // Cannot proceed without geometry
   }
-  // Check if geometry has parameters and height (BoxGeometry does)
-  // Use 'any' or define specific geometry types if needed, or check geometry type
   let itemHeight = 1; // Default height
   if (itemGeometry instanceof THREE.BoxGeometry) {
     itemHeight = itemGeometry.parameters.height;
   } else if (itemGeometry instanceof THREE.CylinderGeometry) {
     itemHeight = itemGeometry.parameters.height;
   } // Add other geometry types as needed
-  let baseHeight = 0; // Ground level
 
-  // --- Check for supporting object below (e.g., floor for a wall) ---
+  // Raycast origin: Slightly above the snapped X/Z, at max potential height
+  const rayOrigin = new THREE.Vector3(
+      placementPreviewObject.position.x,
+      itemHeight + 10, // Start raycast high above the current position
+      placementPreviewObject.position.z
+  );
   const down = new THREE.Vector3(0, -1, 0);
-  // Raycast origin slightly above the target base to avoid self-intersection
-  const rayOrigin = targetPosition.clone().setY(baseHeight + itemHeight + 0.1); // Use calculated itemHeight, start slightly above
-  const raycaster = new THREE.Raycaster(rayOrigin, down, 0, itemHeight + 0.2); // Check slightly more than itemHeight below
+  const raycaster = new THREE.Raycaster(rayOrigin, down, 0, itemHeight + 10.2); // Check distance below origin
+
   const structuresToCheck = craftedObjects.filter(
     (o) => o !== placementPreviewObject,
-  ); // Don't check self
+  );
   const groundPlane = scene.children.find(
     (c) => c instanceof THREE.Mesh && c.geometry instanceof THREE.PlaneGeometry,
   );
-  const checkList: THREE.Object3D[] = groundPlane // Ensure checkList is Object3D[]
+  const checkList: THREE.Object3D[] = groundPlane
     ? structuresToCheck.concat(groundPlane as THREE.Mesh)
     : structuresToCheck;
 
   const intersects = raycaster.intersectObjects(checkList);
-  supported = false; // Reset supported flag each update
-  let supportHeight = 0;
+  supported = false;
+  let supportHeight = 0; // Default to ground level 0 if no intersection
 
   if (intersects.length > 0) {
+    // Use the highest intersection point directly below the preview's XZ
     const firstIntersect = intersects[0];
-    // Check if the intersection point is reasonably close to the target position's XZ
-    if (
-      Math.abs(firstIntersect.point.x - targetPosition.x) < gridSize / 2 &&
-      Math.abs(firstIntersect.point.z - targetPosition.z) < gridSize / 2
-    ) {
-      supported = true;
-      supportHeight = firstIntersect.point.y; // Height of the support object/ground
-    }
+    supported = true;
+    supportHeight = firstIntersect.point.y;
   }
   // --- End Support Check ---
 
-  // Adjust Y position based on item type and support
+  // --- Calculate the target Y position ---
+  let targetY: number; // Declare targetY variable
   if (placementItemType === "floor") {
-    targetPosition.y = supportHeight + itemHeight / 2; // Place floor slightly above ground/support
+    targetY = supportHeight + itemHeight / 2; // Place floor slightly above ground/support
   } else if (placementItemType === "wall") {
     // Place wall on top of support (ground or floor)
-    targetPosition.y = supportHeight + itemHeight / 2;
+    targetY = supportHeight + itemHeight / 2;
   } else if (placementItemType === "hut") {
-    targetPosition.y = supportHeight + itemHeight / 2; // Hut base on ground/support
+    targetY = supportHeight + itemHeight / 2; // Hut base on ground/support
   } else {
     // Default: center based on height above support
-    targetPosition.y = supportHeight + itemHeight / 2;
+    targetY = supportHeight + itemHeight / 2;
   }
+  // Set the calculated Y position directly on the preview object
+  placementPreviewObject.position.y = targetY; // <-- APPLY Y POSITION
 
-  placementPreviewObject.position.copy(targetPosition);
-  // Keep preview rotation aligned with player for now, allow rotation with 'R'
-  // placementPreviewObject.rotation.y = player.rotation.y; // Might be desired
 
   // --- Placement Validity Check ---
-  placementIsValid = true; // Assume valid initially
-
-  // 1. Check for Collision with other crafted objects (using Bounding Box)
+  // (Validity check logic remains the same, using the final preview position)
+  placementIsValid = true;
   const previewBox = new THREE.Box3().setFromObject(placementPreviewObject);
+
+  // 1. Check for Collision with other crafted objects
   for (const obj of craftedObjects) {
-    // obj is THREE.Mesh here
-    if (obj === placementPreviewObject) continue; // Skip self
+    if (obj === placementPreviewObject) continue;
     const existingBox = new THREE.Box3().setFromObject(obj);
-    // Allow slight overlap for adjacent walls/floors, disallow major intersection
     const intersection = previewBox.clone().intersect(existingBox);
     if (!intersection.isEmpty()) {
-      // Calculate intersection volume or dimensions to decide if it's too much overlap
       const intersectionSize = intersection.getSize(new THREE.Vector3());
-      // Allow minor overlap (e.g., less than 10cm) for snapping feel
       if (
         intersectionSize.x > 0.1 &&
         intersectionSize.y > 0.1 &&
         intersectionSize.z > 0.1
       ) {
         placementIsValid = false;
-        // console.log("Collision with crafted object detected");
         break;
       }
     }
@@ -400,38 +392,40 @@ function updatePlacementPreview() {
   // 2. Check for Collision with resources
   if (placementIsValid) {
     for (const resource of resources) {
-      // resource is THREE.Object3D here
       const resourceBox = new THREE.Box3().setFromObject(resource);
       if (previewBox.intersectsBox(resourceBox)) {
         placementIsValid = false;
-        // console.log("Collision with resource detected");
         break;
       }
     }
   }
 
-  // 3. Check for necessary support (e.g., walls need ground/floor)
+  // 3. Check for necessary support
   if (placementIsValid) {
     if (placementItemType === "wall" || placementItemType === "hut") {
-      // Requires support found by the raycast earlier
       if (!supported) {
-        placementIsValid = false; // Disallow floating walls/huts
-        // console.log(`${placementItemType} requires support below.`);
+        placementIsValid = false;
       }
     }
     // Add checks for floors needing flat ground, etc. if desired
   }
 
+  // Log validity and material change
+  // console.log(`Preview Update: IsValid=${placementIsValid}`); // Keep logs if needed
+
   // Update preview material based on validity
-  // Ensure material is not an array before assigning
+  // (Material update logic remains the same)
   if (
     placementPreviewObject.material &&
     !Array.isArray(placementPreviewObject.material)
   ) {
-    // Assign the shared material instances directly
-    placementPreviewObject.material = placementIsValid
+    // Make sure we are assigning the correct material instances
+    const targetMaterial = placementIsValid
       ? placementMaterialValid
       : placementMaterialInvalid;
+    if (placementPreviewObject.material !== targetMaterial) {
+        placementPreviewObject.material = targetMaterial;
+    }
   }
 }
 
@@ -584,22 +578,35 @@ function useSelectedItem() {
     // --- START PLACEMENT MODE ---
     isInPlacementMode = true;
     placementItemType = item.type;
+    console.log(`Attempting to start placement for: ${item.type}`);
 
-    // Create the preview object
-    placementPreviewObject = createPlacementPreview(item.type); // Use generic preview creator
+    placementPreviewObject = createPlacementPreview(item.type);
+    console.log("Result of createPlacementPreview:", placementPreviewObject);
+
     if (placementPreviewObject) {
+      // --- Calculate INITIAL position ---
+      const placementDistance = 5;
+      const forward = new THREE.Vector3();
+      player.getWorldDirection(forward);
+      forward.y = 0;
+      forward.normalize();
+      const initialPosition = player.position
+        .clone()
+        .addScaledVector(forward, placementDistance);
+      placementPreviewObject.position.copy(initialPosition); // Set initial position
+      // --- End Initial Position Calculation ---
+
+      console.log("Adding placement preview object to scene:", placementPreviewObject.uuid);
       scene.add(placementPreviewObject);
       addMessage(
-        `Placing ${itemDef.name}. Move to position, E=Place, R=Rotate, Esc=Cancel.`,
+        `Placing ${itemDef.name}. WASD=Move, E=Place, R=Rotate, Esc=Cancel.`, // Update controls message
       );
-      updatePlacementPreview(); // Initial position update
+      updatePlacementPreview(); // Run once to snap initial position, set Y, and check validity
     } else {
       // Failed to create preview
-      cancelPlacement(); // Clean up placement state
+      cancelPlacement();
       addMessage(`Error starting placement for ${itemDef.name}.`);
     }
-    // --- END PLACEMENT MODE INITIATION ---
-    // Item is NOT removed yet. Only on confirmPlacement.
   } else {
     // Item is a tool or consumable (not placeable)
     // Tool activation logic
@@ -2240,61 +2247,96 @@ function toggleMoveMode() {
 
 // Handle Movement (Player and Moved Object)
 function handleMovement(delta: number) {
-  const moveDistance = moveSpeed * delta;
+  const moveDistance = moveSpeed * delta; // Use player move speed for preview for now
   const playerMoveDirection = new THREE.Vector3();
-  const objectMoveDirection = new THREE.Vector3(); // For moving objects
+  const objectMoveDirection = new THREE.Vector3(); // For moving objects (M mode)
+  const placementMoveDirection = new THREE.Vector3(); // For moving preview (U mode)
 
-  // --- Player Rotation (Allow always, except when moving an object) ---
-  // Handle rotation first, so forward/right vectors are updated before use.
-  if (!moveMode) { // Prevent player rotation while actively moving an object
-    if (keys["a"]) player.rotation.y += delta * 2.0; // Rotate left
-    if (keys["d"]) player.rotation.y -= delta * 2.0; // Rotate right
-  }
-
-  // Get player's forward and right directions (based on potentially updated rotation)
+  // Get player's forward and right directions (needed for relative preview movement)
   const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(
     player.quaternion,
   );
   const right = new THREE.Vector3(1, 0, 0).applyQuaternion(player.quaternion);
 
   let isPlayerMoving = false; // Tracks if player *translates*
-  let isObjectMoving = false;
+  let isObjectMoving = false; // Tracks if M-mode object is moving
+  let isPreviewMoving = false; // Tracks if U-mode preview is moving
 
-  // --- Object Movement Input (if in move mode) ---
-  if (moveMode && selectedObject) {
+  // --- Placement Mode Preview Movement ---
+  if (isInPlacementMode && placementPreviewObject) {
+    // --- DEBUG LOG ---
+    console.log(`Placement Tick. Keys: W:${keys['w']}, A:${keys['a']}, S:${keys['s']}, D:${keys['d']}`);
+    // --- END DEBUG LOG ---
+
+    // Use WASD to move the preview object relative to the player's view
+    if (keys["w"]) placementMoveDirection.add(forward); // Move preview forward
+    if (keys["s"]) placementMoveDirection.sub(forward); // Move preview backward
+    if (keys["a"]) placementMoveDirection.sub(right); // Move preview left
+    if (keys["d"]) placementMoveDirection.add(right); // Move preview right
+
+    if (placementMoveDirection.lengthSq() > 0) {
+      isPreviewMoving = true;
+      // --- DEBUG LOG ---
+      console.log(`  Raw Move Dir: x:${placementMoveDirection.x.toFixed(2)}, z:${placementMoveDirection.z.toFixed(2)}`);
+      // --- END DEBUG LOG ---
+      placementMoveDirection.normalize();
+      // --- DEBUG LOG ---
+      const posBefore = placementPreviewObject.position.clone();
+      // --- END DEBUG LOG ---
+
+      // Apply movement directly to the placement preview object
+      const moveVector = new THREE.Vector3(placementMoveDirection.x, 0, placementMoveDirection.z);
+      placementPreviewObject.position.addScaledVector(
+          moveVector,
+          moveDistance
+      );
+
+      // --- DEBUG LOG ---
+      console.log(`  Applied Move: dist:${moveDistance.toFixed(3)}`);
+      console.log(`  Pos Before (handleMovement): x:${posBefore.x.toFixed(2)}, z:${posBefore.z.toFixed(2)}`);
+      console.log(`  Pos After (handleMovement):  x:${placementPreviewObject.position.x.toFixed(2)}, z:${placementPreviewObject.position.z.toFixed(2)}`);
+      // --- END DEBUG LOG ---
+
+    }
+    // IMPORTANT: Skip all other movement logic
+
+  }
+  // --- Object Movement Input (if in move mode - M key) ---
+  else if (moveMode && selectedObject) {
+    // Player remains stationary in move mode too
     isObjectMoving = true; // Assume moving if in move mode and keys are pressed
-    // Use player's view direction for object movement control
+    // Use WASD for object movement relative to player view
     if (keys["w"]) objectMoveDirection.add(forward);
     if (keys["s"]) objectMoveDirection.sub(forward);
-    // Use A/D for strafing the object relative to player view
     if (keys["a"]) objectMoveDirection.sub(right);
     if (keys["d"]) objectMoveDirection.add(right);
 
     if (objectMoveDirection.lengthSq() > 0) {
       objectMoveDirection.normalize();
-      // Apply movement directly to the selected object (it's a Mesh)
       selectedObject.position.addScaledVector(
         objectMoveDirection,
         moveDistance,
       );
-      // Optional: Add collision detection for the moving object here
-      // Optional: Snap to grid while moving?
     } else {
         isObjectMoving = false; // No direction keys pressed for object
     }
   }
-  // --- Player Translation Input (if NOT in move mode AND NOT in placement mode) ---
-  // This block handles W/S movement. It's skipped if moveMode or isInPlacementMode is true.
-  else if (!isInPlacementMode) { // Checks !moveMode implicitly (due to else if) AND !isInPlacementMode
-    if (keys["w"]) playerMoveDirection.add(forward);
-    if (keys["s"]) playerMoveDirection.sub(forward);
-    // A/D rotation is handled above
+  // --- Normal Player Movement Input (if NOT in placement mode AND NOT in move mode) ---
+  else {
+    // --- START RESTORED PLAYER MOVEMENT LOGIC ---
+    // Handle Player Rotation (A/D)
+    if (keys["a"]) player.rotation.y += delta * 2.0; // Rotate left
+    if (keys["d"]) player.rotation.y -= delta * 2.0; // Rotate right
+
+    // Handle Player Translation (W/S)
+    // Recalculate forward based on potential rotation THIS frame
+    const currentForward = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quaternion);
+    if (keys["w"]) playerMoveDirection.add(currentForward);
+    if (keys["s"]) playerMoveDirection.sub(currentForward);
 
     if (playerMoveDirection.lengthSq() > 0) {
       // Player is trying to translate
       playerMoveDirection.normalize();
-
-      // Calculate target position
       const targetPosition = player.position
         .clone()
         .addScaledVector(playerMoveDirection, moveDistance);
@@ -2306,7 +2348,6 @@ function handleMovement(delta: number) {
         targetPosition.clone().add(playerColliderOffset),
         playerColliderSize,
       );
-
       let collisionOccurred = false;
       for (const obj of craftedObjects) {
         const objBox = new THREE.Box3().setFromObject(obj);
@@ -2315,49 +2356,39 @@ function handleMovement(delta: number) {
           break;
         }
       }
-      // Optional: Check against resources
-      // ...
-
-      // Apply the position only if no collision occurred
+      // Apply position if no collision
       if (!collisionOccurred) {
         player.position.copy(targetPosition);
         isPlayerMoving = true; // Player successfully translated
       } else {
-        // Collision occurred, player did not move forward/backward
         isPlayerMoving = false;
       }
     }
-  } // End Player Translation block
+    // --- END RESTORED PLAYER MOVEMENT LOGIC ---
+  } // End Normal Player Movement block
 
   // --- Animation Handling ---
-  // (Animation logic remains the same, based on isPlayerMoving, isJumping, etc.)
+  // Player animation should be idle during placement/move modes as isPlayerMoving will be false
   if (mixer) {
     let targetAnimationKey: string | null = null;
-
-    // Determine animation based on state (moving, jumping, falling, idle)
-    if (isPlayerMoving && isOnGround) { // Check isOnGround for run/walk
+    if (isPlayerMoving && isOnGround) {
       targetAnimationKey = findAnimation(["run", "walk"]);
     } else if (isJumping) {
       targetAnimationKey = findAnimation(["jump_idle", "air", "jump_loop", "jump"]);
-    } else if (!isOnGround && playerVelocity.y < -0.1) { // Added threshold for falling anim
-      targetAnimationKey = findAnimation(["fall", "falling", "air"]); // Include air as fallback
-    } else if (isOnGround) { // Idle only if on ground and not moving/jumping
+    } else if (!isOnGround && playerVelocity.y < -0.1) {
+      targetAnimationKey = findAnimation(["fall", "falling", "air"]);
+    } else if (isOnGround) { // Includes idle during placement/move modes
       targetAnimationKey = findAnimation(["idle", "stand"]);
     }
-
-    // Play the determined animation
+    // Play animation logic
     if (targetAnimationKey && currentAnimation !== targetAnimationKey) {
-      // Ensure the action exists before playing
       if (playerAnimations[targetAnimationKey]) {
           playAnimation(targetAnimationKey, 0.2);
       } else {
-          // Fallback to idle if target animation is missing but should exist
-          console.warn(`Target animation "${targetAnimationKey}" not found, attempting idle.`);
           const idleAnim = findAnimation(["idle", "stand"]);
           if (idleAnim && currentAnimation !== idleAnim) playAnimation(idleAnim, 0.3);
       }
     } else if (!targetAnimationKey && currentAnimation !== "idle" && isOnGround) {
-      // Explicit fallback to idle if no other state matches and on ground
       const idleAnim = findAnimation(["idle", "stand"]);
       if (idleAnim && currentAnimation !== idleAnim) playAnimation(idleAnim, 0.3);
     }
