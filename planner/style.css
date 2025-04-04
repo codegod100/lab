@@ -1,1 +1,238 @@
+
 @import "tailwindcss";
+
+/* Basic Reset & Font */
+body {
+  font-family: sans-serif;
+  line-height: 1.6;
+  margin: 0;
+  padding: 20px;
+  background-color: #f4f4f4;
+  color: #333;
+}
+
+#app {
+  max-width: 800px;
+  margin: 20px auto;
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+h1, h2 {
+  color: #555;
+  margin-bottom: 1em;
+}
+
+/* Form Styling */
+#add-item-form {
+  margin-bottom: 30px;
+  padding: 20px;
+  background-color: #eee;
+  border-radius: 5px;
+}
+
+#add-item-form div {
+  margin-bottom: 15px;
+}
+
+#add-item-form label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+#add-item-form input[type="text"],
+#add-item-form select,
+#add-item-form textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box; /* Include padding in width */
+}
+
+#add-item-form textarea {
+    resize: vertical; /* Allow vertical resizing */
+}
+
+
+#add-item-form button {
+  background-color: #5cb85c;
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1em;
+}
+
+#add-item-form button:hover {
+  background-color: #4cae4c;
+}
+
+/* Items List Styling */
+#items-list {
+  margin-top: 20px;
+}
+
+.item {
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 15px;
+  margin-bottom: 15px;
+  border-radius: 5px;
+  position: relative; /* For positioning delete button */
+}
+
+.item h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.item-content {
+  margin-bottom: 10px;
+}
+
+/* Code block styling for notes */
+.item-note pre {
+  background-color: #2d2d2d; /* Dark background */
+  color: #f0f0f0; /* Light text */
+  padding: 15px;
+  border-radius: 5px;
+  overflow-x: auto; /* Add scrollbar if code is wide */
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.9em;
+  white-space: pre-wrap; /* Wrap long lines within the pre block */
+  word-wrap: break-word; /* Break words if necessary */
+}
+
+.item-note code {
+    display: block; /* Ensure code takes full width of pre */
+    white-space: pre-wrap; /* Inherit wrapping */
+    word-wrap: break-word; /* Inherit word breaking */
+}
+
+
+/* Bookmark link styling */
+.item-bookmark a {
+  color: #007bff;
+  text-decoration: none;
+}
+
+.item-bookmark a:hover {
+  text-decoration: underline;
+}
+
+/* Todo styling */
+.item-todo label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.item-todo .todo-checkbox {
+    margin-right: 10px;
+    width: auto; /* Override form default */
+    cursor: pointer;
+}
+
+.item.completed {
+    opacity: 0.7;
+    background-color: #f9f9f9;
+}
+
+.item.completed h3,
+.item.completed .item-content label {
+    text-decoration: line-through;
+    color: #888;
+}
+
+
+/* Meta info styling */
+.item-meta {
+  font-size: 0.8em;
+  color: #777;
+  margin-bottom: 10px;
+}
+
+/* Delete Button Styling */
+.delete-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: #d9534f;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8em;
+}
+
+.delete-btn:hover {
+  background-color: #c9302c;
+}
+
+/* Search Input Styling */
+#search-container {
+    margin-bottom: 20px;
+}
+
+#search-container label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+#search-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+/* Event Date Inputs Styling (can be enhanced) */
+#event-date-inputs div {
+    margin-bottom: 15px; /* Add spacing between date inputs */
+}
+
+#event-date-inputs label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+#event-date-inputs input[type="datetime-local"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+
+/* Calendar Container Styling */
+#calendar-container {
+    margin-top: 30px;
+    margin-bottom: 30px;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 5px;
+    border: 1px solid #eee;
+}
+
+/* You might need to adjust FullCalendar's default styles if they conflict */
+/* Example: Adjusting button colors */
+/*
+.fc-button-primary {
+    background-color: #5cb85c !important;
+    border-color: #4cae4c !important;
+}
+.fc-button-primary:hover {
+    background-color: #4cae4c !important;
+}
+*/
