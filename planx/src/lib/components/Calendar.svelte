@@ -1,29 +1,24 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Calendar } from '@fullcalendar/core'; // Import the core Calendar class
-  import dayGridPlugin from '@fullcalendar/daygrid'; // Import the plugin
-  // Potentially import interactionPlugin, timeGridPlugin etc. if needed
+  import { Calendar } from '@fullcalendar/core';
+  import dayGridPlugin from '@fullcalendar/daygrid';
 
-  // Use let for bind:this, or $state if you prefer managing the element ref that way
+  const { events = [] } = $props<{ events?: Array<{ id: string; title: string; start: string }> }>();
+
   let calendarEl: HTMLDivElement;
-  let calendarInstance = $state<Calendar | null>(null); // Optional: store the instance if needed
+  let calendarInstance = $state<Calendar | null>(null);
 
   onMount(() => {
-    // Ensure the element is available before initializing
     if (calendarEl) {
       const calendar = new Calendar(calendarEl, {
-        plugins: [ dayGridPlugin /*, interactionPlugin, timeGridPlugin */ ],
+        plugins: [dayGridPlugin],
         initialView: 'dayGridMonth',
-        // headerToolbar: { ... } // Configure header
-        // events: [] // Pass events data, maybe via props or a store
-        // dateClick: (info) => { ... } // Handle date clicks
-        // eventClick: (info) => { ... } // Handle event clicks
+        events, // initialize with events
       });
 
-      calendar.render(); // Render the calendar
-      calendarInstance = calendar; // Store instance if needed
+      calendar.render();
+      calendarInstance = calendar;
 
-      // Cleanup function returned by onMount
       return () => {
         calendar.destroy();
         calendarInstance = null;
@@ -31,11 +26,11 @@
     }
   });
 
-  // Example using $effect.if for reactivity (e.g., updating events)
-  // export let events = $state([]); // If events were passed as a reactive prop
-  // $effect.if(calendarInstance) (() => {
-  //   calendarInstance.setOption('events', events);
-  // });
+  $effect(() => {
+    if (calendarInstance) {
+      calendarInstance.setOption('events', events);
+    }
+  });
 </script>
 
 <!-- Container element for FullCalendar -->

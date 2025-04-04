@@ -41,3 +41,32 @@ export const DELETE: RequestHandler = async ({ url }) => {
         return new Response('Failed to delete item', { status: 500 });
     }
 };
+
+export const PATCH: RequestHandler = async ({ request }) => {
+    try {
+        const data = await request.json();
+        const { id, ...fieldsToUpdate } = data;
+
+        if (!id) {
+            return new Response('Missing id in request body', { status: 400 });
+        }
+
+        if (Object.keys(fieldsToUpdate).length === 0) {
+            return new Response('No fields to update', { status: 400 });
+        }
+
+        const updated = await db.update(items)
+            .set(fieldsToUpdate)
+            .where(eq(items.id, id))
+            .returning();
+
+        if (updated.length === 0) {
+            return new Response('Item not found', { status: 404 });
+        }
+
+        return Response.json(updated[0]);
+    } catch (error) {
+        console.error('Error updating item:', error);
+        return new Response('Failed to update item', { status: 500 });
+    }
+};

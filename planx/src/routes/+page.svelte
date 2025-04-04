@@ -7,7 +7,9 @@
     let contentLabelElement: HTMLLabelElement | null = null;
     let eventDateDiv: HTMLDivElement | null = null;
 
-
+    let editingItemId = $state<string | null>(null);
+    let editContent = "";
+    let editStartDate = "";
 
   // --- State managed directly within the component ---
   let items = $state<NewItemSchema[]>([]); // Define items state here
@@ -27,8 +29,9 @@
       // createdAt: Date.now(),
       type: itemType,
       content: itemContent,
+      ...(itemType === "todo" && { completed: false }),
       ...(itemType === "event" &&
-        eventStartDate && { startDate: eventStartDate }),
+        eventStartDate && { start: eventStartDate }),
     };
 
     // Add the new item to the local state array
@@ -68,9 +71,18 @@
     items.filter((item) => {
       if (!searchTerm.trim()) return true; // Show all if search is empty
       const lowerSearch = searchTerm.toLowerCase();
-      // Basic search in content - adjust as needed
       return item.content.toLowerCase().includes(lowerSearch);
     }),
+  );
+
+  let calendarEvents = $derived(
+    items
+      .filter((item) => item.type === 'event' && item.start)
+      .map((item) => ({
+        id: item.id,
+        title: item.content,
+        start: item.start as string,
+      }))
   );
 
   onMount(async () => {
@@ -103,6 +115,82 @@
       } catch (error) {
         console.error('Error deleting item:', error);
       }
+  
+    }
+
+
+    async function toggleComplete(id: string) {
+      const item = items.find((i) => i.id === id);
+      if (item && item.type === "todo") {
+        const previous = item.completed ?? false;
+        item.completed = !previous; // optimistic UI toggle
+
+        try {
+          const response = await fetch('/api/db', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              id,
+              completed: item.completed,
+            }),
+          });
+
+          if (!response.ok) {
+            console.error('Failed to update item on server');
+            item.completed = previous; // revert on failure
+          }
+        } catch (error) {
+          console.error('Error updating item:', error);
+          item.completed = previous; // revert on error
+        }
+      }
+    }
+
+    async function saveEdit(itemId: string) {
+      const updatedFields: any = { content: editContent };
+
+      // If editing an event, include start date
+      const item = items.find(i => i.id === itemId);
+      if (item?.type === "event") {
+        updatedFields.start = editStartDate;
+      }
+
+      try {
+        const response = await fetch('/api/db', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: itemId,
+            ...updatedFields,
+          }),
+        });
+
+        if (!response.ok) {
+          console.error('Failed to update item on server');
+          return;
+        }
+
+        const updatedItem = await response.json();
+        // Update local items array
+        items = items.map(i => (i.id === itemId ? updatedItem : i));
+        editingItemId = null;
+      } catch (error) {
+        console.error('Error updating item:', error);
+      }
+    }
+
+    function startEdit(item: NewItemSchema) {
+      editingItemId = item.id;
+      editContent = item.content;
+      editStartDate = item.start ?? "";
+    }
+
+    function cancelEdit() {
+      editingItemId = null;
     }
 
   // Optional: Persist items to local storage whenever they change
@@ -194,7 +282,7 @@
   </form>
 
   <!-- Use the new Calendar component -->
-  <Calendar />
+  <Calendar events={calendarEvents} />
 
   <!-- Search Section -->
   <section id="search-section" class="mt-10 pt-6 border-t border-gray-200">
@@ -232,9 +320,24 @@
               >({new Date(item.start).toLocaleString()})</span
             >
           {/if}
-          <p class="mt-1 text-gray-800 whitespace-pre-wrap break-words">
-            {item.content}
-          </p>
+
+          {#if item.type === "todo"}
+            <label class="flex items-center space-x-2 mt-2">
+              <input
+                type="checkbox"
+                checked={item.completed}
+                onchange={() => toggleComplete(item.id)}
+              />
+              <span class={item.completed ? 'line-through text-gray-400' : ''}>
+                {item.content}
+              </span>
+            </label>
+          {:else}
+            <p class="mt-1 text-gray-800 whitespace-pre-wrap break-words">
+              {item.content}
+            </p>
+          {/if}
+
           {#if item.type === "bookmark"}
             <a
               href={item.content}
@@ -247,12 +350,51 @@
           <p class="text-xs text-gray-400 mt-2">
             Added: {item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}
           </p>
-          <button
-            onclick={() => deleteItem(item.id)}
-            class="mt-2 inline-flex items-center px-2 py-1 border border-red-300 rounded text-red-600 hover:bg-red-50 text-xs"
-          >
-            Delete
-          </button>
+          {#if editingItemId === item.id}
+            <div class="mt-2 space-y-2">
+              <textarea
+                bind:value={editContent}
+                rows="3"
+                class="w-full rounded border-gray-300"
+              ></textarea>
+
+              {#if item.type === 'event'}
+                <input
+                  type="datetime-local"
+                  bind:value={editStartDate}
+                  class="w-full rounded border-gray-300"
+                />
+              {/if}
+
+              <div class="flex space-x-2 mt-2">
+                <button
+                  onclick={() => saveEdit(item.id)}
+                  class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
+                >
+                  Save
+                </button>
+                <button
+                  onclick={cancelEdit}
+                  class="px-2 py-1 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 text-xs"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          {:else}
+            <button
+              onclick={() => startEdit(item)}
+              class="mt-2 inline-flex items-center px-2 py-1 border border-blue-300 rounded text-blue-600 hover:bg-blue-50 text-xs mr-2"
+            >
+              Edit
+            </button>
+            <button
+              onclick={() => deleteItem(item.id)}
+              class="mt-2 inline-flex items-center px-2 py-1 border border-red-300 rounded text-red-600 hover:bg-red-50 text-xs"
+            >
+              Delete
+            </button>
+          {/if}
         </div>
       {:else}
         <p class="italic text-gray-500">
