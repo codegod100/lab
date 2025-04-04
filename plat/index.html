@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>3D Roguelike</title>
+<style>
+body { margin: 0; overflow: hidden; }
+#hud {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  color: white;
+  font-family: sans-serif;
+  font-size: 16px;
+  background: rgba(0,0,0,0.5);
+  padding: 5px 10px;
+  border-radius: 5px;
+}
+#gameover, #youwin {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: sans-serif;
+  font-size: 32px;
+  display: none;
+}
+#gameover { color: red; }
+#youwin { color: lime; }
+</style>
+</head>
+<body>
+<div id="hud">Health: 3 | Score: 0</div>
+<div id="gameover">Game Over</div>
+<div id="youwin">You Win!</div>
+<script type="module" src="/main.ts"></script>
+</body>
+</html>
