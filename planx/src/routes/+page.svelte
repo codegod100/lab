@@ -1,7 +1,7 @@
 <script lang="ts">
   // Import necessary Svelte features or libraries here
   import { onMount } from 'svelte'; // Import onMount if you plan to use it
-  // import Calendar from '@fullcalendar/core'; // Example if using FullCalendar
+  import Calendar from '$lib/components/Calendar.svelte'; // Import the new component
 
   // Define component state and logic here
   let itemType = 'note';
@@ -10,15 +10,13 @@
   let searchTerm = '';
 
   // DOM element references - useful if direct manipulation is needed (e.g., by libraries)
+  // These are only assigned once via bind:this, but Svelte needs them as `let` for binding.
+  // The linter might still warn, but this is the correct Svelte pattern.
+  // If you *only* read the value in onMount and never reassign, you could potentially
+  // make them const and querySelector in onMount, but bind:this is often cleaner.
   let eventDateDiv: HTMLDivElement | null = null;
   let contentLabelElement: HTMLLabelElement | null = null;
-  let calendarElement: HTMLDivElement | null = null;
-
-  function handleTypeChange() {
-    // No need for event argument if using bind:value
-    // Show/hide event date inputs based on type using Svelte's reactivity
-    // Update content label using Svelte's reactivity
-  }
+  // Removed calendarElement reference, it's now in Calendar.svelte
 
   function handleSubmit() {
     console.log('Submitting:', {
@@ -39,20 +37,13 @@
   }
 
   onMount(() => {
-    // Initialize calendar, load items, etc. when the component mounts
-    if (calendarElement) {
-        // Initialize FullCalendar or other calendar library here
-        // Example:
-        // const calendar = new Calendar(calendarElement, { /* options */ });
-        // calendar.render();
-        console.log('Calendar element mounted:', calendarElement);
-    }
-    // Load initial items
+    // Initialize things *not* related to the calendar here
+    // Example: Load initial non-calendar items
+    console.log('Page component mounted');
+    // Removed calendar initialization logic
   });
 
 </script>
-
-
 
 <!-- Apply Tailwind classes for layout and spacing -->
 <div id="app" class="container mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
@@ -61,7 +52,7 @@
   <!-- Form section with Tailwind styling -->
   <form id="add-item-form" class="bg-white p-6 rounded-md shadow-sm mb-8" on:submit|preventDefault={handleSubmit}>
     <h2 class="text-xl font-semibold mb-4">Add New Item</h2>
-    <div class="mb-4"> 
+    <div class="mb-4">
       <label for="item-type" class="block text-sm font-medium text-gray-700 mb-1">Type:</label>
       <select
         id="item-type"
@@ -111,17 +102,8 @@
     </button>
   </form>
 
-  <!-- Calendar Section -->
-  <section id="calendar-section" class="mt-10 pt-6 border-t border-gray-200">
-      <h2 class="text-xl font-semibold mb-4">Calendar</h2>
-      <div
-        id='calendar'
-        bind:this={calendarElement}
-        class="min-h-[450px] border border-gray-300 rounded-md bg-white shadow-inner p-2.5"
-      >
-          <!-- Calendar will be rendered here by its library -->
-      </div>
-  </section>
+  <!-- Use the new Calendar component -->
+  <Calendar />
 
   <!-- Search Section -->
   <section id="search-section" class="mt-10 pt-6 border-t border-gray-200">
