@@ -1,0 +1,11 @@
+{
+  "deploy": {
+    "project": "0efaaa06-4fd2-4372-b69b-31ddda5effab",
+
+    "include": [],
+    "entrypoint": "build/index.js"
+  },
+  "imports":{
+    "drizzle-orm": "npm:drizzle-orm@^0.41.0"
+  }
+}

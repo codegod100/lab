@@ -1172,6 +1172,9 @@
     }
   },
   "workspace": {
+    "dependencies": [
+      "npm:drizzle-orm@0.41"
+    ],
     "packageJson": {
       "dependencies": [
         "npm:@fullcalendar/core@^6.1.17",
