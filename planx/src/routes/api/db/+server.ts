@@ -3,11 +3,12 @@ import { drizzle } from 'drizzle-orm/libsql';
 import { items, type NewItemSchema } from '$lib/schema';
 import type { RequestHandler } from '@sveltejs/kit';
 import "@std/dotenv/load";
+import { env } from '$env/dynamic/private';
 
 const db = drizzle({
     connection: {
-        url: process.env.TURSO_DATABASE_URL!,
-        authToken: process.env.TURSO_AUTH_TOKEN!
+        url: env.TURSO_DATABASE_URL!,
+        authToken: env.TURSO_AUTH_TOKEN!
     }
 });
 
