@@ -4,6 +4,7 @@
     "@types/three": "^0.175.0",
     "daisyui": "^5.0.12",
     "preact": "^10.x",
+    "preact-router": "^4.1.2",
     "three": "^0.175.0"
   },
   "devDependencies": {

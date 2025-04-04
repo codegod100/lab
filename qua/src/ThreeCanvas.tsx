@@ -1,151 +1,285 @@
 /** @jsxImportSource preact */
 import { FunctionalComponent } from 'preact';
-import { useRef, useEffect } from 'preact/hooks';
-import * as THREE from 'three';
+import { useRef, useEffect, useState } from 'preact/hooks';
 
 const ThreeCanvas: FunctionalComponent = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [win, setWin] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      console.log('Canvas not found');
+      return;
+    }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      console.log('2D context not found');
+      return;
+    }
 
-    const scene = new THREE.Scene();
-    const camera = new THREE.Camera();
-    camera.position.z = 1;
+    const width = canvas.width;
+    const height = canvas.height;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
-    containerRef.current.appendChild(renderer.domElement);
+    // Static level data
+    const platforms = [
+      { x: 0, y: height - 20, width: 2000, height: 20 },
+      { x: 100, y: height - 60, width: 100, height: 10 },
+      { x: 300, y: height - 100, width: 100, height: 10 },
+      { x: 500, y: height - 140, width: 100, height: 10 },
+      { x: 700, y: height - 180, width: 100, height: 10 },
+      { x: 900, y: height - 140, width: 100, height: 10 },
+      { x: 1100, y: height - 100, width: 100, height: 10 },
+      { x: 1300, y: height - 60, width: 100, height: 10 },
+    ];
 
-    const uniforms = {
-      iTime: { value: 0 },
-      iResolution: {
-        value: new THREE.Vector3(
-          containerRef.current.clientWidth,
-          containerRef.current.clientHeight,
-          1
-        ),
-      },
+    const flag = { x: 1500, y: height - 100, width: 20, height: 80 };
+
+    const star = { x: 600, y: height - 160, width: 20, height: 20, collected: false };
+
+    const tunnels = [
+      { x: 400, y: height - 60, width: 40, height: 40, targetTunnelIndex: 1 },
+      { x: 800, y: height - 60, width: 40, height: 40, targetTunnelIndex: 0 },
+    ];
+
+    const enemies = [
+      { x: 250, y: height - 40, width: 20, height: 20, alive: true, vx: 1, minX: 250, maxX: 350 },
+      { x: 600, y: height - 120, width: 20, height: 20, alive: true, vx: 1, minX: 600, maxX: 700 },
+      { x: 1000, y: height - 40, width: 20, height: 20, alive: true, vx: 1, minX: 1000, maxX: 1100 },
+    ];
+
+    const keys: Record<string, boolean> = {};
+
+    const gravity = 0.4;
+    const friction = 0.8;
+    const speed = 2;
+    const jumpPower = 12;
+
+    let time = 0;
+
+    const player = {
+      x: 50,
+      y: height - 60,
+      width: 20,
+      height: 20,
+      vx: 0,
+      vy: 0,
+      onGround: false,
+      justTeleported: false,
+      invincible: false,
+      invincibleTimer: 0,
     };
 
-    const material = new THREE.ShaderMaterial({
-      uniforms,
-      fragmentShader: `
-        uniform float iTime;
-        uniform vec3 iResolution;
+    const loop = () => {
+      ctx.fillStyle = '#87CEEB';
+      ctx.fillRect(0, 0, width, height);
 
-        #define MAX_STEPS 150
-        #define MAX_DIST 100.0
-        #define SURF_DIST 0.001
+      time += 0.05;
 
-        float mandelbulb(vec3 p) {
-          vec3 z = p;
-          float dr = 1.0;
-          float r = 0.0;
-          const float Power = 8.0;
-          for (int i = 0; i < 8; i++) {
-            r = length(z);
-            if (r > 2.0) break;
+      // Controls
+      if (keys['a']) player.vx = -speed;
+      else if (keys['d']) player.vx = speed;
+      else player.vx *= friction;
 
-            float theta = acos(z.z / r);
-            float phi = atan(z.y, z.x);
-            dr = pow(r, Power - 1.0) * Power * dr + 1.0;
+      if (keys[' '] && player.onGround) {
+        player.vy = -jumpPower;
+        player.onGround = false;
+      }
 
-            float zr = pow(r, Power);
-            theta = theta * Power;
-            phi = phi * Power;
+      // Physics
+      player.vy += gravity;
+      player.x += player.vx;
+      player.y += player.vy;
 
-            z = zr * vec3(
-              sin(theta) * cos(phi),
-              sin(theta) * sin(phi),
-              cos(theta)
-            ) + p;
+      // Platform collision
+      player.onGround = false;
+      for (const plat of platforms) {
+        if (
+          player.x < plat.x + plat.width &&
+          player.x + player.width > plat.x &&
+          player.y < plat.y + plat.height &&
+          player.y + player.height > plat.y
+        ) {
+          if (player.vy > 0) {
+            player.y = plat.y - player.height;
+            player.vy = 0;
+            player.onGround = true;
+          } else if (player.vy < 0) {
+            player.y = plat.y + plat.height;
+            player.vy = 0;
           }
-          return 0.5 * log(r) * r / dr;
         }
+      }
 
-        float rayMarch(vec3 ro, vec3 rd) {
-          float dO = 0.0;
-          for (int i = 0; i < MAX_STEPS; i++) {
-            vec3 p = ro + rd * dO;
-            float dS = mandelbulb(p);
-            if (dS < SURF_DIST) return dO;
-            dO += dS;
-            if (dO > MAX_DIST) break;
+      // Enemy AI
+      for (const enemy of enemies) {
+        if (!enemy.alive) continue;
+        enemy.x += enemy.vx;
+        if (enemy.x < enemy.minX || enemy.x + enemy.width > enemy.maxX) {
+          enemy.vx *= -1;
+        }
+      }
+
+      // Invincibility timer
+      if (player.invincible) {
+        player.invincibleTimer--;
+        if (player.invincibleTimer <= 0) {
+          player.invincible = false;
+        }
+      }
+
+      // Star collision
+      if (!star.collected &&
+        player.x < star.x + star.width &&
+        player.x + player.width > star.x &&
+        player.y < star.y + star.height &&
+        player.y + player.height > star.y
+      ) {
+        star.collected = true;
+        player.invincible = true;
+        player.invincibleTimer = 300;
+      }
+
+      // Enemy collision
+      for (const enemy of enemies) {
+        if (!enemy.alive) continue;
+        if (
+          player.x < enemy.x + enemy.width &&
+          player.x + player.width > enemy.x &&
+          player.y < enemy.y + enemy.height &&
+          player.y + player.height > enemy.y
+        ) {
+          if (player.invincible) continue;
+          if (player.vy > 0) {
+            enemy.alive = false;
+            player.vy = -jumpPower * 0.7;
+          } else {
+            setGameOver(true);
+            return;
           }
-          return -1.0;
         }
+      }
 
-        void main() {
-          vec2 uv = (gl_FragCoord.xy / iResolution.xy) * 2.0 - 1.0;
-          uv.x *= iResolution.x / iResolution.y;
-
-          vec3 ro = vec3(0.0, 0.0, -4.0);
-
-          // Rotate view over time on two axes
-          float maxAngle = 1.0;
-          float speed = 1.0;
-          float angleY = maxAngle * sin(iTime * speed);
-          float angleX = 0.0;
-
-          mat2 rotY = mat2(cos(angleY), -sin(angleY), sin(angleY), cos(angleY));
-
-          vec3 dir = vec3(uv, 1.5);
-          dir.xz = rotY * dir.xz;
-
-          vec3 rd = normalize(dir);
-
-          float d = rayMarch(ro, rd);
-
-          // background gradient
-          vec3 bg = mix(vec3(0.1, 0.0, 0.2), vec3(0.0, 0.0, 0.0), uv.y * 0.5 + 0.5);
-          vec3 col = bg;
-
-          if (d > 0.0) {
-            // vibrant smooth palette
-            vec3 palette = 0.5 + 0.5 * cos(6.2831 * (0.2 + d * 0.02) + vec3(0.0, 0.5, 1.0));
-            // glow effect based on distance
-            float glow = exp(-0.02 * d * d);
-            col = mix(bg, palette, glow);
+      // Tunnel teleport
+      let insideTunnel = false;
+      for (let i = 0; i < tunnels.length; i++) {
+        const tunnel = tunnels[i];
+        if (
+          player.x < tunnel.x + tunnel.width &&
+          player.x + player.width > tunnel.x &&
+          player.y < tunnel.y + tunnel.height &&
+          player.y + player.height > tunnel.y
+        ) {
+          insideTunnel = true;
+          if (!player.justTeleported) {
+            const targetTunnel = tunnels[tunnel.targetTunnelIndex];
+            player.x = targetTunnel.x + targetTunnel.width + 5;
+            player.y = targetTunnel.y;
+            player.justTeleported = true;
           }
-
-          gl_FragColor = vec4(col, 1.0);
         }
-      `,
-    });
+      }
+      if (!insideTunnel) {
+        player.justTeleported = false;
+      }
 
-    const plane = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
-    scene.add(plane);
+      // Win condition
+      if (
+        player.x < flag.x + flag.width &&
+        player.x + player.width > flag.x &&
+        player.y < flag.y + flag.height &&
+        player.y + player.height > flag.y
+      ) {
+        setWin(true);
+        return;
+      }
 
-    const animate = (time: number) => {
-      requestAnimationFrame(animate);
-      uniforms.iTime.value = time * 0.001;
-      renderer.render(scene, camera);
+      // Camera
+      let cameraX = player.x - width / 2 + player.width / 2;
+      cameraX = Math.max(0, cameraX);
+
+      // Draw platforms
+      ctx.fillStyle = '#654321';
+      for (const plat of platforms) {
+        ctx.fillRect(plat.x - cameraX, plat.y, plat.width, plat.height);
+      }
+
+      // Draw tunnels
+      for (const tunnel of tunnels) {
+        ctx.fillStyle = 'red';
+        ctx.fillRect(tunnel.x - cameraX, tunnel.y - tunnel.height, tunnel.width, tunnel.height);
+        const peekY = Math.sin(time + tunnel.x) * 5;
+        ctx.fillStyle = 'purple';
+        ctx.fillRect(tunnel.x - cameraX + 10, tunnel.y - 10 + peekY, 20, 20);
+      }
+
+      // Draw flag
+      ctx.fillStyle = 'red';
+      ctx.fillRect(flag.x - cameraX, flag.y, flag.width, flag.height);
+
+      // Draw star
+      if (!star.collected) {
+        ctx.fillStyle = 'yellow';
+        ctx.fillRect(star.x - cameraX, star.y, star.width, star.height);
+      }
+
+      // Draw enemies
+      ctx.fillStyle = 'green';
+      for (const enemy of enemies) {
+        if (enemy.alive) {
+          ctx.fillRect(enemy.x - cameraX, enemy.y, enemy.width, enemy.height);
+        }
+      }
+
+      // Draw player
+      ctx.fillStyle = 'blue';
+      ctx.fillRect(player.x - cameraX, player.y, player.width, player.height);
+
+      // Invincibility overlay
+      if (player.invincible) {
+        ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
+        ctx.fillRect(player.x - cameraX, player.y, player.width, player.height);
+      }
+
+      if (!win && !gameOver) requestAnimationFrame(loop);
     };
-    animate(0);
 
-    const handleResize = () => {
-      if (!containerRef.current) return;
-      renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
-      uniforms.iResolution.value.x = containerRef.current.clientWidth;
-      uniforms.iResolution.value.y = containerRef.current.clientHeight;
+    requestAnimationFrame(loop);
+
+    const keyDown = (e: KeyboardEvent) => {
+      keys[e.key.toLowerCase()] = true;
+    };
+    const keyUp = (e: KeyboardEvent) => {
+      keys[e.key.toLowerCase()] = false;
     };
 
-    window.addEventListener('resize', handleResize);
+    window.addEventListener('keydown', keyDown);
+    window.addEventListener('keyup', keyUp);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
-      renderer.dispose();
-      containerRef.current?.removeChild(renderer.domElement);
+      window.removeEventListener('keydown', keyDown);
+      window.removeEventListener('keyup', keyUp);
     };
-  }, []);
+  }, [resetKey]);
+
+  const resetGame = () => {
+    setWin(false);
+    setGameOver(false);
+    setResetKey(k => k + 1);
+  };
 
   return (
-    <div
-      ref={containerRef}
-      style={{ width: '300px', height: '300px' }}
-      class="border border-gray-400 rounded"
-    ></div>
+    <div class="border border-red-500 border-4 relative" style={{ width: '300px', height: '300px', backgroundColor: '#ccc' }}>
+      {(win || gameOver) && (
+        <div class="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-70 text-white text-xl font-bold space-y-4">
+          {win ? 'You Win!' : 'Game Over'}
+          <button class="btn btn-primary" onClick={resetGame}>Reset</button>
+        </div>
+      )}
+      <canvas ref={canvasRef} width={300} height={300} style={{ backgroundColor: '#fff', border: '2px solid blue' }} />
+    </div>
   );
 };
 

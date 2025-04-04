@@ -1,13 +1,61 @@
 /** @jsxImportSource preact */
 import { h, render, FunctionalComponent } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
+import Router from 'preact-router';
+
+interface Repo {
+  id: number;
+  name: string;
+  html_url: string;
+}
 import PongGame from './PongGame';
 import ThreeCanvas from './ThreeCanvas';
 
 const App: FunctionalComponent = () => {
   const [count, setCount] = useState(0);
-  const [activeTab, setActiveTab] = useState(0);
+  const [repos, setRepos] = useState<Repo[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const reposPerPage = 5;
+
+  const totalPages = Math.ceil(repos.length / reposPerPage);
+  const startIndex = (currentPage - 1) * reposPerPage;
+  const endIndex = startIndex + reposPerPage;
+  const currentRepos = repos.slice(startIndex, endIndex);
+
   const [theme, setTheme] = useState('light');
+  const [avatarBase64, setAvatarBase64] = useState<string | null>(null);
+
+  const avatarUrl = "https://upload.wikimedia.org/wikipedia/commons/7/77/Avatar_Abbas_-_cartoon_transparent_200px.png";
+
+  async function fetchImageAsBase64(url: string): Promise<string> {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject('Failed to convert blob to base64 string');
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  useEffect(() => {
+    fetch('https://api.github.com/users/codegod100/repos')
+      .then((res) => res.json())
+      .then((data) => setRepos(data))
+      .catch((err) => console.error('Failed to fetch repos', err));
+  }, []);
+
+  useEffect(() => {
+    fetchImageAsBase64(avatarUrl)
+      .then((base64) => setAvatarBase64(base64))
+      .catch((err) => console.error('Failed to convert avatar to base64', err));
+  }, []);
 
   const themes = [
     'light', 'dark', 'cupcake', 'bumblebee', 'emerald', 'corporate',
@@ -64,22 +112,57 @@ const App: FunctionalComponent = () => {
         </div>
 
         <div class="tabs tabs-boxed">
-          {['Tab 1', 'Tab 2', 'Tab 3'].map((label, idx) => (
-            <a
-              key={idx}
-              class={`tab ${activeTab === idx ? 'tab-active' : ''}`}
-              onClick={() => setActiveTab(idx)}
-            >
-              {label}
-            </a>
-          ))}
+          <a href="/tab1" class="tab">Tab 1</a>
+          <a href="/tab2" class="tab">Tab 2</a>
+          <a href="/tab3" class="tab">Tab 3</a>
         </div>
 
-        <div class="mt-4 p-4 border rounded">
-          {activeTab === 0 && <p>This is content for Tab 1.</p>}
-          {activeTab === 1 && <p>This is content for Tab 2.</p>}
-          {activeTab === 2 && <p>This is content for Tab 3.</p>}
-        </div>
+        <Router>
+          <div path="/tab1" class="mt-4 p-4 border rounded">
+            <h2 class="text-lg font-bold mb-2">codegod100's GitHub Repositories</h2>
+            {repos.length === 0 ? (
+              <p>Loading repositories...</p>
+            ) : (
+              <>
+                <ul class="list-disc pl-5 space-y-1">
+                  {currentRepos.map((repo) => (
+                    <li key={repo.id}>
+                      <a href={repo.html_url} target="_blank" rel="noopener noreferrer" class="link link-primary">
+                        {repo.name}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+                <div class="mt-4 flex justify-center space-x-2">
+                  <button
+                    class="btn btn-sm"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                  >
+                    Previous
+                  </button>
+                  <span>Page {currentPage} of {totalPages}</span>
+                  <button
+                    class="btn btn-sm"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                  >
+                    Next
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+          <div path="/tab2" class="mt-4 p-4 border rounded flex justify-center items-center min-h-[200px]">
+            <div class="glitch" data-text="GLITCH EFFECT">GLITCH EFFECT</div>
+          </div>
+          <div path="/tab3" class="mt-4 p-4 border rounded">
+            <p>This is content for Tab 3.</p>
+          </div>
+          <div default class="mt-4 p-4 border rounded">
+            <p>Welcome! Select a tab.</p>
+          </div>
+        </Router>
 
         <div class="space-x-2">
           <span class="badge badge-primary">Primary</span>
@@ -96,7 +179,7 @@ const App: FunctionalComponent = () => {
 
         <div class="avatar">
           <div class="w-24 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/7/77/Avatar_Abbas_-_cartoon_transparent_200px.png" alt="avatar" />
+            <img src={avatarBase64 ? avatarBase64 : avatarUrl} alt="avatar" />
           </div>
         </div>
 
