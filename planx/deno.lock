@@ -1,6 +1,9 @@
 {
   "version": "4",
   "specifiers": {
+    "npm:@fullcalendar/core@^6.1.17": "6.1.17",
+    "npm:@fullcalendar/daygrid@^6.1.17": "6.1.17_@fullcalendar+core@6.1.17",
+    "npm:@fullcalendar/react@^6.1.17": "6.1.17_@fullcalendar+core@6.1.17_react@19.0.0_react-dom@19.0.0__react@19.0.0",
     "npm:@sveltejs/adapter-auto@4": "4.0.0_@sveltejs+kit@2.20.3__@sveltejs+vite-plugin-svelte@5.0.3___svelte@5.25.6____acorn@8.14.1___vite@6.2.5__svelte@5.25.6___acorn@8.14.1__vite@6.2.5_@sveltejs+vite-plugin-svelte@5.0.3__svelte@5.25.6___acorn@8.14.1__vite@6.2.5_svelte@5.25.6__acorn@8.14.1_vite@6.2.5",
     "npm:@sveltejs/kit@^2.16.0": "2.20.3_@sveltejs+vite-plugin-svelte@5.0.3__svelte@5.25.6___acorn@8.14.1__vite@6.2.5_svelte@5.25.6__acorn@8.14.1_vite@6.2.5",
     "npm:@sveltejs/vite-plugin-svelte@5": "5.0.3_svelte@5.25.6__acorn@8.14.1_vite@6.2.5",
@@ -93,6 +96,26 @@
     },
     "@esbuild/win32-x64@0.25.2": {
       "integrity": "sha512-kM3HKb16VIXZyIeVrM1ygYmZBKybX8N4p754bw390wGO3Tf2j4L2/WYL+4suWujpgf6GBYs3jv7TyUivdd05JA=="
+    },
+    "@fullcalendar/core@6.1.17": {
+      "integrity": "sha512-0W7lnIrv18ruJ5zeWBeNZXO8qCWlzxDdp9COFEsZnyNjiEhUVnrW/dPbjRKYpL0edGG0/Lhs0ghp1z/5ekt8ZA==",
+      "dependencies": [
+        "preact"
+      ]
+    },
+    "@fullcalendar/daygrid@6.1.17_@fullcalendar+core@6.1.17": {
+      "integrity": "sha512-K7m+pd7oVJ9fW4h7CLDdDGJbc9szJ1xDU1DZ2ag+7oOo1aCNLv44CehzkkknM6r8EYlOOhgaelxQpKAI4glj7A==",
+      "dependencies": [
+        "@fullcalendar/core"
+      ]
+    },
+    "@fullcalendar/react@6.1.17_@fullcalendar+core@6.1.17_react@19.0.0_react-dom@19.0.0__react@19.0.0": {
+      "integrity": "sha512-AA8soHhlfRH5dUeqHnfAtzDiXa2vrgWocJSK/F5qzw/pOxc9MqpuoS/nQBROWtHHg6yQUg3DoGqOOhi7dmylXQ==",
+      "dependencies": [
+        "@fullcalendar/core",
+        "react",
+        "react-dom"
+      ]
     },
     "@jridgewell/gen-mapping@0.3.8": {
       "integrity": "sha512-imAbBGkb+ebQyxKgzv5Hu2nmROxoDOXHh80evxdoXNOrvAnVx7zimzc1Oo5h9RlfV4vPXaE2iM5pOFbvOCClWA==",
@@ -492,6 +515,19 @@
         "source-map-js"
       ]
     },
+    "preact@10.12.1": {
+      "integrity": "sha512-l8386ixSsBdbreOAkqtrwqHwdvR35ID8c3rKPa8lCWuO86dBi32QWHV4vfsZK1utLLFMvw+Z5Ad4XLkZzchscg=="
+    },
+    "react-dom@19.0.0_react@19.0.0": {
+      "integrity": "sha512-4GV5sHFG0e/0AD4X+ySy6UJd3jVl1iNsNHdpad0qhABJ11twS3TTBnseqsKurKcsNqCEFeGL3uLpVChpIO3QfQ==",
+      "dependencies": [
+        "react",
+        "scheduler"
+      ]
+    },
+    "react@19.0.0": {
+      "integrity": "sha512-V8AVnmPIICiWpGfm6GLzCR/W5FXLchHop40W4nXBmdlEceh16rCN8O8LNWm5bh5XUX91fh7KpA+W0TgMKmgTpQ=="
+    },
     "readdirp@4.1.2": {
       "integrity": "sha512-GDhwkLfywWL2s6vEjyhri+eXmfH6j1L7JE27WhqLeYzoh/A3DBaYGEj2H/HFZCn/kMfim73FXxEJTw06WtxQwg=="
     },
@@ -527,6 +563,9 @@
       "dependencies": [
         "mri"
       ]
+    },
+    "scheduler@0.25.0": {
+      "integrity": "sha512-xFVuu11jh+xcO7JOAGJNOXld8/TcEHK/4CituBUeUb5hqxJLj9YuemAEuvm9gQ/+pgXYfbQuqAkiYu+u7YEsNA=="
     },
     "set-cookie-parser@2.7.1": {
       "integrity": "sha512-IOc8uWeOZgnb3ptbCURJWNjWUPcO3ZnTTdzsurqERrP6nPyv+paC55vJM0LpOlT2ne+Ix+9+CRG1MNLlyZ4GjQ=="
@@ -607,6 +646,9 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
+        "npm:@fullcalendar/core@^6.1.17",
+        "npm:@fullcalendar/daygrid@^6.1.17",
+        "npm:@fullcalendar/react@^6.1.17",
         "npm:@sveltejs/adapter-auto@4",
         "npm:@sveltejs/kit@^2.16.0",
         "npm:@sveltejs/vite-plugin-svelte@5",
