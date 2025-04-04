@@ -1,9 +1,11 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+// import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'; // Old path
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'; // Correct path
 
 const hud = document.getElementById('hud')!;
 const gameover = document.getElementById('gameover')!;
 let isGameOver = false;
+let hasWon = false;
 
 // Prepare "You Win" sprite (hidden initially)
 
@@ -232,7 +234,42 @@ function tryMove(dx: number, dz: number) {
 function animate() {
   requestAnimationFrame(animate);
 
-  if (!isGameOver) {
+  // Update victory particles if they exist
+  const victoryData = (window as any).victoryParticles;
+  if (victoryData) {
+    const { particles, geometry, velocities, particleCount } = victoryData;
+    const positions = geometry.attributes.position.array as Float32Array;
+    const velocityData = geometry.attributes.velocity.array as Float32Array;
+    const material = particles.material as THREE.PointsMaterial;
+
+    for (let i = 0; i < particleCount; i++) {
+      const idx = i * 3;
+      positions[idx] += velocityData[idx];
+      positions[idx + 1] += velocityData[idx + 1];
+      positions[idx + 2] += velocityData[idx + 2];
+
+      // Optional: Add gravity or fade out
+      velocityData[idx + 1] -= 0.005; // Simple gravity
+      if (positions[idx + 1] < 0) { // Reset particles that fall below ground
+          positions[idx] = playerX * cellSize + (Math.random() - 0.5) * 20;
+          positions[idx + 1] = 10 + Math.random() * 10;
+          positions[idx + 2] = playerZ * cellSize + (Math.random() - 0.5) * 20;
+          velocityData[idx] = (Math.random() - 0.5) * 0.2;
+          velocityData[idx + 1] = Math.random() * 0.2 + 0.1;
+          velocityData[idx + 2] = (Math.random() - 0.5) * 0.2;
+      }
+    }
+    geometry.attributes.position.needsUpdate = true;
+    // Optional: Fade out effect
+    // material.opacity -= 0.005;
+    // if (material.opacity <= 0) {
+    //     scene.remove(particles);
+    //     delete (window as any).victoryParticles;
+    // }
+  }
+
+
+  if (!isGameOver && !hasWon) { // Check hasWon here
     // Auto-pilot to nearest gold, avoiding enemies, with BFS pathfinding
     let nearestItem: THREE.Mesh | null = null;
     let minDist = Infinity;
@@ -268,69 +305,6 @@ function animate() {
             }
           }
         }
-      }
-
-      // If player is on the item, collect it immediately
-      if (targetX === playerX && targetZ === playerZ) {
-        playerScore += 1;
-        console.log(`Gold collected! Current score: ${playerScore}`);
-        updateHUD();
-        scene.remove(nearestItem);
-        items.splice(items.indexOf(nearestItem), 1);
-
-        console.log(`Collected gold. Score: ${playerScore}`);
-
-        if (items.length === 0) {
-          console.log('VICTORY CONDITION REACHED: all gold collected');
-          console.log('Triggering win screen');
-          isGameOver = true;
-          winSprite.visible = true;
-          winSprite.position.set(playerX * cellSize, 5, playerZ * cellSize);
-
-          // Create victory particles
-          const particleCount = 1000;
-          const positions = new Float32Array(particleCount * 3);
-          const velocities = new Float32Array(particleCount * 3);
-
-          for (let i = 0; i < particleCount; i++) {
-            const idx = i * 3;
-            positions[idx] = playerX * cellSize + (Math.random() - 0.5) * 20;
-            positions[idx + 1] = 10 + Math.random() * 10;
-            positions[idx + 2] = playerZ * cellSize + (Math.random() - 0.5) * 20;
-
-            velocities[idx] = (Math.random() - 0.5) * 0.2;
-            velocities[idx + 1] = Math.random() * 0.2 + 0.1;
-            velocities[idx + 2] = (Math.random() - 0.5) * 0.2;
-          }
-
-          const geometry = new THREE.BufferGeometry();
-          geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-          geometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 3));
-
-          const colors = new Float32Array(particleCount * 3);
-          for (let i = 0; i < particleCount; i++) {
-            const idx = i * 3;
-            colors[idx] = Math.random();
-            colors[idx + 1] = Math.random();
-            colors[idx + 2] = Math.random();
-          }
-          geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-          const material = new THREE.PointsMaterial({
-            vertexColors: true,
-            size: 2,
-            transparent: true,
-            opacity: 1.0
-          });
-          const particles = new THREE.Points(geometry, material);
-          scene.add(particles);
-
-          // Store for animation in main loop
-          console.log('Victory particles created');
-          (window as any).victoryParticles = { particles, geometry, velocities, particleCount };
-        }
-
-        return;
       }
 
       // BFS pathfinding avoiding danger tiles
@@ -427,7 +401,7 @@ function animate() {
         }
       }
     }
-  }
+  } // End of !isGameOver && !hasWon block for autopilot
 
   if (!isGameOver) {
     // Enemy movement (random walk)
@@ -518,11 +492,70 @@ function animate() {
         updateHUD();
         scene.remove(item);
         items.splice(i, 1);
+        console.log(`Collected gold. Score: ${playerScore}. Remaining: ${items.length}`);
+
+        // *** CONSOLIDATED VICTORY CHECK ***
+        if (items.length === 0) {
+          console.log('VICTORY CONDITION REACHED: all gold collected');
+          isGameOver = true; // Stop game logic
+          hasWon = true;     // Set win state
+          winSprite.visible = true;
+          winSprite.position.set(playerX * cellSize, 5, playerZ * cellSize);
+          console.log('Triggering win screen and particles');
+
+          // Create victory particles (only once)
+          if (!(window as any).victoryParticles) {
+              const particleCount = 1000;
+              const positions = new Float32Array(particleCount * 3);
+              const velocities = new Float32Array(particleCount * 3);
+
+              for (let p = 0; p < particleCount; p++) {
+                const idx = p * 3;
+                positions[idx] = playerX * cellSize + (Math.random() - 0.5) * 5; // Start closer
+                positions[idx + 1] = 1 + Math.random() * 5; // Start near player
+                positions[idx + 2] = playerZ * cellSize + (Math.random() - 0.5) * 5; // Start closer
+
+                velocities[idx] = (Math.random() - 0.5) * 0.2;
+                velocities[idx + 1] = Math.random() * 0.3 + 0.1; // More upward velocity
+                velocities[idx + 2] = (Math.random() - 0.5) * 0.2;
+              }
+
+              const geometry = new THREE.BufferGeometry();
+              geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+              geometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 3)); // Store velocities
+
+              const colors = new Float32Array(particleCount * 3);
+              for (let p = 0; p < particleCount; p++) {
+                const idx = p * 3;
+                colors[idx] = Math.random(); // Random colors
+                colors[idx + 1] = Math.random();
+                colors[idx + 2] = Math.random();
+              }
+              geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+              const material = new THREE.PointsMaterial({
+                vertexColors: true,
+                size: 0.5, // Smaller particles
+                transparent: true,
+                opacity: 1.0,
+                // Optional: Blending for a brighter look
+                // blending: THREE.AdditiveBlending,
+                // depthWrite: false, // Disable depth writing for additive blending
+              });
+              const particles = new THREE.Points(geometry, material);
+              scene.add(particles);
+
+              // Store for animation in main loop
+              console.log('Victory particles created');
+              (window as any).victoryParticles = { particles, geometry, velocities, particleCount };
+          }
+          // No need to break here, let the loop finish checking other items (though there shouldn't be any)
+        }
       }
     }
-  }
+  } // End of !isGameOver block for enemy movement and item collection
 
-  // Top-down camera follow
+  // Top-down camera follow (runs even if game is over to keep focus)
   const playerPos = new THREE.Vector3(playerX * cellSize, 0, playerZ * cellSize);
 
   const desiredOffset = new THREE.Vector3(0, 50, 0); // directly above
