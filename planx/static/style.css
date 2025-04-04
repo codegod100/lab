@@ -1,4 +1,3 @@
-
 @import "tailwindcss";
 
 /* Basic Reset & Font */
@@ -118,12 +117,70 @@ h1, h2 {
 
 /* Bookmark link styling */
 .item-bookmark a {
-  color: #007bff;
+  /* color: #007bff; */ /* Color is now handled inside */
   text-decoration: none;
+  display: block;
 }
 
-.item-bookmark a:hover {
+/* Remove underline on hover for the whole link, apply selectively if needed */
+/* .item-bookmark a:hover .bookmark-url {
   text-decoration: underline;
+} */
+
+/* Bookmark Preview Card */
+.bookmark-preview {
+    display: flex;
+    align-items: flex-start; /* Align items to the top */
+    padding: 10px;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    background-color: #fdfdfd;
+    gap: 10px;
+    transition: background-color 0.2s ease;
+    overflow: hidden; /* Prevent content overflow */
+}
+
+.item-bookmark a:hover .bookmark-preview {
+    background-color: #f0f7ff;
+}
+
+.bookmark-favicon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-top: 3px; /* Align slightly better with text */
+    object-fit: contain;
+}
+
+/* Container for title and description */
+.bookmark-text-content {
+    flex-grow: 1;
+    min-width: 0; /* Allow text to shrink and wrap/ellipsis */
+}
+
+/* Placeholder Title */
+.bookmark-title {
+    font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+    color: #333; /* Darker color for title */
+    font-size: 0.95em;
+}
+
+/* Placeholder Description (showing URL) */
+.bookmark-description {
+    font-size: 0.85em;
+    color: #666; /* Lighter color for URL/description */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* If you wanted multi-line description (requires backend): */
+    /* white-space: normal; */
+    /* display: -webkit-box; */
+    /* -webkit-line-clamp: 2; */ /* Limit to 2 lines */
+    /* -webkit-box-orient: vertical; */
 }
 
 /* Todo styling */

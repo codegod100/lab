@@ -1,6 +1,3 @@
-
-
-
 // Import your custom styles (after library styles)
 import './style.css';
 
@@ -8,6 +5,38 @@ import './style.css';
 import { Calendar } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction'; // for potential future interactions
+import { drizzle } from 'drizzle-orm/libsql';
+
+// Access variables via import.meta.env and ensure they exist
+const dbUrl = import.meta.env.VITE_DATABASE_URL;
+const authToken = import.meta.env.VITE_DATABASE_AUTH_TOKEN;
+
+if (!dbUrl || !authToken) {
+  throw new Error("Database URL or Auth Token is missing. Make sure VITE_DATABASE_URL and VITE_DATABASE_AUTH_TOKEN are set in your .env file.");
+}
+
+// Initialize Drizzle client
+const db = drizzle({
+  // The drizzle function expects specific arguments.
+  // For libsql, it usually takes the client instance directly,
+  // or a config object for the client. Let's use the client creation method.
+  // You might need to install '@libsql/client' -> npm install @libsql/client
+  // import { createClient } from '@libsql/client';
+  // const client = createClient({ url: dbUrl, authToken: authToken });
+  // db = drizzle(client, { schema }); // If you pass schema here
+
+  // OR if drizzle({ connection: ... }) is the intended way for your version:
+   connection: { // This structure might be specific to certain drizzle adapters or versions
+     url: dbUrl,
+     authToken: authToken
+   }
+   // If the above `connection` object doesn't work, you likely need to create
+   // the libsql client separately and pass it to drizzle:
+   // Example:
+   // import { createClient } from '@libsql/client';
+   // const client = createClient({ url: dbUrl, authToken: authToken });
+   // const db = drizzle(client); // Pass the client instance
+});
 
 // --- Interfaces ---
 interface BaseItem {
@@ -120,11 +149,66 @@ function renderItem(item: Item): HTMLElement {
       contentEl.appendChild(pre);
       break;
     case 'bookmark':
+      // --- Bookmark Preview Card ---
+      const previewDiv = document.createElement('div');
+      previewDiv.classList.add('bookmark-preview');
+
+      // --- Favicon ---
+      const faviconImg = document.createElement('img');
+      faviconImg.classList.add('bookmark-favicon');
+      faviconImg.alt = 'Favicon';
+      const defaultFavicon = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWxpbmsiPjxwYXRoIGQ9Ik0xMCAxMyBhNSA1IDAgMCAwIDcgN2w0LTRhNSA1IDAgMCAwLTctNyIvPjxwYXRoIGQ9Ik0xNCAxMWExNSA1IDAgMCAwLTcgLTdsLTQgNGE1IDUgMCAwIDAgNyA3Ii8+PC9zdmc+';
+      faviconImg.src = defaultFavicon;
+
+      // --- Text Content Area ---
+      const textContentDiv = document.createElement('div');
+      textContentDiv.classList.add('bookmark-text-content');
+
+      // --- Title Placeholder ---
+      const titleEl = document.createElement('div');
+      titleEl.classList.add('bookmark-title');
+      // We can't reliably fetch the real title due to CORS.
+      // Display the hostname as a placeholder title.
+      try {
+          const url = new URL(item.content);
+          titleEl.textContent = url.hostname; // Use hostname as placeholder
+      } catch {
+          titleEl.textContent = "Bookmark"; // Fallback title
+      }
+
+      // --- Description/URL Placeholder ---
+      const descriptionEl = document.createElement('div');
+      descriptionEl.classList.add('bookmark-description');
+      descriptionEl.textContent = item.content; // Display the URL here for now
+      // In a real implementation with a proxy, this would show og:description
+
+      // --- Favicon Fetch Attempt ---
+      try {
+        const url = new URL(item.content);
+        const faviconUrl = `${url.protocol}//${url.hostname}/favicon.ico`;
+        faviconImg.src = faviconUrl;
+        faviconImg.onerror = () => { faviconImg.src = defaultFavicon; };
+      } catch (e) {
+        console.warn(`Could not parse URL for favicon: ${item.content}`, e);
+        faviconImg.src = defaultFavicon;
+      }
+
+      // --- Assemble Card ---
+      textContentDiv.appendChild(titleEl);
+      textContentDiv.appendChild(descriptionEl);
+      previewDiv.appendChild(faviconImg);
+      previewDiv.appendChild(textContentDiv);
+
+      // --- Link Wrapper ---
       const link = document.createElement('a');
-      link.href = item.content; // URL is stored in content
-      link.textContent = item.content;
+      link.href = item.content;
       link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.title = `Visit ${item.content}`;
+      link.appendChild(previewDiv); // Wrap the entire preview card
+
       contentEl.appendChild(link);
+      // --- End Bookmark Preview Card ---
       break;
     case 'todo':
       const checkbox = document.createElement('input');
