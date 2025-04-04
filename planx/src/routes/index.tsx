@@ -1,14 +1,29 @@
+import { html } from 'hono/html' // Helper for raw HTML like doctype
+// Import the Script component from the renderer
+import { jsxRenderer, Script } from 'hono/jsx-renderer'
+
+// Define the Layout component
+export const Layout = (props: { title?: string, children?: any }) => html`
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" /> {/* Assuming vite.svg is served */}
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Notes / Todos / Bookmarks / Events</title>
-    <link rel="stylesheet" href="style.css"> <!-- We'll create this next -->
+    <title>${props.title || 'Notes / Todos / Bookmarks / Events'}</title>
+    {/*
+      Vite middleware will inject necessary CSS links here in dev mode.
+      In production, you'll need to handle injecting built CSS links.
+      The jsxRenderer might provide helpers for this via manifest.json.
+      Let's use the Script helper which often handles both CSS/JS injection.
+    */}
+    <Script /> {/* Placeholder for Vite injected scripts/styles */}
+    {/* We need to ensure main.ts is served and loaded */}
+    {/* <script type="module" src="/main.ts"></script> */}
   </head>
   <body>
     <div id="app">
+      {/* Content will be populated by client-side main.ts */}
       <h1>My Items & Events</h1>
 
       <form id="add-item-form">
@@ -47,9 +62,9 @@
 
       <div id="items-list">
         <h2>Items</h2>
-        <!-- Items will be rendered here by JavaScript -->
+        {/* Items will be rendered here by client-side JavaScript */}
       </div>
     </div>
-    <script type="module" src="/main.ts"></script>
   </body>
 </html>
+` 
