@@ -6,6 +6,7 @@
     "entrypoint": "build/index.js"
   },
   "imports":{
+    "@deno/deployctl": "jsr:@deno/deployctl@^1.13.1",
     "drizzle-orm": "npm:drizzle-orm@^0.41.0"
   }
 }

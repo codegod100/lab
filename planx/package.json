@@ -11,7 +11,7 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"push": "drizzle-kit push",
-		"deploy": "vite build && deployctl deploy --prod"
+		"deploy": "vite build && deno run -A jsr:@deno/deployctl deploy --prod"
 	},
 	"dependencies": {
 		"@fullcalendar/core": "^6.1.17",
