@@ -8,6 +8,13 @@
       "when": 1743754513631,
       "tag": "0000_quiet_whiplash",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1743971318526,
+      "tag": "0001_add-url-to-bookmarks",
+      "breakpoints": true
     }
   ]
 }

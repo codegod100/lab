@@ -13,11 +13,14 @@ export const items = sqliteTable('items', {
     .notNull()
     .default(sql`(unixepoch('subsec') * 1000)`), // Default to current time in ms
 
+  context: text('context'), // Optional context/category for filtering
+
   // Fields specific to certain types (nullable)
   completed: integer('completed', { mode: 'boolean' }), // For 'todo' items (SQLite uses 0/1 for boolean)
   start: text('start'), // For 'event' items (stores ISO string or datetime-local value)
   // Add 'end' if you implement event end times:
   // end: text('end'),
+  url: text('url'), // For 'bookmark' items, stores the URL separately
 });
 
 // Optional: Define TypeScript types corresponding to the schema for inference
