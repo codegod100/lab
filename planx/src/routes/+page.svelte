@@ -20,6 +20,7 @@
   let eventStartDate = $state("");
   let searchTerm = $state("");
   let itemContext = $state("");
+  let searchContext = $state("");
   let editContext = $state("");
   let availableContexts: string[] = $state([]);
   // --- End of component state ---
@@ -75,12 +76,15 @@
   // Example derived state for filtering
   let filteredItems = $derived(
     items.filter((item) => {
-      if (!searchTerm.trim()) return true; // Show all if search is empty
-      const lowerSearch = searchTerm.toLowerCase();
-      return (
-        item.content.toLowerCase().includes(lowerSearch) ||
-        (item.url?.toLowerCase().includes(lowerSearch) ?? false)
-      );
+      const matchesSearch =
+        !searchTerm.trim() ||
+        item.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.url?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
+
+      const matchesContext =
+        !searchContext.trim() || item.context === searchContext;
+
+      return matchesSearch && matchesContext;
     }),
   );
 
@@ -228,7 +232,6 @@
     return Array.from(
       new Set(
         items
-          .filter((i: NewItemSchema) => i.type === "todo")
           .map((i) => (i.context ?? "").trim().toLowerCase())
           .filter((c) => c !== ""),
       ),
@@ -441,6 +444,22 @@
         oninput={handleSearch}
         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
       />
+
+      <label
+        for="context-select"
+        class="block text-sm font-medium text-gray-700 mb-1 mt-4"
+        >Filter by Context:</label
+      >
+      <select
+        id="context-select"
+        bind:value={searchContext}
+        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+      >
+        <option value="">All Contexts</option>
+        {#each availableContexts as context}
+          <option value={context}>{context}</option>
+        {/each}
+      </select>
     </div>
   </section>
 
