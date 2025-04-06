@@ -1,4 +1,4 @@
-import { JSX } from "solid-js";
+import type { JSX } from "solid-js";
 
 export default function Layout(props: { children: JSX.Element }) {
   return (
@@ -8,6 +8,9 @@ export default function Layout(props: { children: JSX.Element }) {
         <div class="space-x-4">
           <a href="/" class="text-gray-300 hover:text-white transition-colors">Home</a>
           <a href="/about" class="text-gray-300 hover:text-white transition-colors">About</a>
+          <a href="/counter" class="text-gray-300 hover:text-white transition-colors">Counter</a>
+          <a href="/hello/World" class="text-gray-300 hover:text-white transition-colors">Hello</a>
+          <a href="/time" class="text-gray-300 hover:text-white transition-colors">Time</a>
         </div>
       </nav>
       <div>

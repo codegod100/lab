@@ -5,3 +5,10 @@ export const foo = action(async (count: number) => {
   console.log(count)
   return count
 });
+
+export const getTime = action(async () => {
+  "use server";
+  console.log("time on server")
+  const now = new Date().toLocaleString();
+  return now;
+})
