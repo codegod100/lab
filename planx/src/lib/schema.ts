@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, blob } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 // Define possible item types based on main.ts Item interface
@@ -21,6 +21,7 @@ export const items = sqliteTable('items', {
   // Add 'end' if you implement event end times:
   // end: text('end'),
   url: text('url'), // For 'bookmark' items, stores the URL separately
+  imageData: text('image_data'), // For storing binary image data, primarily for notes
 });
 
 // Optional: Define TypeScript types corresponding to the schema for inference

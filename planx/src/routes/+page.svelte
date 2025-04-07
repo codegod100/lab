@@ -10,6 +10,9 @@
   let editStartDate = $state("");
   let editUrl = $state("");
   let editContext = $state("");
+  let editImageData = $state<string | null>(null);
+  let editImageMimeType = $state<string | null>(null);
+  let editImagePreviewUrl = $state<string | null>(null);
 
   let items = $state<NewItemSchema[]>([]); // Define items state here
   let itemType = $state<"note" | "todo" | "bookmark" | "event">("note");
@@ -21,6 +24,9 @@
   let searchContext = $state("");
   let availableContexts = $state<string[]>([]);
   let todoContextFilter = $state("");
+  let itemImageData = $state<string | null>(null); // For storing base64 encoded image data
+  let itemImageMimeType = $state<string | null>(null); // For storing image MIME type
+  let imagePreviewUrl = $state<string | null>(null); // For displaying image preview
   // --- End of component state ---
 
   async function handleSubmit(e: SubmitEvent) {
@@ -34,8 +40,17 @@
       ...(itemType === "bookmark" && { url: itemUrl }),
       ...(itemType === "todo" && { completed: false }),
       ...(itemType === "event" && eventStartDate && { start: eventStartDate }),
+      ...(itemType === "note" && itemImageData && {
+        imageData: itemImageData,
+        imageMimeType: itemImageMimeType
+      }),
       context: itemContext,
     };
+
+    // Debug image data
+    if (itemType === "note" && itemImageData) {
+      console.log('Submitting note with image data:', typeof itemImageData);
+    }
 
     // Add the new item to the local state array
     items.push(newItem); // Directly mutate the component's state array
@@ -63,6 +78,9 @@
     eventStartDate = "";
     itemType = "note";
     itemContext = "";
+    itemImageData = null;
+    itemImageMimeType = null;
+    imagePreviewUrl = null;
   }
 
   function handleSearch() {
@@ -71,9 +89,10 @@
     // let filteredItems = $derived(items.filter(item => ...));
   }
 
-  // Example derived state for filtering
-  let filteredItems = $derived(
-    items.filter((item) => {
+  // Memoize filtered items to improve performance
+  function getFilteredItems() {
+    return items.filter((item) => {
+      // Skip image data comparison for performance
       const matchesSearch =
         !searchTerm.trim() ||
         item.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -83,45 +102,73 @@
         !searchContext.trim() || item.context === searchContext;
 
       return matchesSearch && matchesContext;
-    }),
-  );
+    });
+  }
 
-  let calendarEvents = $derived(
-    items
+  // Use derived state but with optimized filtering
+  let filteredItems = $derived(getFilteredItems());
+
+  // Optimize calendar events calculation
+  function getCalendarEvents() {
+    return items
       .filter((item) => item.type === "event" && item.start)
       .map((item) => ({
         id: item.id,
         title: item.content,
         start: item.start as string,
-      })),
-  );
+      }));
+  }
 
-  let todoItems = $derived(
-    items.filter(
+  let calendarEvents = $derived(getCalendarEvents());
+
+  // Optimize todo items filtering
+  function getTodoItems() {
+    return items.filter(
       (item) =>
         item.type === "todo" &&
         (todoContextFilter.trim() === "" ||
           (item.context ?? "").toLowerCase() ===
             todoContextFilter.toLowerCase()),
-    ),
-  );
+    );
+  }
+
+  let todoItems = $derived(getTodoItems());
 
   onMount(async () => {
     console.log("Page component mounted (Runes - Local State)");
     try {
-      const response = await fetch("/api/db");
-      if (!response.ok) {
-        console.error("Failed to fetch items from server");
-        return;
-      }
-      const data = (await response.json()) as NewItemSchema[];
-      items = data;
-      availableContexts = computeAvailableContexts();
-      console.log("Loaded items from server:", items);
-      console.log(
-        "Fetched item contexts:",
-        data.map((i) => i.context),
-      );
+      // Use a timeout to allow the UI to render first
+      setTimeout(async () => {
+        const response = await fetch("/api/db");
+        if (!response.ok) {
+          console.error("Failed to fetch items from server");
+          return;
+        }
+        const data = (await response.json()) as NewItemSchema[];
+        console.log("data",data)
+        // Process items in batches to avoid UI freezing
+        const batchSize = 20;
+        const processItemBatch = (startIndex: number) => {
+          const endIndex = Math.min(startIndex + batchSize, data.length);
+          const batch = data.slice(startIndex, endIndex);
+
+          // Update items with the current batch
+          items = [...items, ...batch];
+          console.log("items",items)
+          // If there are more items to process, schedule the next batch
+          if (endIndex < data.length) {
+            setTimeout(() => processItemBatch(endIndex), 10);
+          } else {
+            // All items processed, update contexts
+            availableContexts = computeAvailableContexts();
+            console.log("Loaded all items from server");
+          }
+        };
+
+        // Start processing items in batches
+        items = [];
+        processItemBatch(0);
+      }, 100);
     } catch (error) {
       console.error("Error fetching items:", error);
     }
@@ -174,7 +221,7 @@
   }
 
   async function saveEdit(itemId: string) {
-    const updatedFields: Record<string, string | boolean> = { content: editContent, context: editContext };
+    const updatedFields: Record<string, string | boolean | null> = { content: editContent, context: editContext };
 
     const item = items.find((i) => i.id === itemId);
     if (item?.type === "bookmark") {
@@ -182,6 +229,17 @@
     }
     if (item?.type === "event") {
       updatedFields.start = editStartDate;
+    }
+    if (item?.type === "note") {
+      if (editImageData) {
+        updatedFields.imageData = editImageData;
+        updatedFields.imageMimeType = editImageMimeType;
+        console.log('Updating note with image data:', typeof editImageData);
+      } else {
+        // If we're editing a note and there's no image data, set it to null explicitly
+        updatedFields.imageData = null;
+        updatedFields.imageMimeType = null;
+      }
     }
 
     try {
@@ -217,10 +275,166 @@
     editStartDate = item.start ?? "";
     editContext = item.context ?? "";
     editUrl = item.url ?? "";
+    // Handle image data if present
+    if (typeof item.imageData === 'string') {
+      editImageData = item.imageData;
+      editImageMimeType = item.imageMimeType || 'image/jpeg'; // Default to JPEG if not specified
+
+      // Create the correct data URL with the proper MIME type
+      const mimeType = item.imageMimeType || 'image/jpeg';
+      editImagePreviewUrl = `data:${mimeType};base64,${item.imageData}`;
+    } else {
+      editImageData = null;
+      editImageMimeType = null;
+      editImagePreviewUrl = null;
+    }
   }
 
   function cancelEdit() {
     editingItemId = null;
+  }
+
+  // Handle image paste events for new items
+  function handlePaste(event: ClipboardEvent) {
+    // Only process paste events when the note type is selected
+    if (itemType !== "note") return;
+
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    // Look for image content in the clipboard
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        // Get the image as a blob
+        const blob = items[i].getAsFile();
+        if (!blob) continue;
+
+        // Store the MIME type
+        const mimeType = items[i].type;
+        itemImageMimeType = mimeType;
+        console.log('Image MIME type:', mimeType);
+
+        // Resize and compress the image before storing
+        resizeAndCompressImage(blob, 800, 0.8).then(resizedBlob => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const base64String = e.target?.result as string;
+            if (base64String) {
+              // Store the full base64 string for saving to the database
+              itemImageData = base64String;
+
+              // Use the full data URL for the preview
+              imagePreviewUrl = base64String;
+              console.log('Image data stored:', typeof itemImageData);
+            }
+          };
+          reader.readAsDataURL(resizedBlob);
+        });
+
+        // Prevent the default paste behavior
+        event.preventDefault();
+        break;
+      }
+    }
+  }
+
+  // Function to resize and compress images
+  async function resizeAndCompressImage(blob: Blob, maxWidth: number, quality: number): Promise<Blob> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        // Create a canvas element
+        const canvas = document.createElement('canvas');
+
+        // Calculate new dimensions while maintaining aspect ratio
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        // Draw the image on the canvas
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Convert canvas to blob
+          canvas.toBlob(
+            (resizedBlob) => {
+              if (resizedBlob) {
+                resolve(resizedBlob);
+              } else {
+                // If compression fails, return original blob
+                resolve(blob);
+              }
+            },
+            'image/jpeg',
+            quality
+          );
+        } else {
+          // If canvas context is not available, return original blob
+          resolve(blob);
+        }
+      };
+
+      // Handle load errors
+      img.onerror = () => {
+        resolve(blob); // Return original blob on error
+      };
+
+      // Load the image from the blob
+      img.src = URL.createObjectURL(blob);
+    });
+  }
+
+  // Handle image paste events for editing
+  function handleEditPaste(event: ClipboardEvent) {
+    // Only process paste events when editing a note
+    const editingItem = items.find((item) => item.id === editingItemId);
+    if (!editingItem || editingItem.type !== "note") return;
+
+    const clipboardItems = event.clipboardData?.items;
+    if (!clipboardItems) return;
+
+    // Look for image content in the clipboard
+    for (let i = 0; i < clipboardItems.length; i++) {
+      if (clipboardItems[i].type.indexOf('image') !== -1) {
+        // Get the image as a blob
+        const blob = clipboardItems[i].getAsFile();
+        if (!blob) continue;
+
+        // Store the MIME type
+        const mimeType = clipboardItems[i].type;
+        editImageMimeType = mimeType;
+        console.log('Edit image MIME type:', mimeType);
+
+        // Resize and compress the image before storing
+        resizeAndCompressImage(blob, 800, 0.8).then(resizedBlob => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const base64String = e.target?.result as string;
+            if (base64String) {
+              // Store the full base64 string for saving to the database
+              editImageData = base64String;
+
+              // Use the full data URL for the preview
+              editImagePreviewUrl = base64String;
+              console.log('Edit image data stored:', typeof editImageData);
+            }
+          };
+          reader.readAsDataURL(resizedBlob);
+        });
+
+        // Prevent the default paste behavior
+        event.preventDefault();
+        break;
+      }
+    }
   }
 
   // Optional: Persist items to local storage whenever they change
@@ -310,10 +524,30 @@
               name="content"
               rows="4"
               required
-              placeholder="Enter details..."
+              placeholder="Enter details... (Paste images with Ctrl+V or Cmd+V)"
               bind:value={itemContent}
+              onpaste={handlePaste}
               class="textarea textarea-bordered w-full min-h-[80px]"
             ></textarea>
+
+            {#if itemType === "note" && imagePreviewUrl}
+              <div class="mt-2">
+                <div class="relative">
+                  <img src={imagePreviewUrl} alt="" class="max-w-full h-auto rounded-md mt-2" />
+                  <button
+                    type="button"
+                    class="btn btn-circle btn-error btn-sm absolute top-2 right-2"
+                    onclick={() => {
+                      itemImageData = null;
+                      imagePreviewUrl = null;
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <p class="text-sm mt-1">Image will be saved with the note</p>
+              </div>
+            {/if}
           </div>
         {/if}
 
@@ -493,6 +727,16 @@
                   <p class="mt-1 whitespace-pre-wrap break-words">
                     {item.content}
                   </p>
+                  {#if item.type === "note" && item.imageData}
+                    <div class="mt-2">
+                      <img
+                        src={typeof item.imageData === 'string' ? item.imageData : ''}
+                        alt=""
+                        class="max-w-full h-auto rounded-md mt-2"
+                        title={item.imageMimeType || 'Image'}
+                      />
+                    </div>
+                  {/if}
                 {/if}
 
                 {#if item.type === "bookmark"}
@@ -517,6 +761,8 @@
                       bind:value={editContent}
                       rows="3"
                       class="textarea textarea-bordered w-full"
+                      onpaste={handleEditPaste}
+                      placeholder="Enter details... (Paste images with Ctrl+V or Cmd+V)"
                     ></textarea>
 
                     <input
@@ -541,6 +787,29 @@
                         bind:value={editUrl}
                         class="input input-bordered w-full"
                       />
+                    {/if}
+
+                    {#if item.type === "note" && editImagePreviewUrl}
+                      <div class="mt-2">
+                        <div class="relative">
+                          <img
+                            src={typeof editImagePreviewUrl === 'string' ? editImagePreviewUrl : ''}
+                            alt=""
+                            class="max-w-full h-auto rounded-md mt-2"
+                          />
+                          <button
+                            type="button"
+                            class="btn btn-circle btn-error btn-sm absolute top-2 right-2"
+                            onclick={() => {
+                              editImageData = null;
+                              editImagePreviewUrl = null;
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                        <p class="text-sm mt-1">Image will be saved with the note</p>
+                      </div>
                     {/if}
 
                     <div class="card-actions justify-end mt-2">
