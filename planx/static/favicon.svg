@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00c6ff;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#7c3aed;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ff4ecd;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1" flood-opacity="0.3" />
+    </filter>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background shape -->
+  <rect width="32" height="32" rx="6" fill="url(#grad)"/>
+
+  <!-- Stylized 'PX' logo with glow -->
+  <g filter="url(#shadow)">
+    <g filter="url(#glow)">
+      <!-- New P: vertical bar + open arc -->
+      <path d="M9 8 v12 M9 8 h5 a3 3 0 1 1 0 6 h-5" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.95"/>
+      <!-- X part -->
+      <path d="M16 18 l8 8 M24 18 l-8 8" stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.95"/>
+    </g>
+  </g>
+</svg>
