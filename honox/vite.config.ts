@@ -4,6 +4,7 @@ import honox from 'honox/vite'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
+  base: "./",
   plugins: [
     honox({
       client: { input: ['./app/style.css'] }

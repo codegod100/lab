@@ -1,11 +1,35 @@
 <script>
   import "../app.css"; // Import the Tailwind CSS entry point
+
+  // Theme handling
+  let theme = $state("light");
+
+  function toggleTheme() {
+    theme = theme === "light" ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem('theme', theme);
+  }
+
+  // Initialize theme on client-side
+  if (typeof window !== 'undefined') {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    theme = savedTheme;
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  }
 </script>
 
-<!-- This slot renders the content of your page (+page.svelte) -->
-<slot />
+<!-- Theme toggle button -->
+<div class="fixed top-4 right-4 z-50">
+  <button class="btn btn-primary" onclick={toggleTheme}>
+    {#if theme === "light"}
+      Dark Mode
+    {:else}
+      Light Mode
+    {/if}
+  </button>
+</div>
 
-<style>
-  /* You can add global non-Tailwind styles here if needed, */
-  /* but prefer using app.css or Tailwind classes */
-</style> 
+<!-- Render the page content with theme-aware background -->
+<div class="min-h-screen bg-base-100 text-base-content">
+  <slot />
+</div>
