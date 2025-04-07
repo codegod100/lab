@@ -14,6 +14,17 @@
         plugins: [dayGridPlugin],
         initialView: 'dayGridMonth',
         events, // initialize with events
+        headerToolbar: {
+          left: 'prev,next today',
+          center: 'title',
+          right: 'dayGridMonth,dayGridWeek'
+        },
+        // Apply DaisyUI-compatible styling
+        buttonText: {
+          today: 'Today',
+          month: 'Month',
+          week: 'Week'
+        }
       });
 
       calendar.render();
@@ -33,8 +44,11 @@
   });
 </script>
 
-<!-- Container element for FullCalendar -->
-<!-- Add Tailwind classes or other styles as needed -->
-<div bind:this={calendarEl} class="min-h-[450px] border border-gray-300 rounded-md bg-white shadow-inner p-2.5">
-  <!-- FullCalendar will render inside this div -->
+<!-- Container element for FullCalendar with DaisyUI card styling -->
+<div class="card bg-base-100 shadow-xl">
+  <div class="card-body p-2">
+    <div bind:this={calendarEl} class="min-h-[450px]">
+      <!-- FullCalendar will render inside this div -->
+    </div>
+  </div>
 </div>

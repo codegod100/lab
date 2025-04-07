@@ -1,34 +1,25 @@
 @import "tailwindcss";
-
-/* Basic Reset & Font */
+@plugin "daisyui";
+/* Basic Reset & Font - Using theme-aware colors */
 body {
   font-family: sans-serif;
   line-height: 1.6;
   margin: 0;
   padding: 20px;
-  background-color: #f4f4f4;
-  color: #333;
 }
 
+/* Remove hardcoded colors that would conflict with dark mode */
 #app {
   max-width: 800px;
   margin: 20px auto;
-  background: #fff;
   padding: 20px;
   border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-h1, h2 {
-  color: #555;
-  margin-bottom: 1em;
-}
-
-/* Form Styling */
+/* Form Styling - Most of this is now handled by DaisyUI */
 #add-item-form {
   margin-bottom: 30px;
   padding: 20px;
-  background-color: #eee;
   border-radius: 5px;
 }
 
@@ -36,69 +27,21 @@ h1, h2 {
   margin-bottom: 15px;
 }
 
-#add-item-form label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: bold;
-}
-
-#add-item-form input[type="text"],
-#add-item-form select,
 #add-item-form textarea {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  box-sizing: border-box; /* Include padding in width */
+  resize: vertical; /* Allow vertical resizing */
 }
 
-#add-item-form textarea {
-    resize: vertical; /* Allow vertical resizing */
-}
-
-
-#add-item-form button {
-  background-color: #5cb85c;
-  color: white;
-  padding: 10px 15px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1em;
-}
-
-#add-item-form button:hover {
-  background-color: #4cae4c;
-}
-
-/* Items List Styling */
+/* Items List Styling - Most of this is now handled by DaisyUI */
 #items-list {
   margin-top: 20px;
-}
-
-.item {
-  background: #fff;
-  border: 1px solid #ddd;
-  padding: 15px;
-  margin-bottom: 15px;
-  border-radius: 5px;
-  position: relative; /* For positioning delete button */
-}
-
-.item h3 {
-  margin-top: 0;
-  margin-bottom: 10px;
-  color: #333;
 }
 
 .item-content {
   margin-bottom: 10px;
 }
 
-/* Code block styling for notes */
+/* Code block styling for notes - Using theme-aware colors */
 .item-note pre {
-  background-color: #2d2d2d; /* Dark background */
-  color: #f0f0f0; /* Light text */
   padding: 15px;
   border-radius: 5px;
   overflow-x: auto; /* Add scrollbar if code is wide */
@@ -106,12 +49,14 @@ h1, h2 {
   font-size: 0.9em;
   white-space: pre-wrap; /* Wrap long lines within the pre block */
   word-wrap: break-word; /* Break words if necessary */
+  background-color: hsl(var(--b3));
+  color: hsl(var(--bc));
 }
 
 .item-note code {
-    display: block; /* Ensure code takes full width of pre */
-    white-space: pre-wrap; /* Inherit wrapping */
-    word-wrap: break-word; /* Inherit word breaking */
+  display: block; /* Ensure code takes full width of pre */
+  white-space: pre-wrap; /* Inherit wrapping */
+  word-wrap: break-word; /* Inherit word breaking */
 }
 
 
@@ -127,21 +72,21 @@ h1, h2 {
   text-decoration: underline;
 } */
 
-/* Bookmark Preview Card */
+/* Bookmark Preview Card - Using theme-aware colors */
 .bookmark-preview {
     display: flex;
     align-items: flex-start; /* Align items to the top */
     padding: 10px;
-    border: 1px solid #eee;
     border-radius: 4px;
-    background-color: #fdfdfd;
     gap: 10px;
     transition: background-color 0.2s ease;
     overflow: hidden; /* Prevent content overflow */
+    border: 1px solid hsl(var(--b3));
+    background-color: hsl(var(--b2));
 }
 
 .item-bookmark a:hover .bookmark-preview {
-    background-color: #f0f7ff;
+    background-color: hsl(var(--b3));
 }
 
 .bookmark-favicon {
@@ -158,24 +103,24 @@ h1, h2 {
     min-width: 0; /* Allow text to shrink and wrap/ellipsis */
 }
 
-/* Placeholder Title */
+/* Placeholder Title - Using theme-aware colors */
 .bookmark-title {
     font-weight: bold;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     margin-bottom: 2px;
-    color: #333; /* Darker color for title */
     font-size: 0.95em;
+    color: hsl(var(--bc));
 }
 
-/* Placeholder Description (showing URL) */
+/* Placeholder Description (showing URL) - Using theme-aware colors */
 .bookmark-description {
     font-size: 0.85em;
-    color: #666; /* Lighter color for URL/description */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    opacity: 0.7;
     /* If you wanted multi-line description (requires backend): */
     /* white-space: normal; */
     /* display: -webkit-box; */
@@ -198,88 +143,41 @@ h1, h2 {
 
 .item.completed {
     opacity: 0.7;
-    background-color: #f9f9f9;
 }
 
 .item.completed h3,
 .item.completed .item-content label {
     text-decoration: line-through;
-    color: #888;
+    opacity: 0.7;
 }
 
 
-/* Meta info styling */
+/* Meta info styling - Using theme-aware colors */
 .item-meta {
   font-size: 0.8em;
-  color: #777;
+  opacity: 0.7;
   margin-bottom: 10px;
 }
 
-/* Delete Button Styling */
-.delete-btn {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background-color: #d9534f;
-  color: white;
-  border: none;
-  padding: 5px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.8em;
-}
+/* Delete Button Styling - Now using DaisyUI buttons */
 
-.delete-btn:hover {
-  background-color: #c9302c;
-}
-
-/* Search Input Styling */
+/* Search Input Styling - Now using DaisyUI inputs */
 #search-container {
     margin-bottom: 20px;
 }
 
-#search-container label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-}
-
-#search-input {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box;
-}
-
-/* Event Date Inputs Styling (can be enhanced) */
+/* Event Date Inputs Styling - Now using DaisyUI inputs */
 #event-date-inputs div {
     margin-bottom: 15px; /* Add spacing between date inputs */
 }
 
-#event-date-inputs label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-}
 
-#event-date-inputs input[type="datetime-local"] {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box;
-}
-
-
-/* Calendar Container Styling */
+/* Calendar Container Styling - Using theme-aware colors */
 #calendar-container {
     margin-top: 30px;
     margin-bottom: 30px;
     padding: 20px;
-    background-color: #f9f9f9;
     border-radius: 5px;
-    border: 1px solid #eee;
 }
 
 /* You might need to adjust FullCalendar's default styles if they conflict */

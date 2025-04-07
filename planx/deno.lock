@@ -1278,6 +1278,7 @@
         "npm:@sveltejs/kit@^2.16.0",
         "npm:@sveltejs/vite-plugin-svelte@5",
         "npm:@tailwindcss/vite@^4.1.2",
+        "npm:daisyui@^5.0.13",
         "npm:drizzle-kit@~0.30.6",
         "npm:drizzle-orm@0.41",
         "npm:svelte-check@4",
