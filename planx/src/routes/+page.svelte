@@ -22,6 +22,8 @@
   let searchTerm = $state("");
   let itemContext = $state("");
   let searchContext = $state("");
+  let searchItemType = $state<"" | "note" | "todo" | "bookmark" | "event">("");
+  let sortNewestFirst = $state<boolean>(true); // For filtering by item type
   let availableContexts = $state<string[]>([]);
   let todoContextFilter = $state("");
   let itemImageData = $state<string | null>(null); // For storing base64 encoded image data
@@ -89,9 +91,17 @@
     // let filteredItems = $derived(items.filter(item => ...));
   }
 
+  function clearSearch() {
+    searchTerm = "";
+    searchContext = "";
+    searchItemType = "";
+    console.log("Search cleared");
+  }
+
   // Memoize filtered items to improve performance
   function getFilteredItems() {
-    return items.filter((item) => {
+    // First filter the items
+    const filtered = items.filter((item) => {
       // Skip image data comparison for performance
       const matchesSearch =
         !searchTerm.trim() ||
@@ -101,7 +111,17 @@
       const matchesContext =
         !searchContext.trim() || item.context === searchContext;
 
-      return matchesSearch && matchesContext;
+      const matchesItemType =
+        !searchItemType.trim() || item.type === searchItemType;
+
+      return matchesSearch && matchesContext && matchesItemType;
+    });
+
+    // Then sort the filtered items
+    return filtered.sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return sortNewestFirst ? bTime - aTime : aTime - bTime;
     });
   }
 
@@ -121,18 +141,73 @@
 
   let calendarEvents = $derived(getCalendarEvents());
 
-  // Optimize todo items filtering
+  // Optimize todo items filtering - only return active (non-completed) todos
   function getTodoItems() {
     return items.filter(
       (item) =>
         item.type === "todo" &&
+        (item.completed === false || item.completed === null) &&
         (todoContextFilter.trim() === "" ||
           (item.context ?? "").toLowerCase() ===
             todoContextFilter.toLowerCase()),
     );
   }
 
+  // Get completed todo items
+  function getCompletedTodoItems() {
+    return items.filter(
+      (item) =>
+        item.type === "todo" &&
+        item.completed === true &&
+        (todoContextFilter.trim() === "" ||
+          (item.context ?? "").toLowerCase() ===
+            todoContextFilter.toLowerCase()),
+    );
+  }
+
+  // Group todos by context when unfiltered
+  function getTodosByContext() {
+    if (todoContextFilter.trim() !== "") {
+      // If filtering by context, don't group
+      return null;
+    }
+
+    const todosByContext: Record<string, NewItemSchema[]> = {};
+
+    // Add a special "No Context" group
+    todosByContext["No Context"] = [];
+
+    // Get all todos (both active and completed)
+    const allTodos = items.filter(
+      (item) =>
+        item.type === "todo" &&
+        (todoContextFilter.trim() === "" ||
+          (item.context ?? "").toLowerCase() ===
+            todoContextFilter.toLowerCase())
+    );
+
+    // Group todos by their context
+    for (const todo of allTodos) {
+      const context = todo.context?.trim() || "No Context";
+      if (!todosByContext[context]) {
+        todosByContext[context] = [];
+      }
+      todosByContext[context].push(todo);
+    }
+
+    // Remove empty groups
+    for (const context of Object.keys(todosByContext)) {
+      if (todosByContext[context].length === 0) {
+        delete todosByContext[context];
+      }
+    }
+
+    return todosByContext;
+  }
+
   let todoItems = $derived(getTodoItems());
+  let completedTodoItems = $derived(getCompletedTodoItems());
+  let showCompletedTodos = $state(true);
 
   onMount(async () => {
     console.log("Page component mounted (Runes - Local State)");
@@ -591,49 +666,81 @@
     </div>
   </div>
 
-  <!-- Calendar and Todo side by side -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-    <!-- Calendar -->
-    <div class="mb-6 md:mb-0">
-      <Calendar events={calendarEvents} />
-    </div>
-
-    <!-- Todo List -->
-    <div class="card bg-base-100 shadow-xl">
-      <div class="card-body">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="card-title">Todos ({todoItems.length})</h2>
-          <div class="flex items-center gap-2">
-            <label for="todo-context-filter" class="label-text"
-              >Filter by context:</label
-            >
-            <select
-              id="todo-context-filter"
-              bind:value={todoContextFilter}
-              class="select select-bordered select-sm w-32"
-            >
-              <option value="">All</option>
-              {#each availableContexts as ctx}
-                <option value={ctx}>{ctx}</option>
-              {/each}
-            </select>
-          </div>
+  <!-- Todo List -->
+  <div class="card bg-base-100 shadow-xl mb-8">
+    <div class="card-body">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="card-title">Active Todos ({todoItems.length})</h2>
+        <div class="flex items-center gap-2">
+          <label for="todo-context-filter" class="label-text"
+            >Filter by context:</label
+          >
+          <select
+            id="todo-context-filter"
+            bind:value={todoContextFilter}
+            class="select select-bordered select-sm w-32"
+          >
+            <option value="">All</option>
+            {#each availableContexts as ctx}
+              <option value={ctx}>{ctx}</option>
+            {/each}
+          </select>
         </div>
-        {#if todoItems.length > 0}
+      </div>
+      {#if todoItems.length > 0}
+        {#if todoContextFilter.trim() === ""}
+          <!-- Group todos by context when not filtered -->
+          {#each Object.entries(getTodosByContext() || {}) as [context, todos]}
+            <div class="mb-4">
+              <h3 class="font-bold text-lg mb-2">{context}</h3>
+              <ul class="space-y-3">
+                {#each todos.filter(todo => !todo.completed) as todo (todo.id)}
+                  <li class="flex items-start justify-between p-3 border rounded-md bg-base-200">
+                    <div class="flex flex-col">
+                      <label class="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          class="checkbox checkbox-sm"
+                          checked={todo.completed}
+                          onchange={() => toggleComplete(todo.id)}
+                        />
+                        <span>
+                          {todo.content}
+                        </span>
+                      </label>
+                    </div>
+                    <button
+                      onclick={() => {
+                        if (confirm("Are you sure you want to delete this item?"))
+                          deleteItem(todo.id);
+                      }}
+                      class="btn btn-error btn-xs"
+                    >
+                      Delete
+                    </button>
+                  </li>
+                {/each}
+              </ul>
+            </div>
+          {/each}
+        {:else}
+          <!-- Show flat list when filtered by context -->
           <ul class="space-y-3">
             {#each todoItems as todo (todo.id)}
               <li class="flex items-start justify-between p-3 border rounded-md bg-base-200">
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    class="checkbox checkbox-sm"
-                    checked={todo.completed}
-                    onchange={() => toggleComplete(todo.id)}
-                  />
-                  <span class={todo.completed ? "line-through text-opacity-60" : ""}>
-                    {todo.content}
-                  </span>
-                </label>
+                <div class="flex flex-col">
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      class="checkbox checkbox-sm"
+                      checked={todo.completed}
+                      onchange={() => toggleComplete(todo.id)}
+                    />
+                    <span>
+                      {todo.content}
+                    </span>
+                  </label>
+                </div>
                 <button
                   onclick={() => {
                     if (confirm("Are you sure you want to delete this item?"))
@@ -646,10 +753,63 @@
               </li>
             {/each}
           </ul>
-        {:else}
-          <p class="italic text-opacity-60">No todos yet.</p>
+        {/if}
+      {:else}
+        <p class="italic text-opacity-60">No active todos.</p>
+      {/if}
+
+      <!-- Completed Todos Section -->
+      <div class="mt-8 border-t pt-4">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="card-title text-lg">Completed Todos ({completedTodoItems.length})</h2>
+          <button
+            class="btn btn-sm btn-outline"
+            onclick={() => showCompletedTodos = !showCompletedTodos}
+          >
+            {showCompletedTodos ? 'Hide' : 'Show'}
+          </button>
+        </div>
+
+        {#if showCompletedTodos && completedTodoItems.length > 0}
+          <ul class="space-y-3">
+            {#each completedTodoItems as todo (todo.id)}
+              <li class="flex items-start justify-between p-3 border rounded-md bg-base-200 opacity-70">
+                <div class="flex flex-col">
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      class="checkbox checkbox-sm"
+                      checked={todo.completed}
+                      onchange={() => toggleComplete(todo.id)}
+                    />
+                    <span class="line-through">
+                      {todo.content}
+                    </span>
+                  </label>
+                </div>
+                <button
+                  onclick={() => {
+                    if (confirm("Are you sure you want to delete this item?"))
+                      deleteItem(todo.id);
+                  }}
+                  class="btn btn-error btn-xs"
+                >
+                  Delete
+                </button>
+              </li>
+            {/each}
+          </ul>
+        {:else if completedTodoItems.length === 0}
+          <p class="italic text-opacity-60">No completed todos.</p>
         {/if}
       </div>
+    </div>
+  </div>
+
+  <!-- Calendar -->
+  <div class="card bg-base-100 shadow-xl mb-8">
+    <div class="card-body p-2">
+      <Calendar events={calendarEvents} />
     </div>
   </div>
 
@@ -662,17 +822,26 @@
           <label for="search-input" class="label">
             <span class="label-text">Search</span>
           </label>
-          <input
-            type="search"
-            id="search-input"
-            placeholder="Search items by content..."
-            bind:value={searchTerm}
-            oninput={handleSearch}
-            class="input input-bordered w-full"
-          />
+          <div class="flex gap-2">
+            <input
+              type="search"
+              id="search-input"
+              placeholder="Search items by content..."
+              bind:value={searchTerm}
+              oninput={handleSearch}
+              class="input input-bordered w-full"
+            />
+            <button
+              class="btn btn-outline"
+              onclick={clearSearch}
+              type="button"
+            >
+              Clear
+            </button>
+          </div>
         </div>
 
-        <div class="form-control w-full">
+        <div class="form-control w-full mb-4">
           <label for="context-select" class="label">
             <span class="label-text">Filter by Context</span>
           </label>
@@ -687,6 +856,23 @@
             {/each}
           </select>
         </div>
+
+        <div class="form-control w-full">
+          <label for="item-type-select" class="label">
+            <span class="label-text">Filter by Item Type</span>
+          </label>
+          <select
+            id="item-type-select"
+            bind:value={searchItemType}
+            class="select select-bordered w-full"
+          >
+            <option value="">All Types</option>
+            <option value="note">Note</option>
+            <option value="todo">Todo</option>
+            <option value="bookmark">Bookmark</option>
+            <option value="event">Event</option>
+          </select>
+        </div>
       </div>
     </div>
   </section>
@@ -695,7 +881,16 @@
   <section id="items-section" class="mt-10 pt-6 border-t border-gray-200">
     <div class="card bg-base-100 shadow-xl">
       <div class="card-body">
-        <h2 class="card-title">Items ({filteredItems.length})</h2>
+        <div class="flex justify-between items-center mb-2">
+          <h2 class="card-title">Items ({filteredItems.length})</h2>
+          <button
+            class="btn btn-sm btn-outline"
+            onclick={() => sortNewestFirst = !sortNewestFirst}
+            type="button"
+          >
+            Sort: {sortNewestFirst ? "Newest First" : "Oldest First"}
+          </button>
+        </div>
         <div id="items-list" class="mt-4 space-y-4 min-h-[100px]">
           {#each filteredItems as item (item.id)}
             <div class="card bg-base-200">
@@ -706,6 +901,11 @@
                     {#if item.type === "event" && item.start}
                       <span class="badge badge-ghost ml-2">
                         {new Date(item.start).toLocaleString()}
+                      </span>
+                    {/if}
+                    {#if item.context}
+                      <span class="badge badge-secondary ml-2">
+                        {item.context}
                       </span>
                     {/if}
                   </div>

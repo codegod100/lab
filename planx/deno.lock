@@ -12,6 +12,7 @@
     "jsr:@std/flags@0.217": "0.217.0",
     "jsr:@std/fmt@0.217": "0.217.0",
     "jsr:@std/fmt@1": "1.0.6",
+    "jsr:@std/json@0.217": "0.217.0",
     "jsr:@std/jsonc@0.217": "0.217.0",
     "jsr:@std/path@0.217": "0.217.0",
     "jsr:@std/semver@0.217": "0.217.0",
@@ -26,6 +27,7 @@
     "npm:@sveltejs/kit@^2.16.0": "2.20.3_@sveltejs+vite-plugin-svelte@5.0.3__svelte@5.25.6___acorn@8.14.1__vite@6.2.5_svelte@5.25.6__acorn@8.14.1_vite@6.2.5",
     "npm:@sveltejs/vite-plugin-svelte@5": "5.0.3_svelte@5.25.6__acorn@8.14.1_vite@6.2.5",
     "npm:@tailwindcss/vite@^4.1.2": "4.1.2_vite@6.2.5",
+    "npm:daisyui@^5.0.13": "5.0.16",
     "npm:drizzle-kit@~0.30.6": "0.30.6_esbuild@0.19.12",
     "npm:drizzle-orm@0.41": "0.41.0_@libsql+client@0.15.2",
     "npm:keychain@1.5.0": "1.5.0",
@@ -87,10 +89,14 @@
     "@std/fmt@1.0.6": {
       "integrity": "a2c56a69a2369876ddb3ad6a500bb6501b5bad47bb3ea16bfb0c18974d2661fc"
     },
+    "@std/json@0.217.0": {
+      "integrity": "173f1156d23d11095b6ff7df6266c80e8f83afcd9a6af1731ec301f485806986"
+    },
     "@std/jsonc@0.217.0": {
       "integrity": "125c47f36ef8160e1b4fd5bff096e8f0ea3f49bea197de5b182eb130bb8a527c",
       "dependencies": [
-        "jsr:@std/assert"
+        "jsr:@std/assert",
+        "jsr:@std/json"
       ]
     },
     "@std/path@0.217.0": {
@@ -731,6 +737,9 @@
     },
     "cookie@0.6.0": {
       "integrity": "sha512-U71cyTamuh1CRNCfpGY6to28lxvNwPG4Guz/EVjgf3Jmzv0vlDp1atT9eS5dDjMYHucpHbWns6Lwf3BKz6svdw=="
+    },
+    "daisyui@5.0.16": {
+      "integrity": "sha512-MQiZQ21+r91zrKv3fxDOF56dzkfrr2FyXOaR/1T4f9AIeI/ilkc0i+UqOIE/VqjIfkWyq+wBPmBcyIf6iPJpYQ=="
     },
     "data-uri-to-buffer@4.0.1": {
       "integrity": "sha512-0R9ikRb668HB7QDxT1vkpuUBtqc53YyAwMwGeUFKRojY/NWKvdZ+9UYtRfGmhqNbRkTSVpMbmyhXipFFv2cb/A=="
