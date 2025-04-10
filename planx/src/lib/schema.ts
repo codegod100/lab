@@ -22,6 +22,7 @@ export const items = sqliteTable('items', {
   // end: text('end'),
   url: text('url'), // For 'bookmark' items, stores the URL separately
   imageData: text('image_data'), // For storing binary image data, primarily for notes
+  imageMimeType: text('image_mime_type'), // For storing the MIME type of the image
 });
 
 // Optional: Define TypeScript types corresponding to the schema for inference
