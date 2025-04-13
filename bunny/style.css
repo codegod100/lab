@@ -1,0 +1,42 @@
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: 'Arial', sans-serif;
+    background-color: #f8e5ff;
+    margin: 0;
+    padding: 20px;
+}
+
+h1 {
+    font-family: 'Cursive', sans-serif;
+    color: #ff69b4;
+}
+
+#game-board {
+    display: grid;
+    grid-template-columns: repeat(4, 100px);
+    grid-template-rows: repeat(4, 100px);
+    gap: 5px;
+    background-color: #fff;
+    border: 2px dashed #ff69b4;
+    padding: 10px;
+    border-radius: 15px;
+}
+
+.tile {
+    width: 100px;
+    height: 100px;
+    background-size: 400px 400px; /* Adjusted to fit the entire image */
+    background-position: 0 0; /* Initial position */
+    cursor: pointer;
+    border-radius: 10px;
+    transition: background-position 0.2s ease;
+    border: 2px solid #ff69b4;
+}
+
+.empty {
+    background-color: #fff;
+    border: 2px dashed #ff69b4;
+    border-radius: 10px;
+}
