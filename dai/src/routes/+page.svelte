@@ -1,11 +1,18 @@
 <script lang="ts">
     import "../style.css";
+    // Minimal type for the calendar instance
+    type CalendarInstance = {
+        focusedDate: string;
+        today: string;
+    }
     import type { PageProps } from "./$types";
-    let { data }: PageProps = $props();
+    const { data }: PageProps = $props();
     import Code from "../components/Code.svelte";
-    import { browser, building, dev, version } from "$app/environment";
     const today = new Date().toLocaleDateString("en-CA"); // Returns YYYY-MM-DD format
-    let cal = $state();
+    // Svelte requires 'let' for bind:this and reactive state, ignore linter false positives
+    // biome-ignore lint/style/useConst: svelte state
+    let cal = $state<CalendarInstance>({focusedDate: "", today});
+    // biome-ignore lint/style/useConst: svelte state
     let day = $state(today);
 </script>
 
@@ -24,26 +31,25 @@
 <calendar-date
     class="cally bg-base-100 border border-base-300 shadow-lg rounded-box"
     bind:this={cal}
-    onfocusday={() => (day = cal.focusedDate)}
+    onfocusday={() => { day = cal.focusedDate; }}
 >
-    <svg
-        aria-label="Previous"
-        class="fill-current size-4"
-        slot="previous"
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        ><path fill="currentColor" d="M15.75 19.5 8.25 12l7.5-7.5"></path></svg
-    >
-    <svg
-        aria-label="Next"
-        class="fill-current size-4"
-        slot="next"
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        ><path fill="currentColor" d="m8.25 4.5 7.5 7.5-7.5 7.5"></path></svg
-    >
+    <span slot="previous">
+        <svg
+            aria-label="Previous"
+            class="fill-current size-4"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+        ><path fill="currentColor" d="M15.75 19.5 8.25 12l7.5-7.5"></path></svg>
+    </span>
+    <span slot="next">
+        <svg
+            aria-label="Next"
+            class="fill-current size-4"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+        ><path fill="currentColor" d="m8.25 4.5 7.5 7.5-7.5 7.5"></path></svg>
+    </span>
     <calendar-month></calendar-month>
 </calendar-date>
 
-<button onclick={() => console.log(cal.today)}>click me</button>
 <div>Day: {day}</div>
