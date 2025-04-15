@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "slint-ui": "^1.10.0"
+  }
+}

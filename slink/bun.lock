@@ -1,0 +1,25 @@
+{
+  "lockfileVersion": 1,
+  "workspaces": {
+    "": {
+      "dependencies": {
+        "slint-ui": "^1.10.0",
+      },
+    },
+  },
+  "packages": {
+    "@napi-rs/cli": ["@napi-rs/cli@2.18.4", "", { "bin": { "napi": "scripts/index.js" } }, "sha512-SgJeA4df9DE2iAEpr3M2H0OKl/yjtg1BnRI5/JyowS71tUWhrfSu2LT0V3vlHET+g1hBVlrO60PmEXwUEKp8Mg=="],
+
+    "@slint-ui/slint-ui-binary-darwin-arm64": ["@slint-ui/slint-ui-binary-darwin-arm64@1.10.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-nQBnQ5awvXsIutLh5iOYRUoCz3NAfINPYxwCh7AfmAp9Nu9Um1XiENoTLJV8Ry9ow3B7IQtncatUop29vaaiwA=="],
+
+    "@slint-ui/slint-ui-binary-darwin-x64": ["@slint-ui/slint-ui-binary-darwin-x64@1.10.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-O7gmFfIAcNZDjBtee+YFH4qMorCAyNOLd2DSqiJh9juKgV25jfWVH1pGcrBQUSm48tyVMUIqLb49kcNrdJv/jQ=="],
+
+    "@slint-ui/slint-ui-binary-linux-arm64-gnu": ["@slint-ui/slint-ui-binary-linux-arm64-gnu@1.10.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-8z/7sQu+0F0odYsnEIGBqGWBmd55qMubb3p5jCAYH7Xu66PjreNO/H+coy3t/na2cW0//+3rq2pj5zdka+Twww=="],
+
+    "@slint-ui/slint-ui-binary-linux-x64-gnu": ["@slint-ui/slint-ui-binary-linux-x64-gnu@1.10.0", "", { "os": "linux", "cpu": "x64" }, "sha512-hJrtoIniHull8nOh/3fl0hBENirI6z0Q3Ef4sDq7xGnWiHIWWNq+RCCcknyjDxPkYwy6QVldGRnVcYdLg6xBUA=="],
+
+    "@slint-ui/slint-ui-binary-win32-x64-msvc": ["@slint-ui/slint-ui-binary-win32-x64-msvc@1.10.0", "", { "os": "win32", "cpu": "x64" }, "sha512-gfKlIsTFtLVEKhlaz/tX9nJ06BSMKSLZmdWe2qGD3mC3I2LGo761euFH0GrfVjxh7iXCCx2R8b2xZzm/1HgyhA=="],
+
+    "slint-ui": ["slint-ui@1.10.0", "", { "dependencies": { "@napi-rs/cli": "2.18.4" }, "optionalDependencies": { "@slint-ui/slint-ui-binary-darwin-arm64": "1.10.0", "@slint-ui/slint-ui-binary-darwin-x64": "1.10.0", "@slint-ui/slint-ui-binary-linux-arm64-gnu": "1.10.0", "@slint-ui/slint-ui-binary-linux-x64-gnu": "1.10.0", "@slint-ui/slint-ui-binary-win32-x64-msvc": "1.10.0" } }, "sha512-+Z/0uBZDGAoF6u/LPe0kDk669C4gR/uIHthxrs1Q29FKdoMT6x9I257ZujTjYct3skMvJ148r4J6TuGRtvevwQ=="],
+  }
+}
