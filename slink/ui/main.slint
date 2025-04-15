@@ -24,8 +24,9 @@ component StyledInput inherits Rectangle {
 
     input := TextInput {
         property <bool> empty: self.text == "";
-        x: 10px;
-        width: parent.width - 20px;
+        x: 8px;
+        y: 0px;
+        width: parent.width - 16px;
         height: parent.height;
         text <=> root.text;
         enabled: root.enabled;
@@ -33,6 +34,10 @@ component StyledInput inherits Rectangle {
         color: #333333;
         selection-foreground-color: white;
         selection-background-color: #6a5acd80;
+        horizontal-alignment: left;
+        vertical-alignment: center;
+        single-line: true;
+        wrap: no-wrap;
 
         key-pressed(event) => {
             if (root.handle-enter && event.text == Key.Return) {
@@ -49,9 +54,9 @@ component StyledInput inherits Rectangle {
     ]
 
     if (input.empty && !input.has-focus): Text {
-        x: 10px;
+        x: 8px;
         y: 0;
-        width: parent.width - 20px;
+        width: parent.width - 16px;
         height: parent.height;
         text: root.placeholder-text;
         color: #999999;
@@ -209,21 +214,23 @@ export component Demo inherits Window {
 
         // Chat controls
         Rectangle {
-            border-radius: 8px;
+            border-radius: 12px;
             background: #f0f0f0;
             drop-shadow-offset-x: 0px;
-            drop-shadow-offset-y: 1px;
-            drop-shadow-blur: 4px;
-            drop-shadow-color: #00000020;
+            drop-shadow-offset-y: 2px;
+            drop-shadow-blur: 5px;
+            drop-shadow-color: #00000025;
             vertical-stretch: 0;
 
             Text {
-                x: 12px;
+                x: 0;
                 y: 8px;
+                width: parent.width;
                 text: "Chat Controls";
                 font-weight: 700;
                 color: #4a3c8c;
                 font-size: 16px;
+                horizontal-alignment: center;
             }
 
             VerticalLayout {
@@ -234,7 +241,8 @@ export component Demo inherits Window {
                 spacing: 16px;
 
                 HorizontalLayout {
-                    spacing: 8px;
+                    spacing: 12px;
+                    alignment: center;
                     Text {
                         text: "Your Name:";
                         vertical-alignment: center;
@@ -245,16 +253,19 @@ export component Demo inherits Window {
                         text <=> username;
                         placeholder-text: "Enter your name";
                         width: 200px;
+                        height: 40px;
                     }
                 }
 
                 HorizontalLayout {
-                    spacing: 8px;
+                    spacing: 12px;
+                    alignment: center;
 
                     StyledInput {
                         text <=> current-message;
                         placeholder-text: "Type your message...";
-                        width: parent.width - 140px;
+                        width: parent.width - 144px;
+                        height: 40px;
                         handle-enter: true;
                         enter-pressed => {
                             send-message();
@@ -264,6 +275,7 @@ export component Demo inherits Window {
                     ChatButton {
                         text: "Send";
                         width: 120px;
+                        height: 40px;
                         clicked => {
                             send-message();
                         }
