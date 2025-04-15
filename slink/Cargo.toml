@@ -1,0 +1,17 @@
+[package]
+name = "slink"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+slint = "1.10.0"
+wasm-bindgen = { version = "0.2" }
+getrandom = { version = "0.2.2", features = ["js"] }
+
+[build-dependencies]
+slint-build = "1.10.0"
+
+
+[lib]
+path = "src/main.rs"
+crate-type = ["cdylib"]
