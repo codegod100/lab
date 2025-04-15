@@ -277,7 +277,7 @@ fn get_icon(entry: &DirEntry) -> ColoredString {
         if let Some(extension) = Path::new(&file_name).extension() {
             match extension.to_string_lossy().as_ref() {
                 "rs" => "🦀 ".red(),
-                "js" => "📜 ".yellow(),
+                "js" | "ts" => "📜 ".yellow(),
                 "py" => "🐍 ".blue(),
                 "md" => "📝 ".white(),
                 "jpg" | "png" | "gif" => "🖼️ ".magenta(),
