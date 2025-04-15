@@ -1,4 +1,4 @@
-import { Button, VerticalBox, AboutSlint, Slider, SpinBox, LineEdit, GroupBox } from "std-widgets.slint";
+import { Button, VerticalBox, AboutSlint, ScrollView, LineEdit, GroupBox } from "std-widgets.slint";
 
 // Custom styled input field
 component StyledInput inherits Rectangle {
@@ -7,7 +7,7 @@ component StyledInput inherits Rectangle {
     in property <bool> enabled: true;
     property <bool> has-focus: false;
 
-    height: 20px;
+    height: 36px;
     border-radius: 6px;
     background: #ffffff;
     border-width: 1px;
@@ -50,13 +50,13 @@ component StyledInput inherits Rectangle {
     }
 }
 
-// Custom cute button component
-component CuteButton inherits Rectangle {
+// Button component
+component ChatButton inherits Rectangle {
     callback clicked;
     in property <string> text;
-    in property <brush> bg: #ffb6c1;
-    in property <brush> hover-bg: #ff99b3;
-    in property <brush> pressed-bg: #ff8da6;
+    in property <brush> bg: #6a5acd;
+    in property <brush> hover-bg: #5a4abd;
+    in property <brush> pressed-bg: #4a3c9d;
 
     height: 36px;
     width: 120px;
@@ -76,135 +76,115 @@ component CuteButton inherits Rectangle {
     }
 }
 
-// Feed button component
-component FeedButton inherits CuteButton {
-    text: "Feed";
-    bg: #ff9999;
-    callback feed-pet;
-    clicked => { feed-pet() }
-}
+// Message bubble component
+component MessageBubble inherits Rectangle {
+    in property <string> text;
+    in property <string> sender;
+    in property <string> timestamp;
+    in property <bool> is-self: false;
 
-// Play button component
-component PlayButton inherits CuteButton {
-    text: "Play";
-    bg: #99ccff;
-    callback play-with-pet;
-    clicked => { play-with-pet() }
-}
+    height: 80px;
 
-// Sleep button component
-component SleepButton inherits CuteButton {
-    text: "Sleep";
-    bg: #cc99ff;
-    callback put-to-sleep;
-    clicked => { put-to-sleep() }
+    // Bubble styling
+    background: is-self ? #e1f3fb : #f0f0f0;
+    border-radius: 12px;
+    drop-shadow-offset-x: 0px;
+    drop-shadow-offset-y: 1px;
+    drop-shadow-blur: 3px;
+    drop-shadow-color: #00000015;
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 4px;
+
+        // Sender name
+        Text {
+            text: sender;
+            font-size: 12px;
+            font-weight: 600;
+            color: is-self ? #4a86e8 : #666666;
+        }
+
+        // Message text
+        Text {
+            text: root.text;
+            font-size: 14px;
+            color: #333333;
+            wrap: word-wrap;
+        }
+
+        // Timestamp
+        Text {
+            text: timestamp;
+            font-size: 10px;
+            color: #999999;
+            horizontal-alignment: right;
+        }
+    }
 }
 
 // Main application window
 export component Demo inherits Window {
-    title: "Cute Pet App";
+    title: "Chat App";
     width: 500px;
-    height: 500px;
+    height: 600px;
     background: #f8f8ff;
 
-    property <string> pet-name: "Fluffy";
-    property <float> happiness: 50;
-    property <string> message: "Hello! I'm " + pet-name;
-    property <bool> is-dancing: false;
+    // Chat data
+    property <string> username: "User";
+    property <string> current-message: "";
+    property <[{sender: string, text: string, timestamp: string, is-self: bool}]> messages: [
+        {sender: "System", text: "Welcome to the chat app!", timestamp: "Just now", is-self: false},
+    ];
 
+    // Function to add a new message
+    callback send-message();
+
+    // Main layout
     VerticalLayout {
         padding: 24px;
         spacing: 16px;
 
         // Title
         Text {
-            text: "My Virtual Pet";
+            text: "Chat App";
             font-size: 24px;
             font-weight: 700;
             horizontal-alignment: center;
             color: #4a3c8c;
         }
 
-        // Pet display area
+        // Messages area
         Rectangle {
-            height: 180px;
             border-radius: 16px;
             background: #ffffff;
             drop-shadow-offset-x: 0px;
             drop-shadow-offset-y: 2px;
             drop-shadow-blur: 6px;
             drop-shadow-color: #00000020;
+            vertical-stretch: 1;
 
-            VerticalLayout {
-                padding: 16px;
-                spacing: 12px;
-                alignment: center;
+            ScrollView {
+                width: parent.width;
+                height: parent.height;
 
-                HorizontalLayout {
-                    alignment: center;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+                    alignment: start;
 
-                    // Container for animation
-                    Rectangle {
-                        width: 120px;
-                        height: 120px;
-                        background: transparent;
-
-                        // Pet face (simple circle with eyes)
-                        Rectangle {
-                            width: 120px;
-                            height: 120px;
-                            border-radius: 60px;
-                            background: #ffcc99;
-                            x: is-dancing ? 10px : 0px;
-                            animate x { duration: 1s; easing: ease-in-out; }
-
-                        // Left eye
-                        Rectangle {
-                            x: 30px;
-                            y: 40px;
-                            width: 16px;
-                            height: is-dancing ? 8px : 16px;
-                            border-radius: 8px;
-                            background: #333333;
-                            animate height { duration: 300ms; }
-                        }
-
-                        // Right eye
-                        Rectangle {
-                            x: 74px;
-                            y: 40px;
-                            width: 16px;
-                            height: is-dancing ? 8px : 16px;
-                            border-radius: 8px;
-                            background: #333333;
-                            animate height { duration: 300ms; }
-                        }
-
-                        // Smile
-                        Path {
-                            x: 36px;
-                            y: 70px;
-                            width: 48px;
-                            height: 20px;
-                            commands: "M 0 0 C 16 20 32 20 48 0";
-                            stroke: #333333;
-                            stroke-width: 3px;
-                        }
+                    for message in messages: MessageBubble {
+                        width: 400px;
+                        text: message.text;
+                        sender: message.sender;
+                        timestamp: message.timestamp;
+                        is-self: message.is-self;
                     }
-                    }
-                }
-
-                Text {
-                    text: message;
-                    font-size: 16px;
-                    font-weight: 500;
-                    color: #222222;
-                    horizontal-alignment: center;
                 }
             }
         }
 
-        // Pet controls
+        // Chat controls
         Rectangle {
             border-radius: 8px;
             background: #f0f0f0;
@@ -212,16 +192,16 @@ export component Demo inherits Window {
             drop-shadow-offset-y: 1px;
             drop-shadow-blur: 4px;
             drop-shadow-color: #00000020;
+            vertical-stretch: 0;
 
             Text {
                 x: 12px;
                 y: 8px;
-                text: "Pet Controls";
+                text: "Chat Controls";
                 font-weight: 700;
                 color: #4a3c8c;
                 font-size: 16px;
             }
-            vertical-stretch: 0;
 
             VerticalLayout {
                 padding-left: 16px;
@@ -232,48 +212,33 @@ export component Demo inherits Window {
 
                 HorizontalLayout {
                     spacing: 8px;
-                    Text { text: "Name:"; vertical-alignment: center; font-weight: 600; color: #222222; }
+                    Text {
+                        text: "Your Name:";
+                        vertical-alignment: center;
+                        font-weight: 600;
+                        color: #222222;
+                    }
                     StyledInput {
-                        text <=> pet-name;
-                        placeholder-text: "Enter pet name";
+                        text <=> username;
+                        placeholder-text: "Enter your name";
                         width: 200px;
                     }
                 }
 
                 HorizontalLayout {
                     spacing: 8px;
-                    Text { text: "Happiness:"; vertical-alignment: center; font-weight: 600; color: #222222; }
-                    Slider {
-                        value <=> happiness;
-                        minimum: 0;
-                        maximum: 100;
-                    }
-                    Text { text: happiness + "%"; vertical-alignment: center; font-weight: 600; color: #222222; }
-                }
 
-                HorizontalLayout {
-                    alignment: center;
-                    spacing: 12px;
-
-                    FeedButton {
-                        feed-pet => {
-                            happiness = min(100, happiness + 10);
-                            message = "Yummy! Thank you!";
-                        }
+                    StyledInput {
+                        text <=> current-message;
+                        placeholder-text: "Type your message...";
+                        width: parent.width - 140px;
                     }
 
-                    PlayButton {
-                        play-with-pet => {
-                            happiness = min(100, happiness + 15);
-                            is-dancing = !is-dancing;
-                            message = is-dancing ? "Wheee! I'm dancing!" : "That was fun!";
-                        }
-                    }
-
-                    SleepButton {
-                        put-to-sleep => {
-                            happiness = min(100, happiness + 5);
-                            message = "Zzz... *snort*";
+                    ChatButton {
+                        text: "Send";
+                        width: 120px;
+                        clicked => {
+                            send-message();
                         }
                     }
                 }
@@ -299,6 +264,23 @@ export component Demo inherits Window {
                 color: #222222;
                 vertical-alignment: center;
             }
+        }
+    }
+
+    // Implementation of send-message callback
+    send-message => {
+        if (current-message != "") {
+            // Add user message to the list
+            // In Slint, we need to create a new array with all messages
+            // plus the new one, since we can't modify arrays in place
+            messages = [
+                {sender: "System", text: "Welcome to the chat app!", timestamp: "Just now", is-self: false},
+                {sender: username, text: current-message, timestamp: "Just now", is-self: true},
+                {sender: "Bot", text: "Thanks for your message!", timestamp: "Just now", is-self: false}
+            ];
+
+            // Clear the input field
+            current-message = "";
         }
     }
 }
