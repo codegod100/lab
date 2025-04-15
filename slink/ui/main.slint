@@ -91,14 +91,45 @@ component ChatButton inherits Rectangle {
     }
 }
 
+// Small icon button component
+component IconButton inherits Rectangle {
+    callback clicked;
+    in property <string> icon-text;
+    in property <brush> text-color: #6a5acd;
+    in property <brush> hover-text-color: #5a4abd;
+    in property <length> font-size: 14px;
+
+    width: self.font-size * 1.5;
+    height: self.font-size * 1.5;
+    border-radius: self.width / 2;
+
+    Text {
+        text: root.icon-text;
+        font-size: root.font-size;
+        color: ta.has-hover ? root.hover-text-color : root.text-color;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    ta := TouchArea {
+        clicked => { root.clicked() }
+    }
+}
+
 // Message bubble component
 component MessageBubble inherits Rectangle {
     in property <string> text;
     in property <string> sender;
     in property <string> timestamp;
     in property <bool> is-self: false;
+    in property <int> message-id;
+    in property <int> replied-to-id: -1;
+    in property <string> replied-to-text: "";
+    in property <string> replied-to-sender: "";
+    callback reply-clicked(int);
 
-    height: 80px;
+    // Adjust height based on content
+    height: replied-to-id >= 0 ? 110px : 80px;
 
     // Bubble styling
     background: is-self ? #e1f3fb : #f0f0f0;
@@ -111,6 +142,41 @@ component MessageBubble inherits Rectangle {
     VerticalLayout {
         padding: 12px;
         spacing: 4px;
+
+        // Replied-to message (if any)
+        if (replied-to-id >= 0): Rectangle {
+            height: 30px;
+            background: #00000010;
+            border-radius: 6px;
+
+            HorizontalLayout {
+                padding: 4px;
+                spacing: 4px;
+
+                Rectangle {
+                    width: 3px;
+                    background: #6a5acd;
+                    border-radius: 1.5px;
+                }
+
+                VerticalLayout {
+                    spacing: 2px;
+
+                    Text {
+                        text: replied-to-sender;
+                        font-size: 10px;
+                        font-weight: 600;
+                        color: #6a5acd;
+                    }
+
+                    Text {
+                        text: replied-to-text;
+                        font-size: 10px;
+                        color: #666666;
+                    }
+                }
+            }
+        }
 
         // Sender name
         Text {
@@ -128,12 +194,31 @@ component MessageBubble inherits Rectangle {
             wrap: word-wrap;
         }
 
-        // Timestamp
-        Text {
-            text: timestamp;
-            font-size: 10px;
-            color: #999999;
-            horizontal-alignment: right;
+        // Footer with timestamp and reply button
+        HorizontalLayout {
+            height: 16px;
+
+            // Timestamp
+            Text {
+                text: timestamp;
+                font-size: 10px;
+                color: #999999;
+                vertical-alignment: center;
+            }
+
+            // Spacer
+            Rectangle { }
+
+            // Reply button
+            IconButton {
+                icon-text: "↩";
+                font-size: 12px;
+                text-color: #999999;
+                hover-text-color: #6a5acd;
+                clicked => {
+                    root.reply-clicked(root.message-id);
+                }
+            }
         }
     }
 }
@@ -153,8 +238,9 @@ export component Demo inherits Window {
     // Chat data
     property <string> username: "User";
     property <string> current-message: "";
-    property <[{sender: string, text: string, timestamp: string, is-self: bool}]> messages: [
-        {sender: "System", text: "Welcome to the chat app!", timestamp: "Just now", is-self: false},
+    property <int> replying-to: -1; // ID of the message being replied to, -1 means not replying
+    property <[{sender: string, text: string, timestamp: string, is-self: bool, id: int, replied-to-id: int, replied-to-text: string, replied-to-sender: string}]> messages: [
+        {sender: "System", text: "Welcome to the chat app!", timestamp: "Just now", is-self: false, id: 0, replied-to-id: -1, replied-to-text: "", replied-to-sender: ""},
     ];
 
     // Auto-scroll to bottom when messages change
@@ -162,6 +248,36 @@ export component Demo inherits Window {
 
     // Function to add a new message
     callback send-message();
+
+    // Function to set which message is being replied to
+    callback set-reply-to(int);
+
+    // Helper properties to get message details by ID
+    property <string> replied-to-sender: {
+        if (replying-to < 0 || messages.length <= 0) { return ""; }
+        if (messages[0].id == replying-to) { return messages[0].sender; }
+        if (messages.length > 1 && messages[1].id == replying-to) { return messages[1].sender; }
+        if (messages.length > 2 && messages[2].id == replying-to) { return messages[2].sender; }
+        if (messages.length > 3 && messages[3].id == replying-to) { return messages[3].sender; }
+        if (messages.length > 4 && messages[4].id == replying-to) { return messages[4].sender; }
+        if (messages.length > 5 && messages[5].id == replying-to) { return messages[5].sender; }
+        if (messages.length > 6 && messages[6].id == replying-to) { return messages[6].sender; }
+        if (messages.length > 7 && messages[7].id == replying-to) { return messages[7].sender; }
+        return "";
+    }
+
+    property <string> replied-to-text: {
+        if (replying-to < 0 || messages.length <= 0) { return ""; }
+        if (messages[0].id == replying-to) { return messages[0].text; }
+        if (messages.length > 1 && messages[1].id == replying-to) { return messages[1].text; }
+        if (messages.length > 2 && messages[2].id == replying-to) { return messages[2].text; }
+        if (messages.length > 3 && messages[3].id == replying-to) { return messages[3].text; }
+        if (messages.length > 4 && messages[4].id == replying-to) { return messages[4].text; }
+        if (messages.length > 5 && messages[5].id == replying-to) { return messages[5].text; }
+        if (messages.length > 6 && messages[6].id == replying-to) { return messages[6].text; }
+        if (messages.length > 7 && messages[7].id == replying-to) { return messages[7].text; }
+        return "";
+    }
 
     // Implementation of scroll-to-bottom
     scroll-to-bottom => {
@@ -207,6 +323,11 @@ export component Demo inherits Window {
                         sender: message.sender;
                         timestamp: message.timestamp;
                         is-self: message.is-self;
+                        message-id: message.id;
+                        replied-to-id: message.replied-to-id;
+                        replied-to-text: message.replied-to-text;
+                        replied-to-sender: message.replied-to-sender;
+                        reply-clicked(id) => { root.set-reply-to(id); }
                     }
                 }
             }
@@ -254,6 +375,62 @@ export component Demo inherits Window {
                         placeholder-text: "Enter your name";
                         width: 200px;
                         height: 40px;
+                    }
+                }
+
+                // Show reply indicator if replying to a message
+                if (replying-to >= 0): Rectangle {
+                    height: 30px;
+                    background: #00000010;
+                    border-radius: 6px;
+
+                    HorizontalLayout {
+                        padding: 4px;
+                        spacing: 4px;
+
+                        Rectangle {
+                            width: 3px;
+                            background: #6a5acd;
+                            border-radius: 1.5px;
+                        }
+
+                        VerticalLayout {
+                            spacing: 2px;
+                            width: parent.width - 40px;
+
+                            // Use the replied-to message details from the root component
+                            property <string> reply-sender: root.replied-to-sender;
+                            property <string> reply-text: root.replied-to-text;
+
+                            Text {
+                                text: "Replying to " + parent.reply-sender;
+                                font-size: 10px;
+                                font-weight: 600;
+                                color: #6a5acd;
+                            }
+
+                            Text {
+                                text: parent.reply-text;
+                                font-size: 10px;
+                                color: #666666;
+                            }
+                        }
+
+                        Rectangle {
+                            width: 20px;
+                            height: 20px;
+
+                            // Cancel reply button
+                            IconButton {
+                                icon-text: "×";
+                                font-size: 14px;
+                                text-color: #999999;
+                                hover-text-color: #ff6b6b;
+                                clicked => {
+                                    root.replying-to = -1;
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -306,6 +483,11 @@ export component Demo inherits Window {
         }
     }
 
+    // Implementation of set-reply-to callback
+    set-reply-to(id) => {
+        replying-to = id;
+    }
+
     // Implementation of send-message callback
     send-message => {
         if (current-message != "") {
@@ -317,8 +499,26 @@ export component Demo inherits Window {
                 // If there's only the welcome message, add the new messages
                 messages = [
                     messages[0],
-                    {sender: username, text: current-message, timestamp: "Just now", is-self: true},
-                    {sender: "Bot", text: "Thanks for your message!", timestamp: "Just now", is-self: false}
+                    {
+                        sender: username,
+                        text: current-message,
+                        timestamp: "Just now",
+                        is-self: true,
+                        id: 1,
+                        replied-to-id: replying-to,
+                        replied-to-text: replied-to-text,
+                        replied-to-sender: replied-to-sender
+                    },
+                    {
+                        sender: "Bot",
+                        text: "Thanks for your message!",
+                        timestamp: "Just now",
+                        is-self: false,
+                        id: 2,
+                        replied-to-id: -1,
+                        replied-to-text: "",
+                        replied-to-sender: ""
+                    }
                 ];
             } else if (messages.length == 3) {
                 // If there are already 3 messages (welcome + user + bot), add the new ones
@@ -326,8 +526,26 @@ export component Demo inherits Window {
                     messages[0],
                     messages[1],
                     messages[2],
-                    {sender: username, text: current-message, timestamp: "Just now", is-self: true},
-                    {sender: "Bot", text: "Thanks for your message!", timestamp: "Just now", is-self: false}
+                    {
+                        sender: username,
+                        text: current-message,
+                        timestamp: "Just now",
+                        is-self: true,
+                        id: 3,
+                        replied-to-id: replying-to,
+                        replied-to-text: replied-to-text,
+                        replied-to-sender: replied-to-sender
+                    },
+                    {
+                        sender: "Bot",
+                        text: "Thanks for your message!",
+                        timestamp: "Just now",
+                        is-self: false,
+                        id: 4,
+                        replied-to-id: -1,
+                        replied-to-text: "",
+                        replied-to-sender: ""
+                    }
                 ];
             } else if (messages.length == 5) {
                 // If there are already 5 messages, add the new ones
@@ -337,21 +555,89 @@ export component Demo inherits Window {
                     messages[2],
                     messages[3],
                     messages[4],
-                    {sender: username, text: current-message, timestamp: "Just now", is-self: true},
-                    {sender: "Bot", text: "Thanks for your message!", timestamp: "Just now", is-self: false}
+                    {
+                        sender: username,
+                        text: current-message,
+                        timestamp: "Just now",
+                        is-self: true,
+                        id: 5,
+                        replied-to-id: replying-to,
+                        replied-to-text: replied-to-text,
+                        replied-to-sender: replied-to-sender
+                    },
+                    {
+                        sender: "Bot",
+                        text: "Thanks for your message!",
+                        timestamp: "Just now",
+                        is-self: false,
+                        id: 6,
+                        replied-to-id: -1,
+                        replied-to-text: "",
+                        replied-to-sender: ""
+                    }
+                ];
+            } else if (messages.length == 7) {
+                // If there are already 7 messages, add the new ones
+                messages = [
+                    messages[0],
+                    messages[1],
+                    messages[2],
+                    messages[3],
+                    messages[4],
+                    messages[5],
+                    messages[6],
+                    {
+                        sender: username,
+                        text: current-message,
+                        timestamp: "Just now",
+                        is-self: true,
+                        id: 7,
+                        replied-to-id: replying-to,
+                        replied-to-text: replied-to-text,
+                        replied-to-sender: replied-to-sender
+                    },
+                    {
+                        sender: "Bot",
+                        text: "Thanks for your message!",
+                        timestamp: "Just now",
+                        is-self: false,
+                        id: 8,
+                        replied-to-id: -1,
+                        replied-to-text: "",
+                        replied-to-sender: ""
+                    }
                 ];
             } else {
                 // For any other case, just add the new messages
                 // This is a fallback and might not handle all cases
                 messages = [
                     messages[0],
-                    {sender: username, text: current-message, timestamp: "Just now", is-self: true},
-                    {sender: "Bot", text: "Thanks for your message!", timestamp: "Just now", is-self: false}
+                    {
+                        sender: username,
+                        text: current-message,
+                        timestamp: "Just now",
+                        is-self: true,
+                        id: messages.length,
+                        replied-to-id: replying-to,
+                        replied-to-text: replied-to-text,
+                        replied-to-sender: replied-to-sender
+                    },
+                    {
+                        sender: "Bot",
+                        text: "Thanks for your message!",
+                        timestamp: "Just now",
+                        is-self: false,
+                        id: messages.length + 1,
+                        replied-to-id: -1,
+                        replied-to-text: "",
+                        replied-to-sender: ""
+                    }
                 ];
             }
 
-            // Clear the input field
+            // Clear the input field and reset reply state
             current-message = "";
+            replying-to = -1;
 
             // Auto-scroll to the bottom of the chat
             // This ensures the latest messages are always visible
