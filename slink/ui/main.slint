@@ -140,6 +140,11 @@ export component Demo inherits Window {
     height: 600px;
     background: #f8f8ff;
 
+    // Scroll to bottom when the component is loaded
+    init => {
+        scroll-to-bottom();
+    }
+
     // Chat data
     property <string> username: "User";
     property <string> current-message: "";
@@ -147,8 +152,16 @@ export component Demo inherits Window {
         {sender: "System", text: "Welcome to the chat app!", timestamp: "Just now", is-self: false},
     ];
 
+    // Auto-scroll to bottom when messages change
+    callback scroll-to-bottom();
+
     // Function to add a new message
     callback send-message();
+
+    // Implementation of scroll-to-bottom
+    scroll-to-bottom => {
+        chat-scroll-view.viewport-y = min(0px, -chat-scroll-view.viewport-height + chat-scroll-view.visible-height);
+    }
 
     // Main layout
     VerticalLayout {
@@ -174,7 +187,7 @@ export component Demo inherits Window {
             drop-shadow-color: #00000020;
             vertical-stretch: 1;
 
-            ScrollView {
+            chat-scroll-view := ScrollView {
                 width: parent.width;
                 height: parent.height;
 
@@ -284,17 +297,53 @@ export component Demo inherits Window {
     // Implementation of send-message callback
     send-message => {
         if (current-message != "") {
-            // Add user message to the list
             // In Slint, we need to create a new array with all messages
             // plus the new one, since we can't modify arrays in place
-            messages = [
-                {sender: "System", text: "Welcome to the chat app!", timestamp: "Just now", is-self: false},
-                {sender: username, text: current-message, timestamp: "Just now", is-self: true},
-                {sender: "Bot", text: "Thanks for your message!", timestamp: "Just now", is-self: false}
-            ];
+
+            // Add the new messages to the existing ones
+            if (messages.length == 1) {
+                // If there's only the welcome message, add the new messages
+                messages = [
+                    messages[0],
+                    {sender: username, text: current-message, timestamp: "Just now", is-self: true},
+                    {sender: "Bot", text: "Thanks for your message!", timestamp: "Just now", is-self: false}
+                ];
+            } else if (messages.length == 3) {
+                // If there are already 3 messages (welcome + user + bot), add the new ones
+                messages = [
+                    messages[0],
+                    messages[1],
+                    messages[2],
+                    {sender: username, text: current-message, timestamp: "Just now", is-self: true},
+                    {sender: "Bot", text: "Thanks for your message!", timestamp: "Just now", is-self: false}
+                ];
+            } else if (messages.length == 5) {
+                // If there are already 5 messages, add the new ones
+                messages = [
+                    messages[0],
+                    messages[1],
+                    messages[2],
+                    messages[3],
+                    messages[4],
+                    {sender: username, text: current-message, timestamp: "Just now", is-self: true},
+                    {sender: "Bot", text: "Thanks for your message!", timestamp: "Just now", is-self: false}
+                ];
+            } else {
+                // For any other case, just add the new messages
+                // This is a fallback and might not handle all cases
+                messages = [
+                    messages[0],
+                    {sender: username, text: current-message, timestamp: "Just now", is-self: true},
+                    {sender: "Bot", text: "Thanks for your message!", timestamp: "Just now", is-self: false}
+                ];
+            }
 
             // Clear the input field
             current-message = "";
+
+            // Auto-scroll to the bottom of the chat
+            // This ensures the latest messages are always visible
+            scroll-to-bottom();
         }
     }
 }
