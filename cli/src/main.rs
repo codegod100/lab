@@ -4,6 +4,7 @@ use std::fs::{self, DirEntry};
 use std::io;
 use std::path::Path;
 use chrono::{DateTime, Local};
+use pager::Pager;
 
 #[derive(Parser)]
 #[command(name = "lsd")]
@@ -26,10 +27,19 @@ struct Cli {
     /// Show directory contents in a tree view
     #[arg(short = 't', long = "tree", action = ArgAction::SetTrue)]
     tree: bool,
+
+    /// Use pager for output
+    #[arg(short = 'p', long = "pager", action = ArgAction::SetTrue)]
+    pager: bool,
 }
 
 fn main() -> io::Result<()> {
     let cli = Cli::parse();
+
+    // Setup pager if requested
+    if cli.pager {
+        Pager::new().setup();
+    }
 
     // Get the directory entries
     let entries = get_directory_entries(&cli.path, cli.all)?;
@@ -137,13 +147,49 @@ fn display_long_format(entries: &[DirEntry]) -> io::Result<()> {
     Ok(())
 }
 
+/// Format a path as breadcrumbs
+fn format_breadcrumbs(path: &str) -> ColoredString {
+    let path_obj = Path::new(path);
+    let components: Vec<_> = path_obj.components().collect();
+
+    if components.is_empty() {
+        return ".".normal();
+    }
+
+    let mut result = String::new();
+    for (i, component) in components.iter().enumerate() {
+        let name = component.as_os_str().to_string_lossy();
+        if !name.is_empty() {
+            if i > 0 {
+                result.push_str(" ".normal().to_string().as_str());
+                result.push_str(">".bright_yellow().bold().to_string().as_str());
+                result.push_str(" ".normal().to_string().as_str());
+            }
+            result.push_str(name.cyan().bold().to_string().as_str());
+        }
+    }
+
+    // If it's just a dot, return that
+    if result.is_empty() || result == "." {
+        return ".".cyan().bold();
+    }
+
+    result.normal()
+}
+
 /// Display directory contents in a tree view
 fn display_tree(path: &str, show_hidden: bool, depth: usize) -> io::Result<()> {
     let entries = get_directory_entries(path, show_hidden)?;
 
+    // Show breadcrumbs for the current directory if we're at the root of the tree
+    if depth == 0 {
+        println!("{}", format_breadcrumbs(path));
+    }
+
     for entry in entries {
         let file_name = entry.file_name().to_string_lossy().to_string();
         let colored_name = colorize_entry(&entry, &file_name);
+        let entry_path = entry.path().to_string_lossy().to_string();
 
         // Print indentation based on depth
         for _ in 0..depth {
@@ -154,7 +200,13 @@ fn display_tree(path: &str, show_hidden: bool, depth: usize) -> io::Result<()> {
 
         // Recursively display subdirectories
         if entry.file_type()?.is_dir() {
-            display_tree(&entry.path().to_string_lossy(), show_hidden, depth + 1)?;
+            // Show breadcrumbs for this subdirectory
+            for _ in 0..depth+1 {
+                print!("│   ");
+            }
+            println!("🔍 {}", format_breadcrumbs(&entry_path));
+
+            display_tree(&entry_path, show_hidden, depth + 1)?;
         }
     }
 

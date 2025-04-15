@@ -9,9 +9,10 @@ A colorful clone of the `ls` command written in Rust, providing enhanced directo
 - **Multiple Display Formats**:
   - Standard grid view (default)
   - Long format (`-l`) with permissions, size, and modification time
-  - Tree view (`-t`) to visualize directory structure
+  - Tree view (`-t`) to visualize directory structure with breadcrumbs showing the full path for each subdirectory
 - **Hidden Files**: Option to show hidden files (`-a`)
 - **Human-Readable Sizes**: File sizes are displayed in a human-readable format (B, K, M, G)
+- **Pager Support**: Use the `-p` flag to page through long outputs
 
 ## Installation
 
@@ -50,6 +51,9 @@ lsd-clone -l
 # Show directory contents in a tree view
 lsd-clone -t
 
+# Use pager for output
+lsd-clone -p
+
 # Combine options
 lsd-clone -la /path/to/directory
 ```
@@ -66,6 +70,7 @@ Options:
   -a, --all      Show hidden files
   -l, --long     Use long listing format
   -t, --tree     Show directory contents in a tree view
+  -p, --pager    Use pager for output
   -h, --help     Print help
   -V, --version  Print version
 ```
@@ -87,12 +92,16 @@ rwxr-xr-x     66 B Apr 14 22:47 📁 target
 
 ### Tree View
 ```
+.
 ├── 📄 Cargo.lock
 ├── 📄 Cargo.toml
 ├── 📁 src
+│   🔍 . > src
 │   ├── 📄 main.rs
 ├── 📁 target
+│   🔍 . > target
 │   ├── 📁 debug
+│   │   🔍 . > target > debug
 │   │   ├── ...
 ```
 
@@ -102,6 +111,7 @@ rwxr-xr-x     66 B Apr 14 22:47 📁 target
 - [colored](https://crates.io/crates/colored) - Terminal colors
 - [chrono](https://crates.io/crates/chrono) - Date and time handling
 - [term_size](https://crates.io/crates/term_size) - Terminal size detection
+- [pager](https://crates.io/crates/pager) - Terminal paging functionality
 
 ## License
 
