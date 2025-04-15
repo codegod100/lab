@@ -5,7 +5,9 @@ component StyledInput inherits Rectangle {
     in-out property <string> text;
     in property <string> placeholder-text;
     in property <bool> enabled: true;
+    in property <bool> handle-enter: false;
     property <bool> has-focus: false;
+    callback enter-pressed;
 
     height: 36px;
     border-radius: 6px;
@@ -31,6 +33,14 @@ component StyledInput inherits Rectangle {
         color: #333333;
         selection-foreground-color: white;
         selection-background-color: #6a5acd80;
+
+        key-pressed(event) => {
+            if (root.handle-enter && event.text == Key.Return) {
+                root.enter-pressed();
+                return accept;
+            }
+            return reject;
+        }
     }
 
     // Update focus state
@@ -232,6 +242,10 @@ export component Demo inherits Window {
                         text <=> current-message;
                         placeholder-text: "Type your message...";
                         width: parent.width - 140px;
+                        handle-enter: true;
+                        enter-pressed => {
+                            send-message();
+                        }
                     }
 
                     ChatButton {
