@@ -21,6 +21,7 @@
   let eventStartDate = $state("");
   let searchTerm = $state("");
   let itemContext = $state("");
+  let newContextInput = $state(""); // For storing new context input
   let searchContext = $state("");
   let searchItemType = $state<"" | "note" | "todo" | "bookmark" | "event">("");
   let sortNewestFirst = $state<boolean>(true); // For filtering by item type
@@ -33,6 +34,9 @@
 
   async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
+    // Determine the context value based on whether it's a new context or selected from dropdown
+    const contextValue = itemContext === "__new__" ? newContextInput : itemContext;
+
     // Create the new item object directly
     const newItem: NewItemSchema = {
       id: crypto.randomUUID(),
@@ -46,7 +50,7 @@
         imageData: itemImageData,
         imageMimeType: itemImageMimeType
       }),
-      context: itemContext,
+      context: contextValue,
     };
 
     // Debug image data
@@ -80,6 +84,7 @@
     eventStartDate = "";
     itemType = "note";
     itemContext = "";
+    newContextInput = "";
     itemImageData = null;
     itemImageMimeType = null;
     imagePreviewUrl = null;
@@ -207,7 +212,7 @@
 
   let todoItems = $derived(getTodoItems());
   let completedTodoItems = $derived(getCompletedTodoItems());
-  let showCompletedTodos = $state(true);
+  let showCompletedTodos = $state(false);
 
   onMount(async () => {
     console.log("Page component mounted (Runes - Local State)");
@@ -527,6 +532,13 @@
   $effect(() => {
     console.log("Final availableContexts for dropdown:", availableContexts);
   });
+
+  // Watch for changes to itemContext to handle the "New Context" option
+  $effect(() => {
+    if (itemContext === "__new__") {
+      newContextInput = "";
+    }
+  });
 </script>
 
 <!-- Apply DaisyUI classes for layout and spacing -->
@@ -630,14 +642,31 @@
           <label for="item-context" class="label">
             <span class="label-text">Context (optional)</span>
           </label>
-          <input
+          <select
             id="item-context"
             name="context"
-            type="text"
-            placeholder="e.g., Work, Personal, Urgent"
             bind:value={itemContext}
-            class="input input-bordered w-full"
-          />
+            class="select select-bordered w-full"
+          >
+            <option value="">No Context</option>
+            {#each availableContexts as ctx}
+              <option value={ctx}>{ctx}</option>
+            {/each}
+            <option value="__new__">+ New Context...</option>
+          </select>
+
+          {#if itemContext === "__new__"}
+            <div class="mt-2">
+              <input
+                id="new-context-input"
+                name="new-context"
+                type="text"
+                placeholder="Enter new context..."
+                bind:value={newContextInput}
+                class="input input-bordered w-full"
+              />
+            </div>
+          {/if}
         </div>
         <!-- Conditionally render event date inputs using Svelte's #if block -->
         {#if itemType === "event"}
@@ -965,12 +994,31 @@
                       placeholder="Enter details... (Paste images with Ctrl+V or Cmd+V)"
                     ></textarea>
 
-                    <input
-                      type="text"
-                      placeholder="Context (optional)"
+                    <select
                       bind:value={editContext}
-                      class="input input-bordered w-full"
-                    />
+                      class="select select-bordered w-full"
+                    >
+                      <option value="">No Context</option>
+                      {#each availableContexts as ctx}
+                        <option value={ctx}>{ctx}</option>
+                      {/each}
+                      <option value="__custom__">+ Custom Context...</option>
+                    </select>
+
+                    {#if editContext === "__custom__"}
+                      <input
+                        type="text"
+                        placeholder="Enter custom context"
+                        bind:value={editContext}
+                        class="input input-bordered w-full mt-2"
+                        oninput={(e) => {
+                          // When user starts typing, we're no longer using the "__custom__" placeholder
+                          if (e.currentTarget.value !== "__custom__") {
+                            editContext = e.currentTarget.value;
+                          }
+                        }}
+                      />
+                    {/if}
 
                     {#if item.type === "event"}
                       <input
