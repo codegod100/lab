@@ -243,6 +243,11 @@ export component Demo inherits Window {
         {sender: "System", text: "Welcome to the chat app!", timestamp: "Just now", is-self: false, id: 0, replied-to-id: -1, replied-to-text: "", replied-to-sender: ""},
     ];
 
+    // API data properties
+    in-out property <string> api-url: "https://jsonplaceholder.typicode.com/posts/1";
+    in-out property <string> api-data: "";
+    in-out property <bool> is-loading: false;
+
     // Auto-scroll to bottom when messages change
     callback scroll-to-bottom();
 
@@ -251,6 +256,12 @@ export component Demo inherits Window {
 
     // Function to set which message is being replied to
     callback set-reply-to(int);
+
+    // Function to fetch data from API
+    callback fetch-api-data();
+
+    // Function to add fetched data as a message
+    callback add-api-data-as-message();
 
     // Helper properties to get message details by ID
     property <string> replied-to-sender: {
@@ -441,7 +452,7 @@ export component Demo inherits Window {
                     StyledInput {
                         text <=> current-message;
                         placeholder-text: "Type your message...";
-                        width: parent.width - 144px;
+                        width: parent.width - 144px - 120px - 12px;
                         height: 40px;
                         handle-enter: true;
                         enter-pressed => {
@@ -455,6 +466,18 @@ export component Demo inherits Window {
                         height: 40px;
                         clicked => {
                             send-message();
+                        }
+                    }
+
+                    ChatButton {
+                        text: is-loading ? "Loading..." : "Fetch Data";
+                        width: 120px;
+                        height: 40px;
+                        bg: #4a86e8;
+                        hover-bg: #3a76d8;
+                        pressed-bg: #2a66c8;
+                        clicked => {
+                            fetch-api-data();
                         }
                     }
                 }
@@ -641,6 +664,66 @@ export component Demo inherits Window {
 
             // Auto-scroll to the bottom of the chat
             // This ensures the latest messages are always visible
+            scroll-to-bottom();
+        }
+    }
+
+    // Implementation of add-api-data-as-message callback
+    add-api-data-as-message => {
+        if (api-data != "") {
+            // Add the API data as a new message
+            // We need to create a new array with all existing messages plus the new one
+
+            // Create a new array with all existing messages
+            if (messages.length == 1) {
+                messages = [
+                    messages[0],
+                    {
+                        sender: "API",
+                        text: api-data,
+                        timestamp: "Just now",
+                        is-self: false,
+                        id: 1,
+                        replied-to-id: -1,
+                        replied-to-text: "",
+                        replied-to-sender: ""
+                    }
+                ];
+            } else if (messages.length == 2) {
+                messages = [
+                    messages[0],
+                    messages[1],
+                    {
+                        sender: "API",
+                        text: api-data,
+                        timestamp: "Just now",
+                        is-self: false,
+                        id: 2,
+                        replied-to-id: -1,
+                        replied-to-text: "",
+                        replied-to-sender: ""
+                    }
+                ];
+            } else {
+                // For any other case, just add the new message
+                // This is a fallback and might not handle all cases
+                messages = [
+                    messages[0],
+                    messages[1],
+                    {
+                        sender: "API",
+                        text: api-data,
+                        timestamp: "Just now",
+                        is-self: false,
+                        id: messages.length,
+                        replied-to-id: -1,
+                        replied-to-text: "",
+                        replied-to-sender: ""
+                    }
+                ];
+            }
+
+            // Auto-scroll to the bottom of the chat
             scroll-to-bottom();
         }
     }
