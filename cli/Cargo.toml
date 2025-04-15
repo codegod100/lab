@@ -1,0 +1,11 @@
+[package]
+name = "lsd-clone"
+version = "0.1.0"
+edition = "2024"
+description = "A colorful clone of the ls command"
+
+[dependencies]
+clap = { version = "4.5.36", features = ["derive"] }
+colored = "2.1.0"
+chrono = "0.4.35"
+term_size = "0.3.2"
