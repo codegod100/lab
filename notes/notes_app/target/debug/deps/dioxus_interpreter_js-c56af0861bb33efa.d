@@ -1,0 +1,10 @@
+/var/home/v/lab/notes/notes_app/target/debug/deps/libdioxus_interpreter_js-c56af0861bb33efa.rmeta: /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-interpreter-js-0.6.2/src/lib.rs /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-interpreter-js-0.6.2/src/unified_bindings.rs /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-interpreter-js-0.6.2/src/../README.md /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-interpreter-js-0.6.2/src/./js/core.js /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-interpreter-js-0.6.2/src/./js/native.js /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-interpreter-js-0.6.2/src/./js/initialize_streaming.js
+
+/var/home/v/lab/notes/notes_app/target/debug/deps/dioxus_interpreter_js-c56af0861bb33efa.d: /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-interpreter-js-0.6.2/src/lib.rs /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-interpreter-js-0.6.2/src/unified_bindings.rs /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-interpreter-js-0.6.2/src/../README.md /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-interpreter-js-0.6.2/src/./js/core.js /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-interpreter-js-0.6.2/src/./js/native.js /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-interpreter-js-0.6.2/src/./js/initialize_streaming.js
+
+/home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-interpreter-js-0.6.2/src/lib.rs:
+/home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-interpreter-js-0.6.2/src/unified_bindings.rs:
+/home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-interpreter-js-0.6.2/src/../README.md:
+/home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-interpreter-js-0.6.2/src/./js/core.js:
+/home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-interpreter-js-0.6.2/src/./js/native.js:
+/home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-interpreter-js-0.6.2/src/./js/initialize_streaming.js:

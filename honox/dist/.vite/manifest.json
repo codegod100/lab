@@ -1,0 +1,47 @@
+{
+  "app/client.ts": {
+    "file": "static/client-CxPQ2fZf.js",
+    "name": "client",
+    "src": "app/client.ts",
+    "isEntry": true,
+    "dynamicImports": [
+      "app/islands/CatPage.tsx",
+      "app/islands/counter.tsx",
+      "node_modules/.deno/honox@0.1.39/node_modules/honox/dist/client/runtime.js",
+      "node_modules/.deno/honox@0.1.39/node_modules/honox/dist/client/runtime.js"
+    ]
+  },
+  "app/islands/CatPage.tsx": {
+    "file": "static/CatPage-DhsJ5K0w.js",
+    "name": "CatPage",
+    "src": "app/islands/CatPage.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "app/client.ts",
+      "app/islands/counter.tsx"
+    ]
+  },
+  "app/islands/counter.tsx": {
+    "file": "static/counter-rWKT4Zqi.js",
+    "name": "counter",
+    "src": "app/islands/counter.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "app/client.ts"
+    ]
+  },
+  "app/style.css": {
+    "file": "static/style-CmBfp-pJ.css",
+    "src": "app/style.css",
+    "isEntry": true
+  },
+  "node_modules/.deno/honox@0.1.39/node_modules/honox/dist/client/runtime.js": {
+    "file": "static/runtime-BG4WtC-G.js",
+    "name": "runtime",
+    "src": "node_modules/.deno/honox@0.1.39/node_modules/honox/dist/client/runtime.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "app/client.ts"
+    ]
+  }
+}

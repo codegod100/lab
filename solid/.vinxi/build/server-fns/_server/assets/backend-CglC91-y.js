@@ -1,0 +1,1 @@
+import{c as e}from"./server-fns-runtime-DK5g-_sR.js";import"solid-js/web";import"solid-js/web/storage";import"./fetchEvent-DZma46F8.js";import"h3";import"node:async_hooks";const m=e(async r=>(console.log(r),r),"src_backend_ts--foo_action","/var/home/v/lab/solid/src/backend.ts?tsr-directive-use-server=");export{m as foo_action};

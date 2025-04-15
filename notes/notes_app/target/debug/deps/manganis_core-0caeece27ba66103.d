@@ -1,0 +1,13 @@
+/var/home/v/lab/notes/notes_app/target/debug/deps/libmanganis_core-0caeece27ba66103.rmeta: /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/lib.rs /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/folder.rs /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/images.rs /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/options.rs /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/css.rs /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/js.rs /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/asset.rs /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/linker.rs /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/hash.rs
+
+/var/home/v/lab/notes/notes_app/target/debug/deps/manganis_core-0caeece27ba66103.d: /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/lib.rs /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/folder.rs /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/images.rs /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/options.rs /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/css.rs /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/js.rs /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/asset.rs /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/linker.rs /home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/hash.rs
+
+/home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/lib.rs:
+/home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/folder.rs:
+/home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/images.rs:
+/home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/options.rs:
+/home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/css.rs:
+/home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/js.rs:
+/home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/asset.rs:
+/home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/linker.rs:
+/home/v/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-core-0.6.2/src/hash.rs:

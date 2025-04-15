@@ -1,0 +1,106 @@
+{
+  "_action-MDRJH-bI.js": {
+    "file": "assets/action-MDRJH-bI.js",
+    "name": "action"
+  },
+  "_fetchEvent-DZma46F8.js": {
+    "file": "assets/fetchEvent-DZma46F8.js",
+    "name": "fetchEvent"
+  },
+  "_index-BdnVf8ln.js": {
+    "file": "assets/index-BdnVf8ln.js",
+    "name": "index"
+  },
+  "_server-fns-B2uura8-.js": {
+    "file": "assets/server-fns-B2uura8-.js",
+    "name": "server-fns",
+    "imports": [
+      "_fetchEvent-DZma46F8.js"
+    ],
+    "dynamicImports": [
+      "src/routes/[...404].tsx?pick=default&pick=$css",
+      "src/routes/[...404].tsx?pick=default&pick=$css",
+      "src/routes/about.tsx?pick=default&pick=$css",
+      "src/routes/about.tsx?pick=default&pick=$css",
+      "src/routes/index.tsx?pick=default&pick=$css",
+      "src/routes/index.tsx?pick=default&pick=$css",
+      "src/backend.ts?tsr-directive-use-server=",
+      "src/app.tsx"
+    ]
+  },
+  "_server-fns-runtime-DK5g-_sR.js": {
+    "file": "assets/server-fns-runtime-DK5g-_sR.js",
+    "name": "server-fns-runtime",
+    "imports": [
+      "_fetchEvent-DZma46F8.js"
+    ]
+  },
+  "src/app.tsx": {
+    "file": "assets/app-BQX5r7Jd.js",
+    "name": "app",
+    "src": "src/app.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_index-BdnVf8ln.js",
+      "_server-fns-B2uura8-.js",
+      "_action-MDRJH-bI.js",
+      "_fetchEvent-DZma46F8.js"
+    ],
+    "css": [
+      "assets/app-BPjio2-z.css"
+    ]
+  },
+  "src/backend.ts?tsr-directive-use-server=": {
+    "file": "assets/backend-CglC91-y.js",
+    "name": "backend",
+    "src": "src/backend.ts?tsr-directive-use-server=",
+    "isDynamicEntry": true,
+    "imports": [
+      "_server-fns-runtime-DK5g-_sR.js",
+      "_fetchEvent-DZma46F8.js"
+    ]
+  },
+  "src/routes/[...404].tsx?pick=default&pick=$css": {
+    "file": "_...404_.js",
+    "name": "_...404_",
+    "src": "src/routes/[...404].tsx?pick=default&pick=$css",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_index-BdnVf8ln.js"
+    ]
+  },
+  "src/routes/about.tsx?pick=default&pick=$css": {
+    "file": "about.js",
+    "name": "about",
+    "src": "src/routes/about.tsx?pick=default&pick=$css",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_index-BdnVf8ln.js"
+    ]
+  },
+  "src/routes/index.tsx?pick=default&pick=$css": {
+    "file": "index.js",
+    "name": "index",
+    "src": "src/routes/index.tsx?pick=default&pick=$css",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_index-BdnVf8ln.js",
+      "_server-fns-runtime-DK5g-_sR.js",
+      "_action-MDRJH-bI.js",
+      "_fetchEvent-DZma46F8.js"
+    ]
+  },
+  "virtual:$vinxi/handler/server-fns": {
+    "file": "server-fns.js",
+    "name": "server-fns",
+    "src": "virtual:$vinxi/handler/server-fns",
+    "isEntry": true,
+    "imports": [
+      "_server-fns-B2uura8-.js",
+      "_fetchEvent-DZma46F8.js"
+    ]
+  }
+}
