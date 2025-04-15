@@ -244,6 +244,28 @@
     "dependencies": [
       "jsr:@deno/deployctl@^1.13.1",
       "npm:drizzle-orm@0.41"
-    ]
+    ],
+    "packageJson": {
+      "dependencies": [
+        "npm:@fullcalendar/core@^6.1.17",
+        "npm:@fullcalendar/daygrid@^6.1.17",
+        "npm:@fullcalendar/react@^6.1.17",
+        "npm:@jsr/std__dotenv@*",
+        "npm:@libsql/client@~0.15.2",
+        "npm:@sveltejs/adapter-auto@4",
+        "npm:@sveltejs/adapter-node@^5.2.12",
+        "npm:@sveltejs/kit@^2.16.0",
+        "npm:@sveltejs/vite-plugin-svelte@5",
+        "npm:@tailwindcss/vite@^4.1.2",
+        "npm:daisyui@^5.0.13",
+        "npm:drizzle-kit@~0.30.6",
+        "npm:drizzle-orm@0.41",
+        "npm:svelte-check@4",
+        "npm:svelte@5",
+        "npm:tailwindcss@^4.1.2",
+        "npm:typescript@5",
+        "npm:vite@^6.2.5"
+      ]
+    }
   }
 }
