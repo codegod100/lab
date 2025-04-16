@@ -97,19 +97,25 @@ fn display_grid_format(entries: &[DirEntry]) -> io::Result<()> {
     let columns = width / max_len;
     let columns = if columns == 0 { 1 } else { columns };
 
-    for (i, entry) in entries.iter().enumerate() {
-        let file_name = entry.file_name().to_string_lossy().to_string();
-        let colored_name = colorize_entry(entry, &file_name);
-        print!("{}{}", get_icon(entry), colored_name);
+    let rows = (entries.len() + columns - 1) / columns;
 
-        // Add padding to align columns
-        let padding = max_len - file_name.len();
-        print!("{:padding$}", "", padding = padding);
-
-        // Start a new line after the last column or at the end
-        if (i + 1) % columns == 0 || i == entries.len() - 1 {
-            println!();
+    for row in 0..rows {
+        for col in 0..columns {
+            let idx = col * rows + row;
+            if idx >= entries.len() {
+                continue;
+            }
+            let entry = &entries[idx];
+            let file_name = entry.file_name().to_string_lossy().to_string();
+            let colored_name = colorize_entry(entry, &file_name);
+            print!("{}{}", get_icon(entry), colored_name);
+            let padding = max_len - file_name.len();
+            // Only print padding if not the last column with an entry in this row
+            if col < columns - 1 && (col + 1) * rows + row < entries.len() {
+                print!("{:padding$}", "", padding = padding);
+            }
         }
+        println!();
     }
 
     Ok(())
