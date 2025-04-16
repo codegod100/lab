@@ -147,6 +147,38 @@ fn display_long_format(entries: &[DirEntry]) -> io::Result<()> {
     Ok(())
 }
 
+/// Display directory contents in a tree view
+fn display_tree(path: &str, show_hidden: bool, depth: usize) -> io::Result<()> {
+    let entries = get_directory_entries(path, show_hidden)?;
+
+    // Show the full breadcrumb path for the current directory if we're at the root of the tree
+    if depth == 0 {
+        println!("{} {}", get_icon_for_path(path), format_breadcrumbs(path));
+    }
+
+    for entry in entries {
+        let file_name = entry.file_name().to_string_lossy().to_string();
+        let colored_name = colorize_entry(&entry, &file_name);
+        let entry_path = entry.path().to_string_lossy().to_string();
+
+        // Print indentation based on depth
+        for _ in 0..depth {
+            print!("│   ");
+        }
+
+        if entry.file_type()?.is_dir() {
+            // Only show the indented icon and full path for directories
+            println!("{} {}", get_icon(&entry), entry_path);
+            display_tree(&entry_path, show_hidden, depth + 1)?;
+        } else {
+            // For files, show the icon and file name as before
+            println!("├── {}{}", get_icon(&entry), colored_name);
+        }
+    }
+
+    Ok(())
+}
+
 /// Format a path as breadcrumbs
 fn format_breadcrumbs(path: &str) -> ColoredString {
     let path_obj = Path::new(path);
@@ -175,42 +207,6 @@ fn format_breadcrumbs(path: &str) -> ColoredString {
     }
 
     result.normal()
-}
-
-/// Display directory contents in a tree view
-fn display_tree(path: &str, show_hidden: bool, depth: usize) -> io::Result<()> {
-    let entries = get_directory_entries(path, show_hidden)?;
-
-    // Show breadcrumbs for the current directory if we're at the root of the tree
-    if depth == 0 {
-        println!("{}", format_breadcrumbs(path));
-    }
-
-    for entry in entries {
-        let file_name = entry.file_name().to_string_lossy().to_string();
-        let colored_name = colorize_entry(&entry, &file_name);
-        let entry_path = entry.path().to_string_lossy().to_string();
-
-        // Print indentation based on depth
-        for _ in 0..depth {
-            print!("│   ");
-        }
-
-        println!("├── {}{}", get_icon(&entry), colored_name);
-
-        // Recursively display subdirectories
-        if entry.file_type()?.is_dir() {
-            // Show breadcrumbs for this subdirectory
-            for _ in 0..depth+1 {
-                print!("│   ");
-            }
-            println!("🔍 {}", format_breadcrumbs(&entry_path));
-
-            display_tree(&entry_path, show_hidden, depth + 1)?;
-        }
-    }
-
-    Ok(())
 }
 
 /// Format file permissions
@@ -337,5 +333,15 @@ fn colorize_entry(entry: &DirEntry, name: &str) -> ColoredString {
         } else {
             name.normal()
         }
+    }
+}
+
+/// Helper to get folder icon for a path (used for the root display)
+fn get_icon_for_path(path: &str) -> ColoredString {
+    let path_obj = Path::new(path);
+    if path_obj.is_dir() {
+        "📁 ".blue()
+    } else {
+        "📄 ".normal()
     }
 }

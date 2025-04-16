@@ -38,8 +38,23 @@ fn main() -> Result<(), JsValue> {
 
                     // Update the UI with the fetched data
                     if let Some(window) = window_handle.upgrade() {
+                        // Try to parse and pretty-print the JSON data
+                        let formatted_data = if data.trim().starts_with('{') || data.trim().starts_with('[') {
+                            match serde_json::from_str::<serde_json::Value>(&data) {
+                                Ok(json_value) => {
+                                    match serde_json::to_string_pretty(&json_value) {
+                                        Ok(pretty) => pretty,
+                                        Err(_) => data.clone()
+                                    }
+                                },
+                                Err(_) => data.clone()
+                            }
+                        } else {
+                            data.clone()
+                        };
+
                         // Set the API data
-                        window.set_api_data(data.into());
+                        window.set_api_data(formatted_data.into());
 
                         // Add the data as a message
                         window.invoke_add_api_data_as_message();
