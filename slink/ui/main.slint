@@ -116,7 +116,126 @@ component IconButton inherits Rectangle {
     }
 }
 
-// Message bubble component
+// API Response component for better styling of API data
+component ApiResponseBubble inherits Rectangle {
+    in property <string> text;
+    in property <string> timestamp;
+    in property <int> message-id;
+    callback reply-clicked(int);
+
+    height: 250px;
+    width: parent.width;
+
+    // Bubble styling
+    background: #f0f8ff;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: #d0e0ff;
+    drop-shadow-offset-x: 0px;
+    drop-shadow-offset-y: 2px;
+    drop-shadow-blur: 4px;
+    drop-shadow-color: #00000020;
+
+    VerticalLayout {
+        padding: 0;
+        spacing: 0;
+
+        // Header
+        Rectangle {
+            height: 36px;
+            background: #e0e8ff;
+            border-radius: 12px 12px 0px 0px;
+
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+                spacing: 8px;
+
+                // API icon
+                Text {
+                    text: "🌐";
+                    font-size: 16px;
+                    vertical-alignment: center;
+                }
+
+                // API title
+                Text {
+                    text: "API Response";
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: #4a5acd;
+                    vertical-alignment: center;
+                }
+
+                // Spacer
+                Rectangle { }
+
+                // Timestamp
+                Text {
+                    text: timestamp;
+                    font-size: 10px;
+                    color: #666666;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // Content area
+        Rectangle {
+            background: transparent;
+            vertical-stretch: 1;
+
+            ScrollView {
+                width: parent.width;
+                height: parent.height;
+                viewport-height: 1000px;
+
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 0;
+
+                    Text {
+                        font-family: "monospace";
+                        text: root.text;
+                        font-size: 13px;
+                        color: #333333;
+                        wrap: word-wrap;
+                        letter-spacing: 0.5px;
+                        line-height: 1.4;
+                    }
+                }
+            }
+        }
+
+        // Footer
+        Rectangle {
+            height: 32px;
+            background: #f0f0f8;
+            border-radius: 0px 0px 12px 12px;
+
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+
+                // Reply button
+                IconButton {
+                    icon-text: "↩";
+                    font-size: 14px;
+                    text-color: #6a5acd;
+                    hover-text-color: #4a3c9d;
+                    clicked => {
+                        root.reply-clicked(root.message-id);
+                    }
+                }
+
+                // Spacer
+                Rectangle { }
+            }
+        }
+    }
+}
+
+// Regular message bubble component
 component MessageBubble inherits Rectangle {
     in property <string> text;
     in property <string> sender;
@@ -328,17 +447,33 @@ export component Demo inherits Window {
                     spacing: 12px;
                     alignment: start;
 
-                    for message in messages: MessageBubble {
-                        width: 400px;
-                        text: message.text;
-                        sender: message.sender;
-                        timestamp: message.timestamp;
-                        is-self: message.is-self;
-                        message-id: message.id;
-                        replied-to-id: message.replied-to-id;
-                        replied-to-text: message.replied-to-text;
-                        replied-to-sender: message.replied-to-sender;
-                        reply-clicked(id) => { root.set-reply-to(id); }
+                    for message in messages: Rectangle {
+                        width: parent.width;
+                        height: message.sender == "API" ? 250px : (message.replied-to-id >= 0 ? 110px : 80px);
+
+                        if message.sender == "API": HorizontalLayout {
+                            alignment: center;
+                            ApiResponseBubble {
+                                width: 450px;
+                                text: message.text;
+                                timestamp: message.timestamp;
+                                message-id: message.id;
+                                reply-clicked(id) => { root.set-reply-to(id); }
+                            }
+                        }
+
+                        if message.sender != "API": MessageBubble {
+                            width: 400px;
+                            text: message.text;
+                            sender: message.sender;
+                            timestamp: message.timestamp;
+                            is-self: message.is-self;
+                            message-id: message.id;
+                            replied-to-id: message.replied-to-id;
+                            replied-to-text: message.replied-to-text;
+                            replied-to-sender: message.replied-to-sender;
+                            reply-clicked(id) => { root.set-reply-to(id); }
+                        }
                     }
                 }
             }
@@ -672,9 +807,6 @@ export component Demo inherits Window {
     add-api-data-as-message => {
         if (api-data != "") {
             // Add the API data as a new message
-            // We need to create a new array with all existing messages plus the new one
-
-            // Create a new array with all existing messages
             if (messages.length == 1) {
                 messages = [
                     messages[0],
@@ -704,12 +836,28 @@ export component Demo inherits Window {
                         replied-to-sender: ""
                     }
                 ];
-            } else {
-                // For any other case, just add the new message
-                // This is a fallback and might not handle all cases
+            } else if (messages.length == 3) {
                 messages = [
                     messages[0],
                     messages[1],
+                    messages[2],
+                    {
+                        sender: "API",
+                        text: api-data,
+                        timestamp: "Just now",
+                        is-self: false,
+                        id: 3,
+                        replied-to-id: -1,
+                        replied-to-text: "",
+                        replied-to-sender: ""
+                    }
+                ];
+            } else {
+                // For any other case, just add the new message to the first few messages
+                messages = [
+                    messages[0],
+                    messages[1],
+                    messages[2],
                     {
                         sender: "API",
                         text: api-data,
