@@ -87,7 +87,7 @@ fn display_grid_format(entries: &[DirEntry]) -> io::Result<()> {
     // Get terminal width
     let width = term_size::dimensions().map(|(w, _)| w).unwrap_or(80);
 
-    // Calculate the maximum filename length
+    // Calculate the maximum filename length (for icon + name)
     let max_len = entries.iter()
         .map(|e| e.file_name().to_string_lossy().len() + 2) // +2 for icon and space
         .max()
@@ -100,7 +100,6 @@ fn display_grid_format(entries: &[DirEntry]) -> io::Result<()> {
     for (i, entry) in entries.iter().enumerate() {
         let file_name = entry.file_name().to_string_lossy().to_string();
         let colored_name = colorize_entry(entry, &file_name);
-
         print!("{}{}", get_icon(entry), colored_name);
 
         // Add padding to align columns
