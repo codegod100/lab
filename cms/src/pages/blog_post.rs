@@ -85,7 +85,7 @@ pub fn BlogPost(id: usize) -> Element {
                                             if let Some(category) = &post.category {
                                                 Link {
                                                     to: Route::Blog {},
-                                                    class: "badge badge-info",
+                                                    class: "inline-flex items-center px-2.5 py-0.5 m-0.5 rounded-full text-xs font-medium bg-blue-900/70 text-blue-200 border border-blue-700/50 hover:bg-blue-800/70 transition-colors",
                                                     "{category}"
                                                 }
                                             }
@@ -93,7 +93,7 @@ pub fn BlogPost(id: usize) -> Element {
                                             for tag in &post.tags {
                                                 Link {
                                                     to: Route::Blog {},
-                                                    class: "px-2 py-1 text-sm rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600 transition-all",
+                                                    class: "inline-flex items-center px-2.5 py-0.5 m-0.5 rounded-full text-xs font-medium bg-indigo-900/50 text-indigo-200 border border-indigo-700/50 hover:bg-indigo-800/50 transition-colors",
                                                     "#{tag}"
                                                 }
                                             }

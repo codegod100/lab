@@ -14,15 +14,15 @@ pub fn Dashboard() -> Element {
     });
 
     rsx! {
-        div {
+        div { class: "container mx-auto px-4 py-6 max-w-6xl",
             // Page header
-            div { class: "mb-6",
+            div { class: "mb-8 text-center",
                 h1 { class: "text-3xl font-bold", "Dashboard" }
                 p { class: "text-gray-400 mt-1", "Overview of your content management system" }
             }
 
             // Stats cards section - using a table for reliable layout
-            table { class: "w-full mb-8 border-collapse",
+            table { class: "w-full mb-8 border-collapse mx-auto",
                 tbody {
                     tr {
                         td { style: "width: 50%; padding-right: 8px; padding-bottom: 16px;",
@@ -88,24 +88,24 @@ pub fn Dashboard() -> Element {
             }
 
             // Two column layout for remaining content using table
-            table { class: "w-full border-collapse",
+            table { class: "w-full border-collapse mx-auto",
                 tbody {
                     tr {
                         // Quick actions
                         td { style: "width: 50%; padding-right: 12px; vertical-align: top;",
                             div { class: "card p-6",
-                                div { class: "card-header mb-4",
+                                div { class: "card-header mb-4 text-center",
                                     h2 { class: "text-xl font-bold", "Quick Actions" }
                                 }
 
                                 div { class: "card-body",
-                                    table { class: "w-full border-collapse",
+                                    table { class: "w-full border-collapse mx-auto",
                                         tbody {
                                             tr {
                                                 td { style: "width: 50%; padding-right: 8px; padding-bottom: 16px;",
                                                     Link {
                                                         to: Route::NewPost {},
-                                                        class: "bg-blue-600 hover:bg-blue-700 text-white rounded-lg p-4 text-center transition-all shadow-md hover:shadow-lg block",
+                                                        class: "bg-blue-600 hover:bg-blue-700 text-white rounded-lg p-4 text-center transition-all shadow-md hover:shadow-lg block mx-auto",
                                                         span { class: "block text-2xl mb-2", "📝" }
                                                         span { class: "text-sm font-medium", "Create Post" }
                                                     }
@@ -113,7 +113,7 @@ pub fn Dashboard() -> Element {
                                                 td { style: "width: 50%; padding-left: 8px; padding-bottom: 16px;",
                                                     Link {
                                                         to: Route::Posts {},
-                                                        class: "bg-gray-700 hover:bg-gray-600 text-white rounded-lg p-4 text-center transition-all shadow-md hover:shadow-lg block",
+                                                        class: "bg-gray-700 hover:bg-gray-600 text-white rounded-lg p-4 text-center transition-all shadow-md hover:shadow-lg block mx-auto",
                                                         span { class: "block text-2xl mb-2", "📋" }
                                                         span { class: "text-sm font-medium", "Manage Posts" }
                                                     }
@@ -123,7 +123,7 @@ pub fn Dashboard() -> Element {
                                                 td { style: "width: 50%; padding-right: 8px;",
                                                     Link {
                                                         to: Route::Users {},
-                                                        class: "bg-gray-700 hover:bg-gray-600 text-white rounded-lg p-4 text-center transition-all shadow-md hover:shadow-lg block",
+                                                        class: "bg-gray-700 hover:bg-gray-600 text-white rounded-lg p-4 text-center transition-all shadow-md hover:shadow-lg block mx-auto",
                                                         span { class: "block text-2xl mb-2", "👥" }
                                                         span { class: "text-sm font-medium", "Manage Users" }
                                                     }
@@ -131,7 +131,7 @@ pub fn Dashboard() -> Element {
                                                 td { style: "width: 50%; padding-left: 8px;",
                                                     Link {
                                                         to: Route::Blog {},
-                                                        class: "bg-gray-700 hover:bg-gray-600 text-white rounded-lg p-4 text-center transition-all shadow-md hover:shadow-lg block",
+                                                        class: "bg-gray-700 hover:bg-gray-600 text-white rounded-lg p-4 text-center transition-all shadow-md hover:shadow-lg block mx-auto",
                                                         span { class: "block text-2xl mb-2", "🌐" }
                                                         span { class: "text-sm font-medium", "View Blog" }
                                                     }
@@ -147,7 +147,7 @@ pub fn Dashboard() -> Element {
                         td { style: "width: 50%; padding-left: 12px; vertical-align: top;",
                             div { class: "card p-6",
                                 div { class: "card-header flex justify-between items-center mb-4",
-                                    h2 { class: "text-xl font-bold", "Recent Posts" }
+                                    h2 { class: "text-xl font-bold text-center flex-grow", "Recent Posts" }
 
                                     Link {
                                         to: Route::Posts {},
@@ -170,17 +170,17 @@ pub fn Dashboard() -> Element {
                                         }
                                         Some(posts) if posts.is_empty() => {
                                             rsx! {
-                                                div { class: "text-center py-8 text-gray-400 border border-dashed border-gray-700 rounded-md",
+                                                div { class: "text-center py-8 text-gray-400 border border-dashed border-gray-700 rounded-md mx-auto",
                                                     "No posts yet. Create your first post!"
                                                 }
                                             }
                                         }
                                         Some(posts) => {
                                             rsx! {
-                                                div { class: "space-y-4",
+                                                div { class: "space-y-4 mx-auto",
                                                     for post in posts.iter().take(5) {
                                                         div {
-                                                            class: "bg-gray-700 p-3 rounded-md flex justify-between items-center shadow-md transition-all hover:shadow-lg",
+                                                            class: "bg-gray-700 p-3 rounded-md flex justify-between items-center shadow-md transition-all hover:shadow-lg mx-auto",
                                                             key: post.id,
 
                                                             div { class: "flex-1 min-w-0",

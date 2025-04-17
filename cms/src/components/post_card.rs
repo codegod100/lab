@@ -21,9 +21,9 @@ pub fn PostCard(post: Post, on_delete: Option<EventHandler<usize>>) -> Element {
     rsx! {
         div {
             class: if post.published {
-                "card p-5 border-l-4 border-green-500 shadow-md transition-all hover:shadow-lg hover:translate-y-[-2px]"
+                "card p-5 border-l-4 border-green-500 shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5 bg-opacity-10 bg-green-900"
             } else {
-                "card p-5 border-l-4 border-yellow-500 shadow-md transition-all hover:shadow-lg hover:translate-y-[-2px]"
+                "card p-5 border-l-4 border-yellow-500 shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5 bg-opacity-10 bg-yellow-900"
             },
             div { class: "flex justify-between items-center mb-3",
                 h3 { class: "font-bold text-lg text-white", "{post.title}" }
@@ -52,13 +52,13 @@ pub fn PostCard(post: Post, on_delete: Option<EventHandler<usize>>) -> Element {
 
                 {post.tags.iter().map(|tag| {
                     rsx! {
-                        span { class: "px-2 py-1 text-xs rounded-md bg-gray-700 text-gray-300 border border-gray-600", "#{tag}" }
+                        span { class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-900/50 text-indigo-200 border border-indigo-700/50 hover:bg-indigo-800/50 transition-colors", "#{tag}" }
                     }
                 })}
             }
 
             // Post footer with actions
-            div { class: "flex justify-between items-center mt-3 pt-3 border-t border-gray-700",
+            div { class: "flex flex-col sm:flex-row justify-between items-start sm:items-center mt-3 pt-3 border-t border-gray-700",
                 // Date info
                 span { class: "text-xs text-gray-400 flex items-center",
                     span { class: "mr-1 opacity-70", "🕒" }
@@ -66,9 +66,9 @@ pub fn PostCard(post: Post, on_delete: Option<EventHandler<usize>>) -> Element {
                 }
 
                 // Action buttons
-                div { class: "flex space-x-2",
+                div { class: "flex gap-6",
                     Link {
-                        class: "btn btn-sm btn-primary flex items-center",
+                        class: "btn btn-sm btn-primary flex items-center mr-2",
                         to: Route::PostDetail { id: post.id },
                         span { class: "mr-1 text-xs", "👁️" }
                         "View"

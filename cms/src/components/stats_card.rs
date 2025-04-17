@@ -28,16 +28,16 @@ pub fn StatsCard(
 
     rsx! {
         div {
-            class: "card border p-4 shadow-md transition-all hover:shadow-lg {bg_class}",
+            class: "card border p-4 shadow-md transition-all hover:shadow-lg {bg_class} flex flex-col items-center",
 
-            div { class: "flex justify-between items-start",
-                div {
-                    h3 { class: "text-sm font-medium text-gray-400", "{title}" }
-                    p { class: "text-2xl font-bold mt-1 text-white", "{value}" }
+            div { class: "flex justify-between items-center w-full",
+                div { class: "flex flex-col items-center",
+                    h3 { class: "text-sm font-medium text-gray-400 text-center", "{title}" }
+                    p { class: "text-2xl font-bold mt-1 text-white text-center", "{value}" }
 
                     if let Some((percentage, is_positive)) = change {
                         div {
-                            class: "mt-1 flex items-center text-xs",
+                            class: "mt-1 flex items-center justify-center text-xs",
                             span {
                                 class: if is_positive { "text-green-400" } else { "text-red-400" },
                                 if is_positive { "↑" } else { "↓" }
@@ -49,7 +49,7 @@ pub fn StatsCard(
                 }
 
                 div {
-                    class: "flex h-12 w-12 items-center justify-center rounded-full {icon_class} bg-opacity-20 shadow-md",
+                    class: "flex h-12 w-12 items-center justify-center rounded-full {icon_class} bg-opacity-20 shadow-md mx-auto mt-2",
                     span { class: "text-xl", "{icon}" }
                 }
             }

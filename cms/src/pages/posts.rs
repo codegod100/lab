@@ -77,9 +77,9 @@ pub fn Posts() -> Element {
     };
 
     rsx! {
-        div {
+        div { class: "container mx-auto px-4 py-6",
             // Page header
-            div { class: "flex justify-between items-center mb-6",
+            div { class: "flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4",
                 div {
                     h1 { class: "text-3xl font-bold", "Posts" }
                     p { class: "text-gray-400 mt-1", "Manage your blog posts" }
@@ -87,7 +87,7 @@ pub fn Posts() -> Element {
 
                 Link {
                     to: Route::NewPost {},
-                    class: "px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all flex items-center shadow-md hover:shadow-lg hover:translate-y-[-1px]",
+                    class: "btn btn-lg btn-primary flex items-center",
                     span { class: "mr-1.5", "📝" }
                     "New Post"
                 }
@@ -97,7 +97,7 @@ pub fn Posts() -> Element {
             div { class: "bg-gray-800 rounded-lg p-5 mb-6 shadow-md border border-gray-700",
                 div { class: "flex flex-col md:flex-row gap-4",
                     // Filter tabs
-                    div { class: "flex space-x-1 bg-gray-700 rounded-lg p-1",
+                    div { class: "flex flex-wrap space-x-1 bg-gray-700 rounded-lg p-1",
                         button {
                             class: format!("px-4 py-2 text-sm rounded-lg transition-all font-medium flex items-center {}",
                                   if filter() == "all" { "bg-indigo-600 text-white shadow-sm" } else { "text-gray-300 hover:text-white hover:bg-gray-600" }),
@@ -153,21 +153,23 @@ pub fn Posts() -> Element {
             }
 
             // Posts list
-            div { class: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6",
+            div { class: "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6",
                 match posts().as_ref() {
                     None => {
                         rsx! {
                             // Loading state
-                            div { class: "animate-pulse grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6",
-                                for _ in 0..3 {
-                                    div { class: "bg-gray-800 h-32 rounded-md" }
+                            div { class: "col-span-full",
+                                div { class: "animate-pulse grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6",
+                                    for _ in 0..3 {
+                                        div { class: "bg-gray-800 h-32 rounded-md" }
+                                    }
                                 }
                             }
                         }
                     }
                     Some(_) if filtered_posts().is_empty() => {
                         rsx! {
-                            div { class: "text-center py-16 bg-gray-800 rounded-lg border border-dashed border-gray-700 shadow-md",
+                            div { class: "col-span-full text-center py-16 bg-gray-800 rounded-lg border border-dashed border-gray-700 shadow-md",
                                 div { class: "text-4xl mb-4 text-gray-600", "📄" }
                                 if !search_query().is_empty() {
                                     p { class: "text-gray-400 text-lg", "No posts match your search criteria." }
