@@ -21,17 +21,17 @@ pub fn PostCard(post: Post, on_delete: Option<EventHandler<usize>>) -> Element {
     rsx! {
         div {
             class: if post.published {
-                "bg-gray-800 p-4 rounded-md border-l-4 border-green-500 shadow-md"
+                "card p-4 border-l-4 border-green-500 shadow-md transition-all hover:shadow-lg"
             } else {
-                "bg-gray-800 p-4 rounded-md border-l-4 border-yellow-500 shadow-md"
+                "card p-4 border-l-4 border-yellow-500 shadow-md transition-all hover:shadow-lg"
             },
             div { class: "flex justify-between items-center mb-2",
                 h3 { class: "font-bold text-lg text-white", "{post.title}" }
                 span {
                     class: if post.published {
-                        "px-2 py-1 text-xs rounded-full bg-green-800 text-green-200"
+                        "badge badge-success"
                     } else {
-                        "px-2 py-1 text-xs rounded-full bg-yellow-800 text-yellow-200"
+                        "badge badge-warning"
                     },
                     {if post.published { "Published" } else { "Draft" }}
                 }
@@ -43,7 +43,7 @@ pub fn PostCard(post: Post, on_delete: Option<EventHandler<usize>>) -> Element {
             // Post metadata
             div { class: "flex flex-wrap gap-2 mb-3",
                 if let Some(category) = &post.category {
-                    span { class: "px-2 py-1 text-xs rounded-md bg-blue-900 text-blue-200", "{category}" }
+                    span { class: "badge badge-info", "{category}" }
                 }
 
                 {post.tags.iter().map(|tag| {
@@ -61,19 +61,19 @@ pub fn PostCard(post: Post, on_delete: Option<EventHandler<usize>>) -> Element {
                 // Action buttons
                 div { class: "flex space-x-2",
                     Link {
-                        class: "px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded",
+                        class: "btn btn-sm btn-primary",
                         to: Route::PostDetail { id: post.id },
                         "View"
                     }
                     Link {
-                        class: "px-2 py-1 text-xs bg-gray-600 hover:bg-gray-700 text-white rounded",
+                        class: "btn btn-sm btn-secondary",
                         to: Route::EditPost { id: post.id },
                         "Edit"
                     }
                     // Only show delete button if handler is provided
                     if delete_handler.read().is_some() {
                         button {
-                            class: "px-2 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded",
+                            class: "btn btn-sm btn-danger",
                             onclick: handle_delete,
                             "Delete"
                         }

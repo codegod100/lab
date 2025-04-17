@@ -20,7 +20,7 @@ pub fn BlogPost(id: usize) -> Element {
             div { class: "mb-6",
                 Link {
                     to: Route::Blog {},
-                    class: "text-blue-400 hover:text-blue-300 flex items-center",
+                    class: "btn btn-sm btn-secondary flex items-center transition-all",
                     span { "←" }
                     span { class: "ml-1", "Back to Blog" }
                 }
@@ -31,7 +31,7 @@ pub fn BlogPost(id: usize) -> Element {
                 match post().as_ref() {
                     None => {
                         rsx! {
-                            div { class: "bg-gray-800 rounded-lg p-8 text-center",
+                            div { class: "card p-8 text-center",
                                 if post.read().is_none() {
                                     div { class: "animate-pulse space-y-4",
                                         div { class: "h-8 bg-gray-700 rounded w-3/4 mx-auto" }
@@ -44,7 +44,7 @@ pub fn BlogPost(id: usize) -> Element {
                                     div { class: "mt-6",
                                         Link {
                                             to: Route::Blog {},
-                                            class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700",
+                                            class: "btn btn-md btn-primary",
                                             "Return to Blog"
                                         }
                                     }
@@ -56,13 +56,13 @@ pub fn BlogPost(id: usize) -> Element {
                         let post = post_data.clone().unwrap();
                         if !post.published {
                             rsx! {
-                                div { class: "bg-gray-800 rounded-lg p-8 text-center",
+                                div { class: "card p-8 text-center",
                                     h1 { class: "text-2xl font-bold text-yellow-400", "Post Not Available" }
                                     p { class: "text-gray-400 mt-2", "This post is currently not published and cannot be viewed." }
                                     div { class: "mt-6",
                                         Link {
                                             to: Route::Blog {},
-                                            class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700",
+                                            class: "btn btn-md btn-primary",
                                             "Return to Blog"
                                         }
                                     }
@@ -70,9 +70,9 @@ pub fn BlogPost(id: usize) -> Element {
                             }
                         } else {
                             rsx! {
-                                article { class: "bg-gray-800 rounded-lg p-8 shadow-lg",
+                                article { class: "card p-8 shadow-lg",
                                     // Post header
-                                    header { class: "mb-8",
+                                    header { class: "card-header mb-8 pb-4 border-b border-gray-700",
                                         h1 { class: "text-3xl md:text-4xl font-bold", "{post.title}" }
 
                                         div { class: "mt-4 text-gray-400",
@@ -89,7 +89,7 @@ pub fn BlogPost(id: usize) -> Element {
                                             if let Some(category) = &post.category {
                                                 Link {
                                                     to: Route::Blog {},
-                                                    class: "px-2 py-1 text-sm rounded-md bg-blue-900 text-blue-200",
+                                                    class: "badge badge-info",
                                                     "{category}"
                                                 }
                                             }
@@ -97,7 +97,7 @@ pub fn BlogPost(id: usize) -> Element {
                                             for tag in &post.tags {
                                                 Link {
                                                     to: Route::Blog {},
-                                                    class: "px-2 py-1 text-sm rounded-md bg-gray-700 text-gray-300",
+                                                    class: "px-2 py-1 text-sm rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600 transition-all",
                                                     "#{tag}"
                                                 }
                                             }
@@ -105,7 +105,7 @@ pub fn BlogPost(id: usize) -> Element {
                                     }
 
                                     // Post content
-                                    div { class: "prose prose-invert prose-lg max-w-none",
+                                    div { class: "card-body prose prose-invert prose-lg max-w-none",
                                         // Split paragraphs and render them
                                         for paragraph in post.body.split("\n\n") {
                                             if paragraph.trim().is_empty() {

@@ -71,97 +71,101 @@ pub fn Dashboard() -> Element {
             }
 
             // Quick actions
-            div { class: "bg-gray-800 rounded-lg p-6 mb-8",
-                h2 { class: "text-xl font-bold mb-4", "Quick Actions" }
+            div { class: "card p-6 mb-8",
+                div { class: "card-header mb-4",
+                    h2 { class: "text-xl font-bold", "Quick Actions" }
+                }
 
-                div { class: "grid grid-cols-2 md:grid-cols-4 gap-4",
+                div { class: "card-body grid grid-cols-2 md:grid-cols-4 gap-4",
                     Link {
                         to: Route::NewPost {},
-                        class: "bg-blue-600 hover:bg-blue-700 text-white rounded-lg p-4 text-center transition-colors",
-                        span { class: "block text-2xl mb-1", "📝" }
-                        span { class: "text-sm", "Create Post" }
+                        class: "bg-blue-600 hover:bg-blue-700 text-white rounded-lg p-4 text-center transition-all shadow-md hover:shadow-lg",
+                        span { class: "block text-2xl mb-2", "📝" }
+                        span { class: "text-sm font-medium", "Create Post" }
                     }
 
                     Link {
                         to: Route::Posts {},
-                        class: "bg-gray-700 hover:bg-gray-600 text-white rounded-lg p-4 text-center transition-colors",
-                        span { class: "block text-2xl mb-1", "📋" }
-                        span { class: "text-sm", "Manage Posts" }
+                        class: "bg-gray-700 hover:bg-gray-600 text-white rounded-lg p-4 text-center transition-all shadow-md hover:shadow-lg",
+                        span { class: "block text-2xl mb-2", "📋" }
+                        span { class: "text-sm font-medium", "Manage Posts" }
                     }
 
                     Link {
                         to: Route::Users {},
-                        class: "bg-gray-700 hover:bg-gray-600 text-white rounded-lg p-4 text-center transition-colors",
-                        span { class: "block text-2xl mb-1", "👥" }
-                        span { class: "text-sm", "Manage Users" }
+                        class: "bg-gray-700 hover:bg-gray-600 text-white rounded-lg p-4 text-center transition-all shadow-md hover:shadow-lg",
+                        span { class: "block text-2xl mb-2", "👥" }
+                        span { class: "text-sm font-medium", "Manage Users" }
                     }
 
                     Link {
                         to: Route::Blog {},
-                        class: "bg-gray-700 hover:bg-gray-600 text-white rounded-lg p-4 text-center transition-colors",
-                        span { class: "block text-2xl mb-1", "🌐" }
-                        span { class: "text-sm", "View Blog" }
+                        class: "bg-gray-700 hover:bg-gray-600 text-white rounded-lg p-4 text-center transition-all shadow-md hover:shadow-lg",
+                        span { class: "block text-2xl mb-2", "🌐" }
+                        span { class: "text-sm font-medium", "View Blog" }
                     }
                 }
             }
 
             // Recent posts
-            div { class: "bg-gray-800 rounded-lg p-6",
-                div { class: "flex justify-between items-center mb-4",
+            div { class: "card p-6",
+                div { class: "card-header flex justify-between items-center mb-4",
                     h2 { class: "text-xl font-bold", "Recent Posts" }
 
                     Link {
                         to: Route::Posts {},
-                        class: "text-blue-400 hover:text-blue-300 text-sm",
+                        class: "text-blue-400 hover:text-blue-300 text-sm transition-all",
                         "View All →"
                     }
                 }
 
-                match recent_posts().as_ref() {
-                    None => {
-                        rsx! {
-                            // Loading state
-                            div { class: "animate-pulse space-y-3",
-                                for _ in 0..3 {
-                                    div { class: "bg-gray-700 h-16 rounded-md" }
+                div { class: "card-body",
+                    match recent_posts().as_ref() {
+                        None => {
+                            rsx! {
+                                // Loading state
+                                div { class: "animate-pulse space-y-3",
+                                    for _ in 0..3 {
+                                        div { class: "bg-gray-700 h-16 rounded-md" }
+                                    }
                                 }
                             }
                         }
-                    }
-                    Some(posts) if posts.is_empty() => {
-                        rsx! {
-                            div { class: "text-center py-8 text-gray-400 border border-dashed border-gray-700 rounded-md",
-                                "No posts yet. Create your first post!"
+                        Some(posts) if posts.is_empty() => {
+                            rsx! {
+                                div { class: "text-center py-8 text-gray-400 border border-dashed border-gray-700 rounded-md",
+                                    "No posts yet. Create your first post!"
+                                }
                             }
                         }
-                    }
-                    Some(posts) => {
-                        rsx! {
-                            div { class: "space-y-3",
-                                for post in posts.iter().take(5) {
-                                    div {
-                                        class: "bg-gray-700 p-3 rounded-md flex justify-between items-center",
-                                        key: post.id,
+                        Some(posts) => {
+                            rsx! {
+                                div { class: "space-y-3",
+                                    for post in posts.iter().take(5) {
+                                        div {
+                                            class: "bg-gray-700 p-3 rounded-md flex justify-between items-center shadow-md transition-all hover:shadow-lg",
+                                            key: post.id,
 
-                                        div { class: "flex-1 min-w-0",
-                                            div { class: "flex items-center",
-                                                h3 { class: "font-medium text-white truncate", "{post.title}" }
-                                                span {
-                                                    class: if post.published {
-                                                        "ml-2 px-1.5 py-0.5 text-xs rounded-full bg-green-800 text-green-200"
-                                                    } else {
-                                                        "ml-2 px-1.5 py-0.5 text-xs rounded-full bg-yellow-800 text-yellow-200"
-                                                    },
-                                                    {if post.published { "Published" } else { "Draft" }}
+                                            div { class: "flex-1 min-w-0",
+                                                div { class: "flex items-center",
+                                                    h3 { class: "font-medium text-white truncate", "{post.title}" }
+                                                    span {
+                                                        class: if post.published {
+                                                            "badge badge-success ml-2"
+                                                        } else {
+                                                            "badge badge-warning ml-2"
+                                                        },
+                                                        {if post.published { "Published" } else { "Draft" }}
+                                                    }
                                                 }
+                                                p { class: "text-gray-400 text-sm truncate", "{post.body}" }
                                             }
-                                            p { class: "text-gray-400 text-sm truncate", "{post.body}" }
-                                        }
 
-                                        Link {
-                                            to: Route::PostDetail { id: post.id },
-                                            class: "ml-4 text-blue-400 hover:text-blue-300",
-                                            "View"
+                                            Link {
+                                                to: Route::PostDetail { id: post.id },
+                                                class: "btn btn-sm btn-primary ml-4",
+                                                "View"
+                                            }
                                         }
                                     }
                                 }

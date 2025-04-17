@@ -93,7 +93,7 @@ pub fn PostDetail(id: usize) -> Element {
             div { class: "mb-6",
                 Link {
                     to: Route::Posts {},
-                    class: "text-blue-400 hover:text-blue-300 flex items-center",
+                    class: "btn btn-sm btn-secondary flex items-center transition-all",
                     span { "←" }
                     span { class: "ml-1", "Back to Posts" }
                 }
@@ -105,7 +105,7 @@ pub fn PostDetail(id: usize) -> Element {
                 match post() {
                     None => rsx! {
                         // Loading or not found state
-                        div { class: "bg-gray-800 rounded-lg p-8 text-center",
+                        div { class: "card p-8 text-center",
                             if post.read().is_none() {
                                 div { class: "animate-pulse space-y-4",
                                     div { class: "h-8 bg-gray-700 rounded w-3/4 mx-auto" }
@@ -118,7 +118,7 @@ pub fn PostDetail(id: usize) -> Element {
                                 div { class: "mt-6",
                                     Link {
                                         to: Route::Posts {},
-                                        class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700",
+                                        class: "btn btn-md btn-primary",
                                         "Return to Posts"
                                     }
                                 }
@@ -131,20 +131,26 @@ pub fn PostDetail(id: usize) -> Element {
                         rsx! {
                             // Status messages
                             if let Some(error) = delete_error() {
-                                div { class: "bg-red-900/30 border border-red-500/50 text-red-200 px-4 py-3 rounded-md mb-4",
+                                div { class: "bg-red-900/30 border border-red-500/50 text-red-200 px-4 py-3 rounded-md mb-4 shadow-md",
                                     "{error}"
                                 }
                             }
 
                             if let Some(error) = publish_error() {
-                                div { class: "bg-red-900/30 border border-red-500/50 text-red-200 px-4 py-3 rounded-md mb-4",
+                                div { class: "bg-red-900/30 border border-red-500/50 text-red-200 px-4 py-3 rounded-md mb-4 shadow-md",
                                     "{error}"
                                 }
                             }
 
+                            if delete_success() {
+                                div { class: "bg-green-900/30 border border-green-500/50 text-green-200 px-4 py-3 rounded-md mb-4 shadow-md",
+                                    "Post deleted successfully! Redirecting..."
+                                }
+                            }
+
                             // Post header
-                            div { class: "bg-gray-800 rounded-lg p-6 mb-6",
-                                div { class: "flex justify-between items-start",
+                            div { class: "card p-6 mb-6",
+                                div { class: "card-header flex justify-between items-start",
                                     div {
                                         h1 { class: "text-3xl font-bold text-white", "{post.title}" }
 
@@ -159,9 +165,9 @@ pub fn PostDetail(id: usize) -> Element {
 
                                     span {
                                         class: if post.published {
-                                            "px-3 py-1 text-sm rounded-full bg-green-800 text-green-200"
+                                            "badge badge-success"
                                         } else {
-                                            "px-3 py-1 text-sm rounded-full bg-yellow-800 text-yellow-200"
+                                            "badge badge-warning"
                                         },
                                         {if post.published { "Published" } else { "Draft" }}
                                     }
@@ -172,7 +178,7 @@ pub fn PostDetail(id: usize) -> Element {
                                     if let Some(category) = &post.category {
                                         div { class: "flex items-center",
                                             span { class: "text-gray-400 mr-1", "Category:" }
-                                            span { class: "px-2 py-1 text-xs rounded-md bg-blue-900 text-blue-200", "{category}" }
+                                            span { class: "badge badge-info", "{category}" }
                                         }
                                     }
 
@@ -181,7 +187,7 @@ pub fn PostDetail(id: usize) -> Element {
                                             span { class: "text-gray-400 mr-1", "Tags:" }
                                             {post.tags.iter().map(|tag| {
                                                 rsx! {
-                                                    span { class: "px-2 py-1 text-xs rounded-md bg-gray-700 text-gray-300", "#{tag}" }
+                                                    span { class: "px-2 py-1 text-xs rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600 transition-all", "#{tag}" }
                                                 }
                                             })}
                                         }
@@ -189,18 +195,18 @@ pub fn PostDetail(id: usize) -> Element {
                                 }
 
                                 // Action buttons
-                                div { class: "flex gap-2 mt-6",
+                                div { class: "card-footer flex gap-2 mt-6 pt-4 border-t border-gray-700",
                                     Link {
                                         to: Route::EditPost { id: post.id },
-                                        class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors",
+                                        class: "btn btn-md btn-primary",
                                         "Edit Post"
                                     }
 
                                     button {
                                         class: if post.published {
-                                            "px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors disabled:opacity-50"
+                                            "btn btn-md btn-warning disabled:opacity-50"
                                         } else {
-                                            "px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
+                                            "btn btn-md btn-success disabled:opacity-50"
                                         },
                                         disabled: is_publishing(),
                                         onclick: move |_| toggle_publish(post.published),
@@ -214,7 +220,7 @@ pub fn PostDetail(id: usize) -> Element {
                                     }
 
                                     button {
-                                        class: "px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50",
+                                        class: "btn btn-md btn-danger disabled:opacity-50",
                                         disabled: is_deleting(),
                                         onclick: handle_delete,
                                         if is_deleting() { "Deleting..." } else { "Delete" }
@@ -223,8 +229,8 @@ pub fn PostDetail(id: usize) -> Element {
                             }
 
                             // Post content
-                            div { class: "bg-gray-800 rounded-lg p-6",
-                                div { class: "prose prose-invert max-w-none",
+                            div { class: "card p-6",
+                                div { class: "card-body prose prose-invert max-w-none",
                                     // Split paragraphs and render them
                                     for paragraph in post.body.split("\n\n") {
                                         if paragraph.trim().is_empty() {
