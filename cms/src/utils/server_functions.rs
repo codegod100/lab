@@ -1,5 +1,5 @@
 use dioxus::prelude::*;
-use crate::models::{Post, POSTS, User, USERS};
+use crate::models::{Post, User};
 
 // Post-related server functions
 #[server(GetPostsServer)]
@@ -26,16 +26,16 @@ pub async fn create_post_server(new_post: Post) -> Result<Post, ServerFnError> {
 }
 
 #[server(UpdatePostServer)]
-pub async fn update_post_server(id: usize, title: Option<String>, body: Option<String>, 
-                               published: Option<bool>, category: Option<Option<String>>, 
+pub async fn update_post_server(id: usize, title: Option<String>, body: Option<String>,
+                               published: Option<bool>, category: Option<Option<String>>,
                                tags: Option<Vec<String>>) -> Result<Option<Post>, ServerFnError> {
     let mut posts = POSTS.lock().unwrap();
-    
+
     if let Some(post) = posts.iter_mut().find(|p| p.id == id) {
         post.update(title, body, published, category, tags);
         return Ok(Some(post.clone()));
     }
-    
+
     Ok(None)
 }
 
@@ -44,7 +44,7 @@ pub async fn delete_post_server(id: usize) -> Result<bool, ServerFnError> {
     let mut posts = POSTS.lock().unwrap();
     let initial_len = posts.len();
     posts.retain(|p| p.id != id);
-    
+
     Ok(posts.len() < initial_len)
 }
 
@@ -73,19 +73,19 @@ pub async fn get_user_by_id_server(id: usize) -> Result<Option<User>, ServerFnEr
 pub async fn get_stats_server() -> Result<DashboardStats, ServerFnError> {
     let posts = POSTS.lock().unwrap();
     let users = USERS.lock().unwrap();
-    
+
     let total_posts = posts.len();
     let published_posts = posts.iter().filter(|p| p.published).count();
     let draft_posts = total_posts - published_posts;
-    
+
     let categories = posts.iter()
         .filter_map(|p| p.category.clone())
         .collect::<Vec<String>>();
-    
+
     let unique_categories = categories.iter()
         .collect::<std::collections::HashSet<_>>()
         .len();
-    
+
     let stats = DashboardStats {
         total_posts,
         published_posts,
@@ -93,7 +93,7 @@ pub async fn get_stats_server() -> Result<DashboardStats, ServerFnError> {
         total_users: users.len(),
         unique_categories,
     };
-    
+
     Ok(stats)
 }
 

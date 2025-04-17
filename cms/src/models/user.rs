@@ -16,6 +16,7 @@ pub enum UserRole {
     Editor,
     Author,
     Viewer,
+    Subscriber,
 }
 
 // Global in-memory store for users
@@ -35,6 +36,6 @@ pub static USERS: Lazy<Arc<Mutex<Vec<User>>>> = Lazy::new(|| {
             role: UserRole::Editor,
         },
     ];
-    
+
     Arc::new(Mutex::new(initial_users))
 });

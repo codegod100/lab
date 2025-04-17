@@ -3,34 +3,27 @@ use crate::models::Post;
 
 #[component]
 pub fn PostForm(
-    post: Option<Post>,
+    post: Post,
     on_submit: EventHandler<Post>,
     is_submitting: bool
 ) -> Element {
-    let is_edit_mode = post.is_some();
-    let post = post.unwrap_or_else(|| Post::new(
-        String::new(),
-        String::new(),
-        false,
-        None,
-        vec![]
-    ));
-    
+    let is_edit_mode = post.id > 0;
+
     let mut title = use_signal(|| post.title.clone());
     let mut body = use_signal(|| post.body.clone());
     let mut published = use_signal(|| post.published);
     let mut category = use_signal(|| post.category.clone());
     let mut tags_input = use_signal(|| post.tags.join(", "));
-    
+
     let handle_submit = move |evt: FormEvent| {
         evt.prevent_default();
-        
+
         let tags = tags_input()
             .split(',')
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
-        
+
         let new_post = Post {
             id: post.id,
             title: title(),
@@ -45,26 +38,26 @@ pub fn PostForm(
             created_at: post.created_at,
             updated_at: post.updated_at,
         };
-        
+
         on_submit.call(new_post);
     };
-    
+
     rsx! {
-        form { 
+        form {
             class: "bg-gray-800 rounded-lg p-6 shadow-lg",
             onsubmit: handle_submit,
-            
-            h2 { 
+
+            h2 {
                 class: "text-2xl font-bold mb-6 pb-2 border-b border-gray-700",
                 if is_edit_mode { "Edit Post" } else { "Create New Post" }
             }
-            
+
             div { class: "space-y-4",
                 // Title field
                 div { class: "mb-4",
-                    label { 
-                        class: "block text-sm font-medium text-gray-300 mb-1", 
-                        "Title" 
+                    label {
+                        class: "block text-sm font-medium text-gray-300 mb-1",
+                        "Title"
                     }
                     input {
                         class: "w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-white",
@@ -75,12 +68,12 @@ pub fn PostForm(
                         oninput: move |e| title.set(e.value())
                     }
                 }
-                
+
                 // Content field
                 div { class: "mb-4",
-                    label { 
-                        class: "block text-sm font-medium text-gray-300 mb-1", 
-                        "Content" 
+                    label {
+                        class: "block text-sm font-medium text-gray-300 mb-1",
+                        "Content"
                     }
                     textarea {
                         class: "w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-white min-h-[200px]",
@@ -90,12 +83,12 @@ pub fn PostForm(
                         oninput: move |e| body.set(e.value())
                     }
                 }
-                
+
                 // Category field
                 div { class: "mb-4",
-                    label { 
-                        class: "block text-sm font-medium text-gray-300 mb-1", 
-                        "Category (optional)" 
+                    label {
+                        class: "block text-sm font-medium text-gray-300 mb-1",
+                        "Category (optional)"
                     }
                     input {
                         class: "w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-white",
@@ -105,12 +98,12 @@ pub fn PostForm(
                         oninput: move |e| category.set(Some(e.value()))
                     }
                 }
-                
+
                 // Tags field
                 div { class: "mb-4",
-                    label { 
-                        class: "block text-sm font-medium text-gray-300 mb-1", 
-                        "Tags (comma separated)" 
+                    label {
+                        class: "block text-sm font-medium text-gray-300 mb-1",
+                        "Tags (comma separated)"
                     }
                     input {
                         class: "w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-white",
@@ -120,7 +113,7 @@ pub fn PostForm(
                         oninput: move |e| tags_input.set(e.value())
                     }
                 }
-                
+
                 // Published checkbox
                 div { class: "mb-6 flex items-center",
                     label { class: "flex items-center cursor-pointer",
@@ -133,7 +126,7 @@ pub fn PostForm(
                         span { class: "text-sm text-gray-300", "Publish this post" }
                     }
                 }
-                
+
                 // Submit button
                 div { class: "flex justify-end",
                     button {

@@ -1,5 +1,4 @@
 use dioxus::prelude::*;
-use crate::models::Post;
 use crate::routes::Route;
 use crate::utils::get_published_posts_server;
 use std::collections::HashSet;
@@ -10,11 +9,13 @@ pub fn Blog() -> Element {
         get_published_posts_server().await.unwrap_or_default()
     });
     
+    let mut search_query = use_signal(|| String::new());
     let mut selected_category = use_signal(|| None::<String>);
     let mut selected_tag = use_signal(|| None::<String>);
     
     let filtered_posts = move || {
-        let posts = match posts().as_ref() {
+        let posts_data = posts();
+        let posts = match posts_data.as_ref() {
             Some(p) => p,
             None => return vec![],
         };
@@ -33,6 +34,19 @@ pub fn Blog() -> Element {
                     }
                 }
                 
+                if !search_query().is_empty() {
+                    let query = search_query().to_lowercase();
+                    let title_match = post.title.to_lowercase().contains(&query);
+                    let body_match = post.body.to_lowercase().contains(&query);
+                    let category_match = post.category.as_ref()
+                        .map(|c| c.to_lowercase().contains(&query))
+                        .unwrap_or(false);
+                    
+                    if !(title_match || body_match || category_match) {
+                        return false;
+                    }
+                }
+                
                 true
             })
             .cloned()
@@ -40,7 +54,8 @@ pub fn Blog() -> Element {
     };
     
     let all_categories = move || {
-        let posts = match posts().as_ref() {
+        let posts_data = posts();
+        let posts = match posts_data.as_ref() {
             Some(p) => p,
             None => return vec![],
         };
@@ -53,7 +68,8 @@ pub fn Blog() -> Element {
     };
     
     let all_tags = move || {
-        let posts = match posts().as_ref() {
+        let posts_data = posts();
+        let posts = match posts_data.as_ref() {
             Some(p) => p,
             None => return vec![],
         };
@@ -71,221 +87,208 @@ pub fn Blog() -> Element {
     };
     
     rsx! {
-        div { class: "max-w-6xl mx-auto",
-            // Blog header
-            div { class: "text-center mb-12",
-                h1 { class: "text-4xl font-bold mb-4", "Blog" }
-                p { class: "text-xl text-gray-400", "Latest articles and updates" }
-            }
+        div { class: "container mx-auto px-4 py-8",
+            h1 { class: "text-4xl font-bold mb-8 text-center", "Blog" }
             
-            // Main content area with sidebar
-            div { class: "flex flex-col md:flex-row gap-8",
-                // Sidebar
-                div { class: "md:w-1/4",
-                    div { class: "bg-gray-800 rounded-lg p-6 sticky top-4",
-                        // Categories
-                        div { class: "mb-6",
-                            h3 { class: "text-lg font-bold mb-3 border-b border-gray-700 pb-2", "Categories" }
-                            
-                            div { class: "space-y-2",
-                                button {
-                                    class: "text-sm " + if selected_category().is_none() { "text-blue-400" } else { "text-gray-400 hover:text-white" },
-                                    onclick: move |_| selected_category.set(None),
-                                    "All Categories"
-                                }
-                                
-                                {all_categories().into_iter().map(|category| {
-                                    let is_selected = selected_category() == Some(category.clone());
-                                    rsx! {
-                                        button {
-                                            class: "block text-sm " + if is_selected { "text-blue-400" } else { "text-gray-400 hover:text-white" },
-                                            onclick: move |_| {
-                                                if is_selected {
-                                                    selected_category.set(None);
-                                                } else {
-                                                    selected_category.set(Some(category.clone()));
-                                                }
-                                            },
-                                            "{category}"
-                                        }
-                                    }
-                                })}
-                            }
-                        }
-                        
-                        // Tags
-                        div {
-                            h3 { class: "text-lg font-bold mb-3 border-b border-gray-700 pb-2", "Tags" }
-                            
-                            div { class: "flex flex-wrap gap-2",
-                                {all_tags().into_iter().map(|tag| {
-                                    let is_selected = selected_tag() == Some(tag.clone());
-                                    rsx! {
-                                        button {
-                                            class: "px-2 py-1 text-xs rounded-md " + 
-                                                  if is_selected { 
-                                                      "bg-blue-600 text-white" 
-                                                  } else { 
-                                                      "bg-gray-700 text-gray-300 hover:bg-gray-600" 
-                                                  },
-                                            onclick: move |_| {
-                                                if is_selected {
-                                                    selected_tag.set(None);
-                                                } else {
-                                                    selected_tag.set(Some(tag.clone()));
-                                                }
-                                            },
-                                            "#{tag}"
-                                        }
-                                    }
-                                })}
-                            }
+            // Search and filters
+            div { class: "bg-gray-800 rounded-lg p-6 mb-8",
+                // Search
+                div { class: "mb-6",
+                    label { class: "block text-sm font-medium text-gray-300 mb-1", "Search" }
+                    div { class: "relative",
+                        input {
+                            class: "w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-white",
+                            r#type: "text",
+                            placeholder: "Search posts...",
+                            value: "{search_query}",
+                            oninput: move |e| search_query.set(e.value())
                         }
                     }
                 }
                 
-                // Main content
-                div { class: "md:w-3/4",
-                    // Filter indicators
-                    if selected_category().is_some() || selected_tag().is_some() {
-                        rsx! {
-                            div { class: "flex items-center mb-4 text-sm",
-                                span { class: "text-gray-400 mr-2", "Filtered by:" }
+                // Filters
+                div { class: "grid grid-cols-1 md:grid-cols-2 gap-4",
+                    // Categories filter
+                    div {
+                        label { class: "block text-sm font-medium text-gray-300 mb-1", "Filter by Category" }
+                        div { class: "flex flex-wrap gap-2",
+                            button {
+                                class: if selected_category().is_none() {
+                                    "px-3 py-1 text-sm rounded-md bg-blue-600 text-white"
+                                } else {
+                                    "px-3 py-1 text-sm rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600"
+                                },
+                                onclick: move |_| selected_category.set(None),
+                                "All"
+                            }
+                            
+                            {all_categories().into_iter().map(|category| {
+                                let is_selected = selected_category().as_ref() == Some(&category);
+                                let category_clone = category.clone();
                                 
-                                if let Some(category) = &selected_category() {
-                                    rsx! {
-                                        div { class: "flex items-center bg-blue-900/30 text-blue-200 px-2 py-1 rounded-md mr-2",
-                                            span { "Category: {category}" }
-                                            button {
-                                                class: "ml-2 text-blue-300 hover:text-blue-100",
-                                                onclick: move |_| selected_category.set(None),
-                                                "×"
+                                rsx! {
+                                    button {
+                                        key: "{category}",
+                                        class: if is_selected {
+                                            "px-3 py-1 text-sm rounded-md bg-blue-600 text-white"
+                                        } else {
+                                            "px-3 py-1 text-sm rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600"
+                                        },
+                                        onclick: move |_| {
+                                            if is_selected {
+                                                selected_category.set(None)
+                                            } else {
+                                                selected_category.set(Some(category_clone.clone()))
                                             }
-                                        }
+                                        },
+                                        "{category}"
                                     }
                                 }
+                            })}
+                        }
+                    }
+                    
+                    // Tags filter
+                    div {
+                        label { class: "block text-sm font-medium text-gray-300 mb-1", "Filter by Tag" }
+                        div { class: "flex flex-wrap gap-2",
+                            button {
+                                class: if selected_tag().is_none() {
+                                    "px-3 py-1 text-sm rounded-md bg-blue-600 text-white"
+                                } else {
+                                    "px-3 py-1 text-sm rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600"
+                                },
+                                onclick: move |_| selected_tag.set(None),
+                                "All"
+                            }
+                            
+                            {all_tags().into_iter().map(|tag| {
+                                let is_selected = selected_tag().as_ref() == Some(&tag);
+                                let tag_clone = tag.clone();
                                 
-                                if let Some(tag) = &selected_tag() {
-                                    rsx! {
-                                        div { class: "flex items-center bg-blue-900/30 text-blue-200 px-2 py-1 rounded-md",
-                                            span { "Tag: #{tag}" }
-                                            button {
-                                                class: "ml-2 text-blue-300 hover:text-blue-100",
-                                                onclick: move |_| selected_tag.set(None),
-                                                "×"
+                                rsx! {
+                                    button {
+                                        key: "{tag}",
+                                        class: if is_selected {
+                                            "px-3 py-1 text-sm rounded-md bg-blue-600 text-white"
+                                        } else {
+                                            "px-3 py-1 text-sm rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600"
+                                        },
+                                        onclick: move |_| {
+                                            if is_selected {
+                                                selected_tag.set(None)
+                                            } else {
+                                                selected_tag.set(Some(tag_clone.clone()))
                                             }
-                                        }
+                                        },
+                                        "#{tag}"
+                                    }
+                                }
+                            })}
+                        }
+                    }
+                }
+            }
+            
+            // Posts grid
+            div { class: "space-y-8",
+                match posts().as_ref() {
+                    None => {
+                        rsx! {
+                            div { class: "bg-gray-800 rounded-lg p-8 text-center",
+                                if posts.loading() {
+                                    div { class: "animate-pulse space-y-4",
+                                        div { class: "h-8 bg-gray-700 rounded w-1/4 mx-auto" }
+                                        div { class: "h-64 bg-gray-700 rounded mt-8" }
+                                    }
+                                } else {
+                                    div {
+                                        h2 { class: "text-2xl font-bold text-red-400", "Error Loading Posts" }
+                                        p { class: "text-gray-400 mt-2", "There was a problem loading the blog posts. Please try again later." }
                                     }
                                 }
                             }
                         }
                     }
-                    
-                    // Posts
-                    div { class: "space-y-8",
-                        match posts().as_ref() {
-                            None => {
-                                rsx! {
-                                    // Loading state
-                                    div { class: "animate-pulse space-y-8",
-                                        (0..3).map(|_| {
-                                            rsx! {
-                                                div { class: "bg-gray-800 rounded-lg p-6",
-                                                    div { class: "h-7 bg-gray-700 rounded w-3/4 mb-4" }
-                                                    div { class: "h-4 bg-gray-700 rounded w-1/4 mb-6" }
-                                                    div { class: "h-4 bg-gray-700 rounded w-full mb-3" }
-                                                    div { class: "h-4 bg-gray-700 rounded w-full mb-3" }
-                                                    div { class: "h-4 bg-gray-700 rounded w-2/3" }
+                    Some(_) => {
+                        rsx! {
+                            for post in filtered_posts() {
+                                article {
+                                    class: "bg-gray-800 rounded-lg p-6 shadow-lg",
+                                    key: post.id,
+                                    
+                                    // Post header
+                                    header { class: "mb-4",
+                                        Link {
+                                            to: Route::BlogPost { id: post.id },
+                                            class: "block",
+                                            h2 { class: "text-2xl font-bold hover:text-blue-400 transition-colors", "{post.title}" }
+                                        }
+                                        
+                                        div { class: "text-sm text-gray-400 mt-1",
+                                            time { "{format_date(post.created_at)}" }
+                                        }
+                                    }
+                                    
+                                    // Post excerpt
+                                    div { class: "mb-4",
+                                        p { class: "text-gray-300 line-clamp-3",
+                                            // Get first 200 chars as excerpt
+                                            "{if post.body.len() > 200 { format!("{}...", &post.body[..200]) } else { post.body.clone() }}"
+                                        }
+                                    }
+                                    
+                                    // Post footer
+                                    div { class: "flex justify-between items-center",
+                                        // Categories and tags
+                                        div { class: "flex flex-wrap gap-2",
+                                            if let Some(category) = &post.category {
+                                                let cat = category.clone();
+                                                button {
+                                                    class: "px-2 py-1 text-xs rounded-md bg-blue-900 text-blue-200",
+                                                    onclick: move |_| selected_category.set(Some(cat.clone())),
+                                                    "{category}"
                                                 }
                                             }
-                                        })
-                                    }
-                                }
-                            }
-                            Some(_) if filtered_posts().is_empty() => {
-                                rsx! {
-                                    div { class: "bg-gray-800 rounded-lg p-8 text-center",
-                                        if selected_category().is_some() || selected_tag().is_some() {
-                                            rsx! {
-                                                h3 { class: "text-xl font-bold mb-2", "No matching posts found" }
-                                                p { class: "text-gray-400", "Try changing your filter criteria." }
-                                            }
-                                        } else {
-                                            rsx! {
-                                                h3 { class: "text-xl font-bold mb-2", "No posts yet" }
-                                                p { class: "text-gray-400", "Check back later for new content." }
-                                            }
+                                            
+                                            {post.tags.iter().map(|tag| {
+                                                let tag_clone = tag.clone();
+                                                rsx! {
+                                                    button {
+                                                        key: "{tag}",
+                                                        class: "px-2 py-1 text-xs rounded-md bg-gray-700 text-gray-300",
+                                                        onclick: move |_| selected_tag.set(Some(tag_clone.clone())),
+                                                        "#{tag}"
+                                                    }
+                                                }
+                                            })}
+                                        }
+                                        
+                                        // Read more link
+                                        Link {
+                                            to: Route::BlogPost { id: post.id },
+                                            class: "px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md",
+                                            "Read More"
                                         }
                                     }
                                 }
                             }
-                            Some(_) => {
-                                rsx! {
-                                    filtered_posts().into_iter().map(|post| {
-                                        rsx! {
-                                            article { 
-                                                class: "bg-gray-800 rounded-lg p-6 shadow-lg",
-                                                key: post.id,
-                                                
-                                                // Post header
-                                                div { class: "mb-4",
-                                                    Link {
-                                                        to: Route::BlogPost { id: post.id },
-                                                        class: "block",
-                                                        h2 { class: "text-2xl font-bold hover:text-blue-400 transition-colors", "{post.title}" }
-                                                    }
-                                                    
-                                                    div { class: "text-sm text-gray-400 mt-1",
-                                                        span { "{format_date(post.created_at)}" }
-                                                    }
-                                                }
-                                                
-                                                // Post content preview
-                                                div { class: "mb-4",
-                                                    p { class: "text-gray-300",
-                                                        // Show a preview of the content
-                                                        if post.body.len() > 200 {
-                                                            "{post.body[..200].to_string()}..."
-                                                        } else {
-                                                            "{post.body}"
-                                                        }
-                                                    }
-                                                }
-                                                
-                                                // Post footer
-                                                div { class: "flex justify-between items-center",
-                                                    // Categories and tags
-                                                    div { class: "flex flex-wrap gap-2",
-                                                        if let Some(category) = &post.category {
-                                                            button {
-                                                                class: "px-2 py-1 text-xs rounded-md bg-blue-900 text-blue-200",
-                                                                onclick: move |_| selected_category.set(Some(category.clone())),
-                                                                "{category}"
-                                                            }
-                                                        }
-                                                        
-                                                        {post.tags.iter().map(|tag| {
-                                                            let tag_clone = tag.clone();
-                                                            rsx! {
-                                                                button {
-                                                                    class: "px-2 py-1 text-xs rounded-md bg-gray-700 text-gray-300",
-                                                                    onclick: move |_| selected_tag.set(Some(tag_clone.clone())),
-                                                                    "#{tag}"
-                                                                }
-                                                            }
-                                                        })}
-                                                    }
-                                                    
-                                                    // Read more link
-                                                    Link {
-                                                        to: Route::BlogPost { id: post.id },
-                                                        class: "text-blue-400 hover:text-blue-300",
-                                                        "Read more →"
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    })
+                            
+                            // No results message
+                            if filtered_posts().is_empty() {
+                                div { class: "bg-gray-800 rounded-lg p-8 text-center",
+                                    h2 { class: "text-2xl font-bold", "No Posts Found" }
+                                    p { class: "text-gray-400 mt-2", "No posts match your current filters. Try adjusting your search criteria." }
+                                    
+                                    button {
+                                        class: "mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700",
+                                        onclick: move |_| {
+                                            search_query.set(String::new());
+                                            selected_category.set(None);
+                                            selected_tag.set(None);
+                                        },
+                                        "Clear All Filters"
+                                    }
                                 }
                             }
                         }
