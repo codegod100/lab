@@ -20,6 +20,7 @@ pub enum UserRole {
 }
 
 // Global in-memory store for users
+#[allow(dead_code)]
 pub static USERS: Lazy<Arc<Mutex<Vec<User>>>> = Lazy::new(|| {
     // Initialize with a default admin user
     let initial_users = vec![

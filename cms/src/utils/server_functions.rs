@@ -1,5 +1,7 @@
+#[allow(unused_imports)]
 use dioxus::prelude::*;
-use crate::models::{Post, User};
+#[allow(unused_imports)]
+use crate::models::{Post, User, POSTS, USERS};
 
 // Post-related server functions
 #[server(GetPostsServer)]
