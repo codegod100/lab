@@ -73,7 +73,7 @@ pub fn PostDetail(id: usize) -> Element {
             div { class: "mb-6",
                 Link {
                     to: Route::Posts {},
-                    class: "btn btn-sm btn-secondary flex items-center transition-all",
+                    class: "inline-flex items-center px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors",
                     span { "←" }
                     span { class: "ml-1", "Back to Posts" }
                 }
@@ -85,7 +85,7 @@ pub fn PostDetail(id: usize) -> Element {
                 match post() {
                     None => rsx! {
                         // Loading or not found state
-                        div { class: "card p-8 text-center",
+                        div { class: "bg-gray-800 p-8 rounded-lg border border-gray-700 shadow-lg text-center",
                             if post.read().is_none() {
                                 div { class: "animate-pulse space-y-4",
                                     div { class: "h-8 bg-gray-700 rounded w-3/4 mx-auto" }
@@ -98,7 +98,7 @@ pub fn PostDetail(id: usize) -> Element {
                                 div { class: "mt-6",
                                     Link {
                                         to: Route::Posts {},
-                                        class: "btn btn-md btn-primary",
+                                        class: "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors",
                                         "Return to Posts"
                                     }
                                 }
@@ -132,7 +132,7 @@ pub fn PostDetail(id: usize) -> Element {
                             }
 
                             // Post header
-                            div { class: "card p-6 mb-6",
+                            div { class: "bg-gray-800 p-6 rounded-lg border border-gray-700 shadow-lg mb-6",
                                 div { class: "flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4",
                                     div { class: "flex-1",
                                         h1 { class: "text-3xl font-bold text-white", "{post.title}" }
@@ -148,9 +148,9 @@ pub fn PostDetail(id: usize) -> Element {
 
                                     span {
                                         class: if post.published {
-                                            "badge badge-success"
+                                            "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-900/50 text-green-200 border border-green-700/50"
                                         } else {
-                                            "badge badge-warning"
+                                            "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-900/50 text-yellow-200 border border-yellow-700/50"
                                         },
                                         {if post.published { "Published" } else { "Draft" }}
                                     }
@@ -161,7 +161,7 @@ pub fn PostDetail(id: usize) -> Element {
                                     if let Some(category) = &post.category {
                                         div { class: "flex items-center",
                                             span { class: "text-gray-400 mr-1", "Category:" }
-                                            span { class: "badge badge-info", "{category}" }
+                                            span { class: "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-900/50 text-blue-200 border border-blue-700/50", "{category}" }
                                         }
                                     }
 
@@ -170,7 +170,7 @@ pub fn PostDetail(id: usize) -> Element {
                                             span { class: "text-gray-400 mr-1", "Tags:" }
                                             {post.tags.iter().map(|tag| {
                                                 rsx! {
-                                                    span { class: "inline-flex items-center px-2.5 py-0.5 m-0.5 rounded-full text-xs font-medium bg-indigo-900/50 text-indigo-200 border border-indigo-700/50 hover:bg-indigo-800/50 transition-colors", "#{tag}" }
+                                                    span { class: "inline-flex items-center px-2.5 py-1 m-0.5 rounded-full text-xs font-medium bg-indigo-900/50 text-indigo-200 border border-indigo-700/50 hover:bg-indigo-800/50 transition-colors", "#{tag}" }
                                                 }
                                             })}
                                         }
@@ -181,16 +181,16 @@ pub fn PostDetail(id: usize) -> Element {
                                 div { class: "flex flex-wrap gap-2 mt-6 pt-4 border-t border-gray-700",
                                     Link {
                                         to: Route::EditPost { id: post.id },
-                                        class: "btn btn-md btn-primary flex items-center p-2",
+                                        class: "inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors",
                                         span { class: "mr-1 text-xs", "✏️" }
                                         "Edit Post"
                                     }
 
                                     button {
                                         class: if post.published {
-                                            "btn btn-md btn-warning disabled:opacity-50 flex items-center"
+                                            "inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         } else {
-                                            "btn btn-md btn-success disabled:opacity-50 flex items-center"
+                                            "inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         },
                                         disabled: is_publishing(),
                                         onclick: move |_| toggle_publish(post.published),
@@ -206,7 +206,7 @@ pub fn PostDetail(id: usize) -> Element {
                                     }
 
                                     button {
-                                        class: "btn btn-md btn-danger disabled:opacity-50 flex items-center",
+                                        class: "inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
                                         disabled: is_deleting(),
                                         onclick: handle_delete,
                                         if is_deleting() {
@@ -220,14 +220,14 @@ pub fn PostDetail(id: usize) -> Element {
                             }
 
                             // Post content
-                            div { class: "card p-6",
-                                div { class: "card-body prose prose-invert max-w-none",
+                            div { class: "bg-gray-800 p-6 rounded-lg border border-gray-700 shadow-lg",
+                                div { class: "text-gray-200 max-w-none",
                                     // Split paragraphs and render them
                                     for paragraph in post.body.split("\n\n") {
                                         if paragraph.trim().is_empty() {
                                             br {}
                                         } else {
-                                            p { "{paragraph}" }
+                                            p { class: "mb-4 last:mb-0", "{paragraph}" }
                                         }
                                     }
                                 }
