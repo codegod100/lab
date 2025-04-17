@@ -66,9 +66,9 @@ pub fn PostCard(post: Post, on_delete: Option<EventHandler<usize>>) -> Element {
                 }
 
                 // Action buttons
-                div { class: "flex gap-6",
+                div { class: "flex gap-4",
                     Link {
-                        class: "btn btn-sm btn-primary flex items-center mr-2",
+                        class: "btn btn-sm btn-primary flex items-center",
                         to: Route::PostDetail { id: post.id },
                         span { class: "mr-1 text-xs", "👁️" }
                         "View"
