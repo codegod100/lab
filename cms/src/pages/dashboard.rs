@@ -1,17 +1,15 @@
 use dioxus::prelude::*;
 use crate::components::StatsCard;
 use crate::routes::Route;
-use crate::utils::get_stats_server;
+use crate::utils::{get_stats_server, get_posts_server};
 
 #[component]
 pub fn Dashboard() -> Element {
-    let stats = use_resource(|| async move {
-        get_stats_server().await.ok()
-    });
+    // Use use_server_future for stats, matching posts.rs
+    let stats = use_server_future(get_stats_server)?.value();
 
-    let recent_posts = use_resource(|| async move {
-        crate::utils::get_posts_server().await.unwrap_or_default()
-    });
+    // Use use_server_future for posts, matching posts.rs
+    let recent_posts = use_server_future(get_posts_server)?.value();
 
     rsx! {
         div { class: "container mx-auto px-4 py-6 max-w-6xl",
@@ -25,7 +23,7 @@ pub fn Dashboard() -> Element {
             div { class: "grid grid-cols-2 gap-4 mb-8",
                 // First row
                 div { class: "col-span-1",
-                    match stats().as_ref() {
+                    match stats() {
                         None => rsx! { div { class: "bg-gray-800 rounded-lg p-4 h-24 animate-pulse" } },
                         Some(stats) => rsx! {
                             StatsCard {
@@ -39,7 +37,7 @@ pub fn Dashboard() -> Element {
                     }
                 }
                 div { class: "col-span-1",
-                    match stats().as_ref() {
+                    match stats() {
                         None => rsx! { div { class: "bg-gray-800 rounded-lg p-4 h-24 animate-pulse" } },
                         Some(stats) => rsx! {
                             StatsCard {
@@ -55,7 +53,7 @@ pub fn Dashboard() -> Element {
 
                 // Second row
                 div { class: "col-span-1",
-                    match stats().as_ref() {
+                    match stats() {
                         None => rsx! { div { class: "bg-gray-800 rounded-lg p-4 h-24 animate-pulse" } },
                         Some(stats) => rsx! {
                             StatsCard {
@@ -69,7 +67,7 @@ pub fn Dashboard() -> Element {
                     }
                 }
                 div { class: "col-span-1",
-                    match stats().as_ref() {
+                    match stats() {
                         None => rsx! { div { class: "bg-gray-800 rounded-lg p-4 h-24 animate-pulse" } },
                         Some(stats) => rsx! {
                             StatsCard {
@@ -145,7 +143,7 @@ pub fn Dashboard() -> Element {
                         }
 
                         div { class: "card-body",
-                            match recent_posts().as_ref() {
+                            match recent_posts() {
                                 None => {
                                     rsx! {
                                         // Loading state
@@ -156,14 +154,14 @@ pub fn Dashboard() -> Element {
                                         }
                                     }
                                 }
-                                Some(posts) if posts.is_empty() => {
+                                Some(Ok(posts)) if posts.is_empty() => {
                                     rsx! {
                                         div { class: "text-center py-8 text-gray-400 border border-dashed border-gray-700 rounded-lg mx-auto",
                                             "No posts yet. Create your first post!"
                                         }
                                     }
                                 }
-                                Some(posts) => {
+                                Some(Ok(posts)) => {
                                     rsx! {
                                         div { class: "space-y-4 mx-auto",
                                             for post in posts.iter().take(5) {
@@ -193,6 +191,13 @@ pub fn Dashboard() -> Element {
                                                     }
                                                 }
                                             }
+                                        }
+                                    }
+                                }
+                                Some(Err(_)) => {
+                                    rsx! {
+                                        div { class: "text-center py-8 text-red-400 border border-dashed border-red-700 rounded-lg mx-auto",
+                                            "Error loading posts."
                                         }
                                     }
                                 }

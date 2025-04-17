@@ -4,9 +4,8 @@ use crate::utils::{get_post_by_id_server, format_date};
 
 #[component]
 pub fn BlogPost(id: usize) -> Element {
-    let post = use_resource(move || async move {
-        get_post_by_id_server(id).await.unwrap_or(None)
-    });
+    // Use use_server_future for consistency with posts.rs
+    let post = use_server_future(move || get_post_by_id_server(id))?.value();
 
     // Use the imported format_date function from utils
 
@@ -24,32 +23,8 @@ pub fn BlogPost(id: usize) -> Element {
 
             // Content based on post state
             {
-                match post().as_ref() {
-                    None => {
-                        rsx! {
-                            div { class: "card p-8 text-center",
-                                if post.read().is_none() {
-                                    div { class: "animate-pulse space-y-4",
-                                        div { class: "h-8 bg-gray-700 rounded w-3/4 mx-auto" }
-                                        div { class: "h-4 bg-gray-700 rounded w-1/4 mx-auto" }
-                                        div { class: "h-32 bg-gray-700 rounded mt-8" }
-                                    }
-                                } else {
-                                    h1 { class: "text-2xl font-bold text-red-400", "Post Not Found" }
-                                    p { class: "text-gray-400 mt-2", "The post you're looking for doesn't exist, has been deleted, or is not published." }
-                                    div { class: "mt-6",
-                                        Link {
-                                            to: Route::Blog {},
-                                            class: "btn btn-md btn-primary",
-                                            "Return to Blog"
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Some(post_data) => {
-                        let post = post_data.clone().unwrap();
+                match post() {
+                    Some(Ok(Some(post))) => {
                         if !post.published {
                             rsx! {
                                 div { class: "card p-8 text-center",
@@ -109,6 +84,34 @@ pub fn BlogPost(id: usize) -> Element {
                             }
                         }
                     }
+                    Some(Ok(None)) => rsx! {
+                        div { class: "card p-8 text-center",
+                            h1 { class: "text-2xl font-bold text-red-400", "Post Not Found" }
+                            p { class: "text-gray-400 mt-2", "The post you're looking for doesn't exist, has been deleted, or is not published." }
+                            div { class: "mt-6",
+                                Link {
+                                    to: Route::Blog {},
+                                    class: "btn btn-md btn-primary",
+                                    "Return to Blog"
+                                }
+                            }
+                        }
+                    },
+                    Some(Err(_)) => rsx! {
+                        div { class: "card p-8 text-center",
+                            h1 { class: "text-2xl font-bold text-red-400", "Error Loading Post" }
+                            p { class: "text-gray-400 mt-2", "There was a problem loading the post. Please try again later." }
+                        }
+                    },
+                    None => rsx! {
+                        div { class: "card p-8 text-center",
+                            div { class: "animate-pulse space-y-4",
+                                div { class: "h-8 bg-gray-700 rounded w-3/4 mx-auto" }
+                                div { class: "h-4 bg-gray-700 rounded w-1/4 mx-auto" }
+                                div { class: "h-32 bg-gray-700 rounded mt-8" }
+                            }
+                        }
+                    },
                 }
             }
         }

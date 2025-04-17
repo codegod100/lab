@@ -29,9 +29,8 @@ fn get_excerpt(html: &str) -> String {
 
 #[component]
 pub fn Blog() -> Element {
-    let posts = use_resource(|| async move {
-        get_published_posts_server().await.unwrap_or_default()
-    });
+    // Use use_server_future for posts, matching posts.rs
+    let posts = use_server_future(get_published_posts_server)?.value();
 
     let mut search_query = use_signal(|| String::new());
     let mut selected_category = use_signal(|| None::<String>);
@@ -39,9 +38,9 @@ pub fn Blog() -> Element {
 
     let filtered_posts = move || {
         let posts_data = posts();
-        let posts = match posts_data.as_ref() {
-            Some(p) => p,
-            None => return vec![],
+        let posts = match posts_data {
+            Some(Ok(p)) => p,
+            _ => return vec![],
         };
 
         posts.iter()
@@ -79,9 +78,9 @@ pub fn Blog() -> Element {
 
     let all_categories = move || {
         let posts_data = posts();
-        let posts = match posts_data.as_ref() {
-            Some(p) => p,
-            None => return vec![],
+        let posts = match posts_data {
+            Some(Ok(p)) => p,
+            _ => return vec![],
         };
 
         posts.iter()
@@ -93,9 +92,9 @@ pub fn Blog() -> Element {
 
     let all_tags = move || {
         let posts_data = posts();
-        let posts = match posts_data.as_ref() {
-            Some(p) => p,
-            None => return vec![],
+        let posts = match posts_data {
+            Some(Ok(p)) => p,
+            _ => return vec![],
         };
 
         posts.iter()
@@ -213,7 +212,7 @@ pub fn Blog() -> Element {
 
             // Posts grid
             div { class: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8",
-                match posts().as_ref() {
+                match posts() {
                     None => {
                         rsx! {
                             div { class: "bg-gray-800 rounded-lg p-8 text-center",
@@ -231,7 +230,15 @@ pub fn Blog() -> Element {
                             }
                         }
                     }
-                    Some(_) => {
+                    Some(Err(_)) => {
+                        rsx! {
+                            div { class: "bg-gray-800 rounded-lg p-8 text-center",
+                                h2 { class: "text-2xl font-bold text-red-400", "Error Loading Posts" }
+                                p { class: "text-gray-400 mt-2", "There was a problem loading the blog posts. Please try again later." }
+                            }
+                        }
+                    }
+                    Some(Ok(posts)) => {
                         rsx! {
                             for post in filtered_posts() {
                                 article {
