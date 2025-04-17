@@ -198,13 +198,13 @@ pub fn Blog() -> Element {
             }
 
             // Posts grid
-            div { class: "space-y-8",
+            div { class: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8",
                 match posts().as_ref() {
                     None => {
                         rsx! {
                             div { class: "bg-gray-800 rounded-lg p-8 text-center",
                                 if posts.read().is_none() {
-                                    div { class: "animate-pulse space-y-4",
+                                    div { class: "animate-pulse grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4",
                                         div { class: "h-8 bg-gray-700 rounded w-1/4 mx-auto" }
                                         div { class: "h-64 bg-gray-700 rounded mt-8" }
                                     }

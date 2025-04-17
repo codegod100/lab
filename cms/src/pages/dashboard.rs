@@ -124,7 +124,7 @@ pub fn Dashboard() -> Element {
                         None => {
                             rsx! {
                                 // Loading state
-                                div { class: "animate-pulse space-y-3",
+                                div { class: "animate-pulse grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4",
                                     for _ in 0..3 {
                                         div { class: "bg-gray-700 h-16 rounded-md" }
                                     }
@@ -140,7 +140,7 @@ pub fn Dashboard() -> Element {
                         }
                         Some(posts) => {
                             rsx! {
-                                div { class: "space-y-3",
+                                div { class: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4",
                                     for post in posts.iter().take(5) {
                                         div {
                                             class: "bg-gray-700 p-3 rounded-md flex justify-between items-center shadow-md transition-all hover:shadow-lg",

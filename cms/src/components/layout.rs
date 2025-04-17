@@ -90,9 +90,21 @@ pub fn Layout() -> Element {
                 }
             }
 
-            // Main Content
-            main { class: "container mx-auto px-4 py-8 pb-24 md:pb-8",
-                Outlet::<Route> {}
+            // Main Content with sidebar
+            div { class: "container mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-4 gap-6 pb-24 md:pb-8",
+                // Sidebar for desktop
+                aside { class: "hidden md:block md:col-span-1 bg-gray-800 rounded-lg p-4 shadow-md",
+                    nav { class: "flex flex-col space-y-2",
+                        Link { class: "px-3 py-2 text-gray-300 hover:bg-gray-700 rounded transition", to: Route::Dashboard {}, "Dashboard" }
+                        Link { class: "px-3 py-2 text-gray-300 hover:bg-gray-700 rounded transition", to: Route::Posts {}, "Posts" }
+                        Link { class: "px-3 py-2 text-gray-300 hover:bg-gray-700 rounded transition", to: Route::Users {}, "Users" }
+                        Link { class: "px-3 py-2 text-gray-300 hover:bg-gray-700 rounded transition", to: Route::Blog {}, "Blog" }
+                    }
+                }
+                // Main outlet
+                main { class: "md:col-span-3 space-y-6",
+                    Outlet::<Route> {}
+                }
             }
 
             // Footer

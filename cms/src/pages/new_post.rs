@@ -35,7 +35,7 @@ pub fn NewPost() -> Element {
     };
 
     rsx! {
-        div {
+        div { class: "container mx-auto px-4 py-8",
             // Page header
             div { class: "mb-6",
                 div { class: "flex items-center justify-between",

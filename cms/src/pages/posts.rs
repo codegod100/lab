@@ -153,12 +153,12 @@ pub fn Posts() -> Element {
             }
 
             // Posts list
-            div { class: "space-y-4",
+            div { class: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6",
                 match posts().as_ref() {
                     None => {
                         rsx! {
                             // Loading state
-                            div { class: "animate-pulse space-y-4",
+                            div { class: "animate-pulse grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6",
                                 for _ in 0..3 {
                                     div { class: "bg-gray-800 h-32 rounded-md" }
                                 }
