@@ -13,20 +13,46 @@ pub fn NewPost() -> Element {
     let navigator = use_navigator();
 
     let mut handle_submit = move |post: Post| {
+        // Add debug logging
+        #[cfg(target_arch = "wasm32")]
+        web_sys::console::log_1(&wasm_bindgen::JsValue::from_str("Submit handler called"));
+
         is_submitting.set(true);
         error.set(None);
         success.set(false);
 
+        // Log the post data
+        #[cfg(target_arch = "wasm32")]
+        web_sys::console::log_1(&wasm_bindgen::JsValue::from_str(&format!("Post data: title={}, body length={}",
+            post.title, post.body.len())));
+
         spawn(async move {
+            // Log before server call
+            #[cfg(target_arch = "wasm32")]
+            web_sys::console::log_1(&wasm_bindgen::JsValue::from_str("About to call create_post_server"));
+
+            // Directly call the server function without timeout for now
             match create_post_server(post).await {
                 Ok(created_post) => {
+                    // Log success
+                    #[cfg(target_arch = "wasm32")]
+                    web_sys::console::log_1(&wasm_bindgen::JsValue::from_str(&format!("Post created successfully with ID: {}", created_post.id)));
+
                     success.set(true);
 
-                    // Navigate to the post detail page after a short delay
+                    // Wait before navigation
                     tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
-                    navigator.push(Route::PostDetail { id: created_post.id });
+
+                    // Only navigate if we're still on this page
+                    if success() {
+                        navigator.push(Route::PostDetail { id: created_post.id });
+                    }
                 }
                 Err(e) => {
+                    // Log error
+                    #[cfg(target_arch = "wasm32")]
+                    web_sys::console::log_1(&wasm_bindgen::JsValue::from_str(&format!("Error creating post: {}", e)));
+
                     error.set(Some(format!("Error creating post: {}", e)));
                 }
             }

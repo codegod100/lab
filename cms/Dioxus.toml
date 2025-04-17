@@ -5,6 +5,9 @@
 # HTML title tag content
 title = "cms"
 
+# Enable server functions
+server_functions.enabled = true
+
 # include `assets` in web platform
 [web.resource]
 

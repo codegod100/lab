@@ -2,9 +2,11 @@ use dioxus::prelude::*;
 use crate::models::Post;
 
 #[cfg(target_arch = "wasm32")]
-use crate::utils::{init_quill, get_quill_html, set_quill_html};
+use crate::utils::{init_quill, get_quill_html, set_quill_html, Quill};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsValue;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::JsCast;
 
 #[component]
 pub fn PostForm(
@@ -31,15 +33,91 @@ pub fn PostForm(
         let editor_id_for_effect = editor_id.clone();
 
         let mut init_editor = move |editor_id_str: &str| {
+            // Use a small timeout to ensure the DOM is ready
             let editor_id_selector = format!("#{}", editor_id_str);
-            match init_quill(&editor_id_selector) {
-                Ok(quill) => {
-                    set_quill_html(&quill, &body());
-                    quill_editor.set(Some(quill));
+            let body_content = body();
+
+            // Use a simpler approach with a single closure
+            let editor_id_selector_clone = editor_id_selector.clone();
+            let body_content_clone = body_content.clone();
+            let mut quill_editor_clone = quill_editor.clone();
+
+            // Create a closure for the initial attempt
+            let closure = wasm_bindgen::closure::Closure::once_into_js(move || {
+                match init_quill(&editor_id_selector_clone) {
+                    Ok(quill) => {
+                        // Try to set the HTML content
+                        set_quill_html(&quill, &body_content_clone);
+                        quill_editor_clone.set(Some(quill));
+                        web_sys::console::log_1(&JsValue::from_str("Quill editor initialized successfully"));
+                    }
+                    Err(e) => {
+                        web_sys::console::error_1(&e);
+                        web_sys::console::log_1(&JsValue::from_str("Will retry editor initialization in 200ms"));
+
+                        // Create a second attempt with a longer delay
+                        let editor_id_selector_retry = editor_id_selector_clone.clone();
+                        let body_content_retry = body_content_clone.clone();
+                        let mut quill_editor_retry = quill_editor_clone.clone();
+
+                        let retry_closure = wasm_bindgen::closure::Closure::once_into_js(move || {
+                            match init_quill(&editor_id_selector_retry) {
+                                Ok(quill) => {
+                                    // Try to set the HTML content
+                                    set_quill_html(&quill, &body_content_retry);
+                                    quill_editor_retry.set(Some(quill));
+                                    web_sys::console::log_1(&JsValue::from_str("Quill editor initialized successfully on retry"));
+                                }
+                                Err(e) => {
+                                    web_sys::console::error_1(&e);
+                                    web_sys::console::log_1(&JsValue::from_str("Will retry editor initialization in 500ms"));
+
+                                    // Create a third attempt with an even longer delay
+                                    let editor_id_selector_final = editor_id_selector_retry.clone();
+                                    let body_content_final = body_content_retry.clone();
+                                    let mut quill_editor_final = quill_editor_retry.clone();
+
+                                    let final_closure = wasm_bindgen::closure::Closure::once_into_js(move || {
+                                        match init_quill(&editor_id_selector_final) {
+                                            Ok(quill) => {
+                                                // Try to set the HTML content
+                                                set_quill_html(&quill, &body_content_final);
+                                                quill_editor_final.set(Some(quill));
+                                                web_sys::console::log_1(&JsValue::from_str("Quill editor initialized successfully on final retry"));
+                                            }
+                                            Err(e) => {
+                                                web_sys::console::error_1(&e);
+                                                web_sys::console::error_1(&JsValue::from_str("Failed to initialize Quill editor after multiple attempts"));
+                                            }
+                                        }
+                                    });
+
+                                    if let Some(window) = web_sys::window() {
+                                        let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                                            final_closure.as_ref().unchecked_ref(),
+                                            500 // 500ms delay for final attempt
+                                        );
+                                    }
+                                }
+                            }
+                        });
+
+                        if let Some(window) = web_sys::window() {
+                            let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                                retry_closure.as_ref().unchecked_ref(),
+                                200 // 200ms delay for second attempt
+                            );
+                        }
+                    }
                 }
-                Err(e) => {
-                    web_sys::console::error_1(&e);
-                }
+            });
+
+            // Set a timeout to initialize the editor after the DOM is ready
+            if let Some(window) = web_sys::window() {
+                let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                    closure.as_ref().unchecked_ref(),
+                    100 // 100ms delay for initial attempt
+                );
             }
         };
 
@@ -52,17 +130,50 @@ pub fn PostForm(
     let handle_submit = move |evt: FormEvent| {
         evt.prevent_default();
 
+        // Add debug logging
+        #[cfg(target_arch = "wasm32")]
+        web_sys::console::log_1(&wasm_bindgen::JsValue::from_str("Form submit event triggered"));
+
+        // Log submission state
+        #[cfg(target_arch = "wasm32")]
+        web_sys::console::log_1(&wasm_bindgen::JsValue::from_str(&format!("Submission state: {}", is_submitting)));
+
+        // We don't check is_submitting here anymore as it's controlled by the parent component
+
         let tags = tags_input()
             .split(',')
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
 
+        // Log the form data
         #[cfg(target_arch = "wasm32")]
-        let content = if let Some(ref quill) = *quill_editor.read() {
-            get_quill_html(quill)
-        } else {
-            body()
+        web_sys::console::log_1(&wasm_bindgen::JsValue::from_str(&format!("Form data: title={}, published={}",
+            title(), published())));
+
+        #[cfg(target_arch = "wasm32")]
+        let content = {
+            // Log Quill editor state
+            let has_quill = quill_editor.read().is_some();
+            web_sys::console::log_1(&wasm_bindgen::JsValue::from_str(&format!("Quill editor initialized: {}", has_quill)));
+
+            if let Some(ref quill) = *quill_editor.read() {
+                // Try to get content from Quill editor
+                let html = get_quill_html(quill);
+                web_sys::console::log_1(&wasm_bindgen::JsValue::from_str(&format!("Quill HTML content length: {}", html.len())));
+
+                if html.is_empty() {
+                    // Fall back to the body signal if Quill returns empty content
+                    web_sys::console::log_1(&wasm_bindgen::JsValue::from_str("Quill content empty, using body signal"));
+                    body()
+                } else {
+                    html
+                }
+            } else {
+                // Fall back to the body signal if Quill isn't initialized
+                web_sys::console::log_1(&wasm_bindgen::JsValue::from_str("No Quill editor, using body signal"));
+                body()
+            }
         };
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -82,6 +193,21 @@ pub fn PostForm(
             created_at: post.created_at,
             updated_at: post.updated_at,
         };
+
+        // Ensure we have a title before submitting
+        if new_post.title.trim().is_empty() {
+            #[cfg(target_arch = "wasm32")]
+            {
+                web_sys::console::log_1(&wasm_bindgen::JsValue::from_str("Title is empty, not submitting"));
+                if let Some(window) = web_sys::window() {
+                    let _ = window.alert_with_message("Please enter a title for your post");
+                }
+            }
+            return;
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        web_sys::console::log_1(&wasm_bindgen::JsValue::from_str("Calling on_submit handler"));
 
         on_submit.call(new_post);
     };
