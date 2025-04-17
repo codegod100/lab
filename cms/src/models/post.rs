@@ -21,7 +21,7 @@ impl Post {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        
+
         Self {
             id: 0, // Will be set when added to the store
             title,
@@ -33,29 +33,29 @@ impl Post {
             updated_at: now,
         }
     }
-    
-    pub fn update(&mut self, title: Option<String>, body: Option<String>, published: Option<bool>, 
+
+    pub fn update(&mut self, title: Option<String>, body: Option<String>, published: Option<bool>,
                   category: Option<Option<String>>, tags: Option<Vec<String>>) {
         if let Some(title) = title {
             self.title = title;
         }
-        
+
         if let Some(body) = body {
             self.body = body;
         }
-        
+
         if let Some(published) = published {
             self.published = published;
         }
-        
+
         if let Some(category) = category {
             self.category = category;
         }
-        
+
         if let Some(tags) = tags {
             self.tags = tags;
         }
-        
+
         self.updated_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -64,6 +64,7 @@ impl Post {
 }
 
 // Global in-memory store for posts
+#[allow(dead_code)]
 pub static POSTS: Lazy<Arc<Mutex<Vec<Post>>>> = Lazy::new(|| {
     // Initialize with some sample data
     let initial_posts = vec![
@@ -98,6 +99,6 @@ pub static POSTS: Lazy<Arc<Mutex<Vec<Post>>>> = Lazy::new(|| {
             updated_at: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() - 21600,
         },
     ];
-    
+
     Arc::new(Mutex::new(initial_posts))
 });

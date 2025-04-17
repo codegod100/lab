@@ -1,5 +1,7 @@
 pub mod post;
 pub mod user;
 
-pub use post::Post;
-pub use user::{User, UserRole};
+#[allow(unused_imports)]
+pub use post::{Post, POSTS};
+#[allow(unused_imports)]
+pub use user::{User, UserRole, USERS};
