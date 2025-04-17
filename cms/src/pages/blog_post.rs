@@ -8,12 +8,12 @@ pub fn BlogPost(id: usize) -> Element {
     let post = use_resource(move || async move {
         get_post_by_id_server(id).await.unwrap_or(None)
     });
-    
+
     let format_date = |timestamp: u64| -> String {
-        let datetime = chrono::NaiveDateTime::from_timestamp_opt(timestamp as i64, 0).unwrap();
+        let datetime = chrono::DateTime::from_timestamp(timestamp as i64, 0).unwrap().naive_local();
         datetime.format("%B %d, %Y").to_string()
     };
-    
+
     rsx! {
         div { class: "max-w-4xl mx-auto",
             // Back button
@@ -25,7 +25,7 @@ pub fn BlogPost(id: usize) -> Element {
                     span { class: "ml-1", "Back to Blog" }
                 }
             }
-            
+
             // Content based on post state
             {
                 match post().as_ref() {
@@ -74,16 +74,16 @@ pub fn BlogPost(id: usize) -> Element {
                                     // Post header
                                     header { class: "mb-8",
                                         h1 { class: "text-3xl md:text-4xl font-bold", "{post.title}" }
-                                        
+
                                         div { class: "mt-4 text-gray-400",
                                             time { "Published on {format_date(post.created_at)}" }
-                                            
+
                                             if post.updated_at > post.created_at {
                                                 span { class: "mx-2", "•" }
                                                 time { "Updated on {format_date(post.updated_at)}" }
                                             }
                                         }
-                                        
+
                                         // Categories and tags
                                         div { class: "flex flex-wrap gap-2 mt-4",
                                             if let Some(category) = &post.category {
@@ -93,7 +93,7 @@ pub fn BlogPost(id: usize) -> Element {
                                                     "{category}"
                                                 }
                                             }
-                                            
+
                                             for tag in &post.tags {
                                                 Link {
                                                     to: Route::Blog {},
@@ -103,7 +103,7 @@ pub fn BlogPost(id: usize) -> Element {
                                             }
                                         }
                                     }
-                                    
+
                                     // Post content
                                     div { class: "prose prose-invert prose-lg max-w-none",
                                         // Split paragraphs and render them

@@ -3,23 +3,33 @@ use crate::routes::Route;
 use crate::utils::get_published_posts_server;
 use std::collections::HashSet;
 
+// Helper function to get post excerpt
+fn get_excerpt(text: &str) -> String {
+    if text.len() <= 200 {
+        text.to_string()
+    } else {
+        let excerpt: String = text.chars().take(200).collect();
+        format!("{excerpt}...")
+    }
+}
+
 #[component]
 pub fn Blog() -> Element {
     let posts = use_resource(|| async move {
         get_published_posts_server().await.unwrap_or_default()
     });
-    
+
     let mut search_query = use_signal(|| String::new());
     let mut selected_category = use_signal(|| None::<String>);
     let mut selected_tag = use_signal(|| None::<String>);
-    
+
     let filtered_posts = move || {
         let posts_data = posts();
         let posts = match posts_data.as_ref() {
             Some(p) => p,
             None => return vec![],
         };
-        
+
         posts.iter()
             .filter(|post| {
                 if let Some(category) = &selected_category() {
@@ -27,13 +37,13 @@ pub fn Blog() -> Element {
                         return false;
                     }
                 }
-                
+
                 if let Some(tag) = &selected_tag() {
                     if !post.tags.contains(tag) {
                         return false;
                     }
                 }
-                
+
                 if !search_query().is_empty() {
                     let query = search_query().to_lowercase();
                     let title_match = post.title.to_lowercase().contains(&query);
@@ -41,55 +51,55 @@ pub fn Blog() -> Element {
                     let category_match = post.category.as_ref()
                         .map(|c| c.to_lowercase().contains(&query))
                         .unwrap_or(false);
-                    
+
                     if !(title_match || body_match || category_match) {
                         return false;
                     }
                 }
-                
+
                 true
             })
             .cloned()
             .collect::<Vec<_>>()
     };
-    
+
     let all_categories = move || {
         let posts_data = posts();
         let posts = match posts_data.as_ref() {
             Some(p) => p,
             None => return vec![],
         };
-        
+
         posts.iter()
             .filter_map(|p| p.category.clone())
             .collect::<HashSet<_>>()
             .into_iter()
             .collect::<Vec<_>>()
     };
-    
+
     let all_tags = move || {
         let posts_data = posts();
         let posts = match posts_data.as_ref() {
             Some(p) => p,
             None => return vec![],
         };
-        
+
         posts.iter()
             .flat_map(|p| p.tags.clone())
             .collect::<HashSet<_>>()
             .into_iter()
             .collect::<Vec<_>>()
     };
-    
+
     let format_date = |timestamp: u64| -> String {
-        let datetime = chrono::NaiveDateTime::from_timestamp_opt(timestamp as i64, 0).unwrap();
+        let datetime = chrono::DateTime::from_timestamp(timestamp as i64, 0).unwrap().naive_local();
         datetime.format("%B %d, %Y").to_string()
     };
-    
+
     rsx! {
         div { class: "container mx-auto px-4 py-8",
             h1 { class: "text-4xl font-bold mb-8 text-center", "Blog" }
-            
+
             // Search and filters
             div { class: "bg-gray-800 rounded-lg p-6 mb-8",
                 // Search
@@ -105,7 +115,7 @@ pub fn Blog() -> Element {
                         }
                     }
                 }
-                
+
                 // Filters
                 div { class: "grid grid-cols-1 md:grid-cols-2 gap-4",
                     // Categories filter
@@ -121,11 +131,11 @@ pub fn Blog() -> Element {
                                 onclick: move |_| selected_category.set(None),
                                 "All"
                             }
-                            
+
                             {all_categories().into_iter().map(|category| {
                                 let is_selected = selected_category().as_ref() == Some(&category);
                                 let category_clone = category.clone();
-                                
+
                                 rsx! {
                                     button {
                                         key: "{category}",
@@ -147,7 +157,7 @@ pub fn Blog() -> Element {
                             })}
                         }
                     }
-                    
+
                     // Tags filter
                     div {
                         label { class: "block text-sm font-medium text-gray-300 mb-1", "Filter by Tag" }
@@ -161,11 +171,11 @@ pub fn Blog() -> Element {
                                 onclick: move |_| selected_tag.set(None),
                                 "All"
                             }
-                            
+
                             {all_tags().into_iter().map(|tag| {
                                 let is_selected = selected_tag().as_ref() == Some(&tag);
                                 let tag_clone = tag.clone();
-                                
+
                                 rsx! {
                                     button {
                                         key: "{tag}",
@@ -189,14 +199,14 @@ pub fn Blog() -> Element {
                     }
                 }
             }
-            
+
             // Posts grid
             div { class: "space-y-8",
                 match posts().as_ref() {
                     None => {
                         rsx! {
                             div { class: "bg-gray-800 rounded-lg p-8 text-center",
-                                if posts.loading() {
+                                if posts.read().is_none() {
                                     div { class: "animate-pulse space-y-4",
                                         div { class: "h-8 bg-gray-700 rounded w-1/4 mx-auto" }
                                         div { class: "h-64 bg-gray-700 rounded mt-8" }
@@ -216,7 +226,7 @@ pub fn Blog() -> Element {
                                 article {
                                     class: "bg-gray-800 rounded-lg p-6 shadow-lg",
                                     key: post.id,
-                                    
+
                                     // Post header
                                     header { class: "mb-4",
                                         Link {
@@ -224,33 +234,35 @@ pub fn Blog() -> Element {
                                             class: "block",
                                             h2 { class: "text-2xl font-bold hover:text-blue-400 transition-colors", "{post.title}" }
                                         }
-                                        
+
                                         div { class: "text-sm text-gray-400 mt-1",
                                             time { "{format_date(post.created_at)}" }
                                         }
                                     }
-                                    
+
                                     // Post excerpt
                                     div { class: "mb-4",
                                         p { class: "text-gray-300 line-clamp-3",
                                             // Get first 200 chars as excerpt
-                                            "{if post.body.len() > 200 { format!("{}...", &post.body[..200]) } else { post.body.clone() }}"
+                                            "{get_excerpt(&post.body)}"
                                         }
                                     }
-                                    
+
                                     // Post footer
                                     div { class: "flex justify-between items-center",
                                         // Categories and tags
                                         div { class: "flex flex-wrap gap-2",
-                                            if let Some(category) = &post.category {
+                                            {post.category.as_ref().map(|category| {
                                                 let cat = category.clone();
-                                                button {
-                                                    class: "px-2 py-1 text-xs rounded-md bg-blue-900 text-blue-200",
-                                                    onclick: move |_| selected_category.set(Some(cat.clone())),
-                                                    "{category}"
+                                                rsx! {
+                                                    button {
+                                                        class: "px-2 py-1 text-xs rounded-md bg-blue-900 text-blue-200",
+                                                        onclick: move |_| selected_category.set(Some(cat.clone())),
+                                                        "{category}"
+                                                    }
                                                 }
-                                            }
-                                            
+                                            })}
+
                                             {post.tags.iter().map(|tag| {
                                                 let tag_clone = tag.clone();
                                                 rsx! {
@@ -263,7 +275,7 @@ pub fn Blog() -> Element {
                                                 }
                                             })}
                                         }
-                                        
+
                                         // Read more link
                                         Link {
                                             to: Route::BlogPost { id: post.id },
@@ -273,13 +285,13 @@ pub fn Blog() -> Element {
                                     }
                                 }
                             }
-                            
+
                             // No results message
                             if filtered_posts().is_empty() {
                                 div { class: "bg-gray-800 rounded-lg p-8 text-center",
                                     h2 { class: "text-2xl font-bold", "No Posts Found" }
                                     p { class: "text-gray-400 mt-2", "No posts match your current filters. Try adjusting your search criteria." }
-                                    
+
                                     button {
                                         class: "mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700",
                                         onclick: move |_| {

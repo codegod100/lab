@@ -35,7 +35,7 @@ pub fn PostDetail(id: usize) -> Element {
             format!("{} hours ago", diff / 3600)
         } else {
             // More than a day, show date
-            let datetime = chrono::NaiveDateTime::from_timestamp_opt(timestamp as i64, 0).unwrap();
+            let datetime = chrono::DateTime::from_timestamp(timestamp as i64, 0).unwrap().naive_local();
             datetime.format("%B %d, %Y").to_string()
         }
     };
@@ -99,35 +99,35 @@ pub fn PostDetail(id: usize) -> Element {
                 }
             }
 
+            // Post content based on state
             {
-                let post_data = post();
-                match post_data.as_ref() {
-                    None => {
-                        rsx! {
-                            // Loading or not found state
-                            div { class: "bg-gray-800 rounded-lg p-8 text-center",
-                                if post.read().is_none() {
-                                    div { class: "animate-pulse space-y-4",
-                                        div { class: "h-8 bg-gray-700 rounded w-3/4 mx-auto" }
-                                        div { class: "h-4 bg-gray-700 rounded w-1/4 mx-auto" }
-                                        div { class: "h-32 bg-gray-700 rounded mt-8" }
-                                    }
-                                } else {
-                                    h1 { class: "text-2xl font-bold text-red-400", "Post Not Found" }
-                                    p { class: "text-gray-400 mt-2", "The post you're looking for doesn't exist or has been deleted." }
-                                    div { class: "mt-6",
-                                        Link {
-                                            to: Route::Posts {},
-                                            class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700",
-                                            "Return to Posts"
-                                        }
+                // Use a direct match on post() to avoid lifetime issues
+                match post() {
+                    None => rsx! {
+                        // Loading or not found state
+                        div { class: "bg-gray-800 rounded-lg p-8 text-center",
+                            if post.read().is_none() {
+                                div { class: "animate-pulse space-y-4",
+                                    div { class: "h-8 bg-gray-700 rounded w-3/4 mx-auto" }
+                                    div { class: "h-4 bg-gray-700 rounded w-1/4 mx-auto" }
+                                    div { class: "h-32 bg-gray-700 rounded mt-8" }
+                                }
+                            } else {
+                                h1 { class: "text-2xl font-bold text-red-400", "Post Not Found" }
+                                p { class: "text-gray-400 mt-2", "The post you're looking for doesn't exist or has been deleted." }
+                                div { class: "mt-6",
+                                    Link {
+                                        to: Route::Posts {},
+                                        class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700",
+                                        "Return to Posts"
                                     }
                                 }
                             }
                         }
-                    }
+                    },
                     Some(post_data) => {
-                        let post = post_data.as_ref().unwrap();
+                        // Clone the post to avoid lifetime issues
+                        let post = post_data.clone().unwrap();
                         rsx! {
                             // Status messages
                             if let Some(error) = delete_error() {
