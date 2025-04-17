@@ -430,6 +430,8 @@ dependencies = [
  "once_cell",
  "serde",
  "tokio",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]

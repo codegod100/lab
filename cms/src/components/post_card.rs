@@ -3,6 +3,29 @@ use crate::models::Post;
 use crate::routes::Route;
 use crate::utils::format_relative_time;
 
+// Helper function to strip HTML tags for preview
+fn strip_html_tags(html: &str) -> String {
+    let mut result = String::new();
+    let mut in_tag = false;
+
+    for c in html.chars() {
+        match c {
+            '<' => in_tag = true,
+            '>' => in_tag = false,
+            _ if !in_tag => result.push(c),
+            _ => {}
+        }
+    }
+
+    // Limit to 150 characters for preview
+    if result.len() > 150 {
+        result.truncate(150);
+        result.push_str("...");
+    }
+
+    result
+}
+
 #[component]
 pub fn PostCard(post: Post, on_delete: Option<EventHandler<usize>>) -> Element {
     let formatted_date = format_relative_time(post.updated_at);
@@ -39,7 +62,7 @@ pub fn PostCard(post: Post, on_delete: Option<EventHandler<usize>>) -> Element {
             }
 
             // Post content preview
-            p { class: "text-gray-300 text-sm mb-4 line-clamp-2", "{post.body}" }
+            p { class: "text-gray-300 text-sm mb-4 line-clamp-2", "{strip_html_tags(&post.body)}" }
 
             // Post metadata
             div { class: "flex flex-wrap gap-2 mb-4",

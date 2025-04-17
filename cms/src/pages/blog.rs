@@ -4,11 +4,25 @@ use crate::utils::{get_published_posts_server, format_date};
 use std::collections::HashSet;
 
 // Helper function to get post excerpt
-fn get_excerpt(text: &str) -> String {
-    if text.len() <= 200 {
-        text.to_string()
+fn get_excerpt(html: &str) -> String {
+    // First strip HTML tags
+    let mut result = String::new();
+    let mut in_tag = false;
+
+    for c in html.chars() {
+        match c {
+            '<' => in_tag = true,
+            '>' => in_tag = false,
+            _ if !in_tag => result.push(c),
+            _ => {}
+        }
+    }
+
+    // Then limit to 200 characters
+    if result.len() <= 200 {
+        result
     } else {
-        let excerpt: String = text.chars().take(200).collect();
+        let excerpt: String = result.chars().take(200).collect();
         format!("{excerpt}...")
     }
 }

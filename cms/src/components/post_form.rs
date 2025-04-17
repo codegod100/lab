@@ -1,6 +1,11 @@
 use dioxus::prelude::*;
 use crate::models::Post;
 
+#[cfg(target_arch = "wasm32")]
+use crate::utils::{init_quill, get_quill_html, set_quill_html};
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::JsValue;
+
 #[component]
 pub fn PostForm(
     post: Post,
@@ -15,6 +20,35 @@ pub fn PostForm(
     let mut category = use_signal(|| post.category.clone());
     let mut tags_input = use_signal(|| post.tags.join(", "));
 
+    #[cfg(target_arch = "wasm32")]
+    let mut quill_editor = use_signal(|| None);
+
+    let editor_id = format!("quill-editor-{}", post.id);
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        // Create a clone for use in the effect
+        let editor_id_for_effect = editor_id.clone();
+
+        let mut init_editor = move |editor_id_str: &str| {
+            let editor_id_selector = format!("#{}", editor_id_str);
+            match init_quill(&editor_id_selector) {
+                Ok(quill) => {
+                    set_quill_html(&quill, &body());
+                    quill_editor.set(Some(quill));
+                }
+                Err(e) => {
+                    web_sys::console::error_1(&e);
+                }
+            }
+        };
+
+        use_effect(move || {
+            init_editor(&editor_id_for_effect);
+            (|| {})()
+        });
+    }
+
     let handle_submit = move |evt: FormEvent| {
         evt.prevent_default();
 
@@ -24,10 +58,20 @@ pub fn PostForm(
             .filter(|s| !s.is_empty())
             .collect();
 
+        #[cfg(target_arch = "wasm32")]
+        let content = if let Some(ref quill) = *quill_editor.read() {
+            get_quill_html(quill)
+        } else {
+            body()
+        };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let content = body();
+
         let new_post = Post {
             id: post.id,
             title: title(),
-            body: body(),
+            body: content,
             published: published(),
             category: if category().is_some() && category().as_ref().unwrap().is_empty() {
                 None
@@ -77,12 +121,21 @@ pub fn PostForm(
                         class: "block text-sm font-medium text-gray-300 mb-1",
                         "Content"
                     }
-                    textarea {
-                        class: "w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[200px]",
-                        value: "{body}",
-                        placeholder: "Enter post content",
-                        required: true,
-                        oninput: move |e| body.set(e.value())
+
+                    // Editor container - different implementation for WASM vs native
+                    if cfg!(target_arch = "wasm32") {
+                        div {
+                            class: "bg-white rounded-lg border border-gray-600 min-h-[300px] text-black",
+                            id: "{editor_id}",
+                        }
+                    } else {
+                        textarea {
+                            class: "w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[300px]",
+                            value: "{body}",
+                            placeholder: "Enter post content",
+                            required: true,
+                            oninput: move |e| body.set(e.value())
+                        }
                     }
                 }
 
