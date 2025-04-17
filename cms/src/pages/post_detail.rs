@@ -68,7 +68,7 @@ pub fn PostDetail(id: usize) -> Element {
     };
 
     rsx! {
-        div { class: "container mx-auto px-4 py-8",
+        div { class: "container mx-auto px-4 py-8 max-w-4xl",
             // Back button
             div { class: "mb-6",
                 Link {
@@ -111,30 +111,33 @@ pub fn PostDetail(id: usize) -> Element {
                         rsx! {
                             // Status messages
                             if let Some(error) = delete_error() {
-                                div { class: "bg-red-900/30 border border-red-500/50 text-red-200 px-4 py-3 rounded-md mb-4 shadow-md",
+                                div { class: "bg-red-900/30 border border-red-500/50 text-red-200 px-4 py-3 rounded-md mb-4 shadow-md flex items-center",
+                                    span { class: "mr-2 text-red-400", "⚠" }
                                     "{error}"
                                 }
                             }
 
                             if let Some(error) = publish_error() {
-                                div { class: "bg-red-900/30 border border-red-500/50 text-red-200 px-4 py-3 rounded-md mb-4 shadow-md",
+                                div { class: "bg-red-900/30 border border-red-500/50 text-red-200 px-4 py-3 rounded-md mb-4 shadow-md flex items-center",
+                                    span { class: "mr-2 text-red-400", "⚠" }
                                     "{error}"
                                 }
                             }
 
                             if delete_success() {
-                                div { class: "bg-green-900/30 border border-green-500/50 text-green-200 px-4 py-3 rounded-md mb-4 shadow-md",
+                                div { class: "bg-green-900/30 border border-green-500/50 text-green-200 px-4 py-3 rounded-md mb-4 shadow-md flex items-center",
+                                    span { class: "mr-2 text-green-400", "✔" }
                                     "Post deleted successfully! Redirecting..."
                                 }
                             }
 
                             // Post header
                             div { class: "card p-6 mb-6",
-                                div { class: "card-header flex justify-between items-start",
-                                    div {
+                                div { class: "flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4",
+                                    div { class: "flex-1",
                                         h1 { class: "text-3xl font-bold text-white", "{post.title}" }
 
-                                        div { class: "flex items-center mt-2 text-sm text-gray-400",
+                                        div { class: "flex flex-wrap items-center mt-2 text-sm text-gray-400",
                                             span { "Created {format_date(post.created_at)}" }
                                             if post.updated_at > post.created_at {
                                                 span { class: "mx-2", "•" }
@@ -154,7 +157,7 @@ pub fn PostDetail(id: usize) -> Element {
                                 }
 
                                 // Post metadata
-                                div { class: "flex flex-wrap gap-2 mt-4",
+                                div { class: "flex flex-wrap gap-4 mt-4",
                                     if let Some(category) = &post.category {
                                         div { class: "flex items-center",
                                             span { class: "text-gray-400 mr-1", "Category:" }
@@ -167,7 +170,7 @@ pub fn PostDetail(id: usize) -> Element {
                                             span { class: "text-gray-400 mr-1", "Tags:" }
                                             {post.tags.iter().map(|tag| {
                                                 rsx! {
-                                                    span { class: "px-2 py-1 text-xs rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600 transition-all", "#{tag}" }
+                                                    span { class: "inline-flex items-center px-2.5 py-0.5 m-0.5 rounded-full text-xs font-medium bg-indigo-900/50 text-indigo-200 border border-indigo-700/50 hover:bg-indigo-800/50 transition-colors", "#{tag}" }
                                                 }
                                             })}
                                         }
@@ -175,35 +178,43 @@ pub fn PostDetail(id: usize) -> Element {
                                 }
 
                                 // Action buttons
-                                div { class: "card-footer flex gap-2 mt-6 pt-4 border-t border-gray-700",
+                                div { class: "flex flex-wrap gap-2 mt-6 pt-4 border-t border-gray-700",
                                     Link {
                                         to: Route::EditPost { id: post.id },
-                                        class: "btn btn-md btn-primary",
+                                        class: "btn btn-md btn-primary flex items-center p-2",
+                                        span { class: "mr-1 text-xs", "✏️" }
                                         "Edit Post"
                                     }
 
                                     button {
                                         class: if post.published {
-                                            "btn btn-md btn-warning disabled:opacity-50"
+                                            "btn btn-md btn-warning disabled:opacity-50 flex items-center"
                                         } else {
-                                            "btn btn-md btn-success disabled:opacity-50"
+                                            "btn btn-md btn-success disabled:opacity-50 flex items-center"
                                         },
                                         disabled: is_publishing(),
                                         onclick: move |_| toggle_publish(post.published),
                                         if is_publishing() {
                                             "Processing..."
                                         } else if post.published {
+                                            span { class: "mr-1 text-xs", "🔒" }
                                             "Unpublish"
                                         } else {
+                                            span { class: "mr-1 text-xs", "🔓" }
                                             "Publish"
                                         }
                                     }
 
                                     button {
-                                        class: "btn btn-md btn-danger disabled:opacity-50",
+                                        class: "btn btn-md btn-danger disabled:opacity-50 flex items-center",
                                         disabled: is_deleting(),
                                         onclick: handle_delete,
-                                        if is_deleting() { "Deleting..." } else { "Delete" }
+                                        if is_deleting() {
+                                            "Deleting..."
+                                        } else {
+                                            span { class: "mr-1 text-xs", "🗑️" }
+                                            "Delete"
+                                        }
                                     }
                                 }
                             }

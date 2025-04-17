@@ -121,9 +121,9 @@ pub fn Blog() -> Element {
                         div { class: "flex flex-wrap gap-2",
                             button {
                                 class: if selected_category().is_none() {
-                                    "px-3 py-1 text-sm rounded-md bg-blue-600 text-white"
+                                    "inline-flex items-center px-2.5 py-0.5 m-0.5 rounded-full text-xs font-medium bg-blue-600 text-white border border-blue-500 transition-colors"
                                 } else {
-                                    "px-3 py-1 text-sm rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600"
+                                    "inline-flex items-center px-2.5 py-0.5 m-0.5 rounded-full text-xs font-medium bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 transition-colors"
                                 },
                                 onclick: move |_| selected_category.set(None),
                                 "All"
@@ -137,9 +137,9 @@ pub fn Blog() -> Element {
                                     button {
                                         key: "{category}",
                                         class: if is_selected {
-                                            "px-3 py-1 text-sm rounded-md bg-blue-600 text-white"
+                                            "inline-flex items-center px-2.5 py-0.5 m-0.5 rounded-full text-xs font-medium bg-blue-600 text-white border border-blue-500 transition-colors"
                                         } else {
-                                            "px-3 py-1 text-sm rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600"
+                                            "inline-flex items-center px-2.5 py-0.5 m-0.5 rounded-full text-xs font-medium bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 transition-colors"
                                         },
                                         onclick: move |_| {
                                             if is_selected {
@@ -161,9 +161,9 @@ pub fn Blog() -> Element {
                         div { class: "flex flex-wrap gap-2",
                             button {
                                 class: if selected_tag().is_none() {
-                                    "px-3 py-1 text-sm rounded-md bg-blue-600 text-white"
+                                    "inline-flex items-center px-2.5 py-0.5 m-0.5 rounded-full text-xs font-medium bg-indigo-600 text-white border border-indigo-500 transition-colors"
                                 } else {
-                                    "px-3 py-1 text-sm rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600"
+                                    "inline-flex items-center px-2.5 py-0.5 m-0.5 rounded-full text-xs font-medium bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 transition-colors"
                                 },
                                 onclick: move |_| selected_tag.set(None),
                                 "All"
@@ -177,9 +177,9 @@ pub fn Blog() -> Element {
                                     button {
                                         key: "{tag}",
                                         class: if is_selected {
-                                            "px-3 py-1 text-sm rounded-md bg-blue-600 text-white"
+                                            "inline-flex items-center px-2.5 py-0.5 m-0.5 rounded-full text-xs font-medium bg-indigo-600 text-white border border-indigo-500 transition-colors"
                                         } else {
-                                            "px-3 py-1 text-sm rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600"
+                                            "inline-flex items-center px-2.5 py-0.5 m-0.5 rounded-full text-xs font-medium bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 transition-colors"
                                         },
                                         onclick: move |_| {
                                             if is_selected {
@@ -253,7 +253,7 @@ pub fn Blog() -> Element {
                                                 let cat = category.clone();
                                                 rsx! {
                                                     button {
-                                                        class: "px-2 py-1 text-xs rounded-md bg-blue-900 text-blue-200",
+                                                        class: "inline-flex items-center px-2.5 py-0.5 m-0.5 rounded-full text-xs font-medium bg-blue-900/70 text-blue-200 border border-blue-700/50 hover:bg-blue-800/70 transition-colors",
                                                         onclick: move |_| selected_category.set(Some(cat.clone())),
                                                         "{category}"
                                                     }
@@ -265,7 +265,7 @@ pub fn Blog() -> Element {
                                                 rsx! {
                                                     button {
                                                         key: "{tag}",
-                                                        class: "px-2 py-1 text-xs rounded-md bg-gray-700 text-gray-300",
+                                                        class: "inline-flex items-center px-2.5 py-0.5 m-0.5 rounded-full text-xs font-medium bg-indigo-900/50 text-indigo-200 border border-indigo-700/50 hover:bg-indigo-800/50 transition-colors",
                                                         onclick: move |_| selected_tag.set(Some(tag_clone.clone())),
                                                         "#{tag}"
                                                     }
