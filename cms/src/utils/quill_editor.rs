@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast;
 
 // Console log binding
 #[wasm_bindgen]
@@ -26,14 +27,24 @@ extern "C" {
     #[wasm_bindgen(method)]
     fn getText(this: &Quill) -> String;
 
-    #[wasm_bindgen(method, js_name = "root")]
-    fn getRoot(this: &Quill) -> web_sys::Element;
+    // Note: The root method is not directly available on Quill
+    // We'll use a different approach to get the editor content
 
     #[wasm_bindgen(method)]
     fn on(this: &Quill, event: &str, callback: &Closure<dyn FnMut(JsValue, JsValue)>) -> JsValue;
 }
 
 pub fn init_quill(editor_id: &str) -> Result<Quill, JsValue> {
+    // Simple check for element existence
+    if let Some(window) = web_sys::window() {
+        if let Some(document) = window.document() {
+            if document.query_selector(editor_id).map_err(|_| JsValue::from_str("Query error"))?.is_none() {
+                log(&format!("Editor element {} not found", editor_id));
+                return Err(JsValue::from_str("Editor element not found"));
+            }
+        }
+    }
+
     let options = js_sys::Object::new();
     let theme = js_sys::JsString::from("snow");
     js_sys::Reflect::set(&options, &JsValue::from_str("theme"), &theme)?;
@@ -88,32 +99,76 @@ pub fn init_quill(editor_id: &str) -> Result<Quill, JsValue> {
 
     // Create Quill instance
     let quill = Quill::new(editor_id, options.into());
+    log(&format!("Quill editor initialized for {}", editor_id));
 
     Ok(quill)
 }
 
 pub fn get_quill_html(quill: &Quill) -> String {
-    // Find the editor content element
-    let editor_content = web_sys::window()
-        .unwrap()
-        .document()
-        .unwrap()
-        .query_selector(".ql-editor")
-        .unwrap()
-        .unwrap();
+    // First try to get the text content directly from Quill
+    // This is a fallback in case we can't access the DOM element
+    let quill_text = quill.getText();
 
-    editor_content.inner_html()
+    // Find the editor content element
+    if let Some(window) = web_sys::window() {
+        if let Some(document) = window.document() {
+            // Try to find the editor content element
+            if let Ok(Some(editor_content)) = document.query_selector(".ql-editor") {
+                let html = editor_content.inner_html();
+                if !html.is_empty() {
+                    return html;
+                }
+                log("Editor element found but HTML is empty");
+            } else {
+                // If the editor element isn't found, log a message
+                log("Could not find .ql-editor element when getting HTML");
+            }
+        }
+    }
+
+    // If we couldn't get the HTML but have text, create a simple HTML version
+    if !quill_text.is_empty() {
+        return format!("<p>{}</p>", quill_text.replace("\n", "<br>"));
+    }
+
+    // If all else fails, return an empty string
+    String::new()
 }
 
 pub fn set_quill_html(quill: &Quill, html: &str) {
     // Find the editor content element
-    let editor_content = web_sys::window()
-        .unwrap()
-        .document()
-        .unwrap()
-        .query_selector(".ql-editor")
-        .unwrap()
-        .unwrap();
+    if let Some(window) = web_sys::window() {
+        if let Some(document) = window.document() {
+            // Try to find the editor content element
+            if let Ok(Some(editor_content)) = document.query_selector(".ql-editor") {
+                // Set the HTML content
+                let _ = editor_content.set_inner_html(html);
+            } else {
+                // If the editor element isn't found, log a message
+                log("Could not find .ql-editor element, will try again later");
 
-    editor_content.set_inner_html(html);
+                // Schedule another attempt with a longer delay
+                let html_clone = html.to_string();
+                let closure = wasm_bindgen::closure::Closure::once_into_js(move || {
+                    if let Some(window) = web_sys::window() {
+                        if let Some(document) = window.document() {
+                            if let Ok(Some(editor_content)) = document.query_selector(".ql-editor") {
+                                let _ = editor_content.set_inner_html(&html_clone);
+                                log("Successfully set editor content on retry");
+                            } else {
+                                log("Still could not find .ql-editor element after delay");
+                            }
+                        }
+                    }
+                });
+
+                if let Some(window) = web_sys::window() {
+                    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                        closure.as_ref().unchecked_ref(),
+                        500 // 500ms delay
+                    );
+                }
+            }
+        }
+    }
 }
