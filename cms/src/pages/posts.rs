@@ -87,32 +87,36 @@ pub fn Posts() -> Element {
 
                 Link {
                     to: Route::NewPost {},
-                    class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors",
+                    class: "px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all flex items-center shadow-md hover:shadow-lg hover:translate-y-[-1px]",
+                    span { class: "mr-1.5", "📝" }
                     "New Post"
                 }
             }
 
             // Filters and search
-            div { class: "bg-gray-800 rounded-lg p-4 mb-6",
+            div { class: "bg-gray-800 rounded-lg p-5 mb-6 shadow-md border border-gray-700",
                 div { class: "flex flex-col md:flex-row gap-4",
                     // Filter tabs
-                    div { class: "flex space-x-1 bg-gray-700 rounded-md p-1",
+                    div { class: "flex space-x-1 bg-gray-700 rounded-lg p-1",
                         button {
-                            class: format!("px-3 py-1.5 text-sm rounded-md transition-colors {}",
-                                  if filter() == "all" { "bg-gray-600 text-white" } else { "text-gray-300 hover:text-white" }),
+                            class: format!("px-4 py-2 text-sm rounded-lg transition-all font-medium flex items-center {}",
+                                  if filter() == "all" { "bg-indigo-600 text-white shadow-sm" } else { "text-gray-300 hover:text-white hover:bg-gray-600" }),
                             onclick: move |_| filter.set("all".to_string()),
+                            span { class: "mr-1.5 text-xs", if filter() == "all" { "📁" } else { "" } }
                             "All"
                         }
                         button {
-                            class: format!("px-3 py-1.5 text-sm rounded-md transition-colors {}",
-                                  if filter() == "published" { "bg-gray-600 text-white" } else { "text-gray-300 hover:text-white" }),
+                            class: format!("px-4 py-2 text-sm rounded-lg transition-all font-medium flex items-center {}",
+                                  if filter() == "published" { "bg-indigo-600 text-white shadow-sm" } else { "text-gray-300 hover:text-white hover:bg-gray-600" }),
                             onclick: move |_| filter.set("published".to_string()),
+                            span { class: "mr-1.5 text-xs", if filter() == "published" { "💬" } else { "" } }
                             "Published"
                         }
                         button {
-                            class: format!("px-3 py-1.5 text-sm rounded-md transition-colors {}",
-                                  if filter() == "drafts" { "bg-gray-600 text-white" } else { "text-gray-300 hover:text-white" }),
+                            class: format!("px-4 py-2 text-sm rounded-lg transition-all font-medium flex items-center {}",
+                                  if filter() == "drafts" { "bg-indigo-600 text-white shadow-sm" } else { "text-gray-300 hover:text-white hover:bg-gray-600" }),
                             onclick: move |_| filter.set("drafts".to_string()),
+                            span { class: "mr-1.5 text-xs", if filter() == "drafts" { "📝" } else { "" } }
                             "Drafts"
                         }
                     }
@@ -122,7 +126,7 @@ pub fn Posts() -> Element {
                         div { class: "relative",
                             span { class: "absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400", "🔍" }
                             input {
-                                class: "w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-white",
+                                class: "w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white shadow-inner",
                                 r#type: "text",
                                 placeholder: "Search posts...",
                                 value: "{search_query}",
@@ -135,13 +139,15 @@ pub fn Posts() -> Element {
 
             // Status messages
             if delete_success() {
-                div { class: "bg-green-900/30 border border-green-500/50 text-green-200 px-4 py-3 rounded-md mb-4",
+                div { class: "bg-green-900/30 border border-green-500/50 text-green-200 px-4 py-3 rounded-lg mb-4 flex items-center shadow-md",
+                    span { class: "mr-2 text-green-400", "✔" }
                     "Post deleted successfully."
                 }
             }
 
             if let Some(error) = delete_error() {
-                div { class: "bg-red-900/30 border border-red-500/50 text-red-200 px-4 py-3 rounded-md mb-4",
+                div { class: "bg-red-900/30 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg mb-4 flex items-center shadow-md",
+                    span { class: "mr-2 text-red-400", "⚠" }
                     "{error}"
                 }
             }
@@ -161,15 +167,28 @@ pub fn Posts() -> Element {
                     }
                     Some(_) if filtered_posts().is_empty() => {
                         rsx! {
-                            div { class: "text-center py-12 bg-gray-800 rounded-lg border border-dashed border-gray-700",
+                            div { class: "text-center py-16 bg-gray-800 rounded-lg border border-dashed border-gray-700 shadow-md",
+                                div { class: "text-4xl mb-4 text-gray-600", "📄" }
                                 if !search_query().is_empty() {
-                                    p { class: "text-gray-400", "No posts match your search criteria." }
+                                    p { class: "text-gray-400 text-lg", "No posts match your search criteria." }
                                 } else if filter() == "published" {
-                                    p { class: "text-gray-400", "No published posts yet." }
+                                    p { class: "text-gray-400 text-lg", "No published posts yet." }
                                 } else if filter() == "drafts" {
-                                    p { class: "text-gray-400", "No draft posts." }
+                                    p { class: "text-gray-400 text-lg", "No draft posts." }
                                 } else {
-                                    p { class: "text-gray-400", "No posts yet. Create your first post!" }
+                                    p { class: "text-gray-400 text-lg", "No posts yet. Create your first post!" }
+                                }
+
+                                if filter() != "all" || !search_query().is_empty() {
+                                    button {
+                                        class: "mt-4 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-all inline-flex items-center",
+                                        onclick: move |_| {
+                                            filter.set("all".to_string());
+                                            search_query.set("".to_string());
+                                        },
+                                        span { class: "mr-1.5", "↻" }
+                                        "Reset filters"
+                                    }
                                 }
                             }
                         }
