@@ -1,0 +1,13 @@
+{
+  "name": "cms",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "scripts": {
+    "tailwind": "bunx @tailwindcss/cli -i ./input.css -o ./assets/tailwind.css --watch"
+  }
+}
