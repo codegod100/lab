@@ -44,25 +44,25 @@ pub fn PostForm(
 
     rsx! {
         form {
-            class: "card p-6 shadow-lg",
+            class: "bg-gray-800 p-6 shadow-lg border border-gray-700 rounded-lg",
             onsubmit: handle_submit,
 
-            div { class: "card-header pb-2 mb-6",
+            div { class: "pb-2 mb-6 border-b border-gray-700",
                 h2 {
                     class: "text-2xl font-bold",
                     if is_edit_mode { "Edit Post" } else { "Create New Post" }
                 }
             }
 
-            div { class: "card-body space-y-4",
+            div { class: "space-y-6",
                 // Title field
                 div { class: "mb-4",
                     label {
-                        class: "form-label",
+                        class: "block text-sm font-medium text-gray-300 mb-1",
                         "Title"
                     }
                     input {
-                        class: "form-input",
+                        class: "w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
                         r#type: "text",
                         value: "{title}",
                         placeholder: "Enter post title",
@@ -74,11 +74,11 @@ pub fn PostForm(
                 // Content field
                 div { class: "mb-4",
                     label {
-                        class: "form-label",
+                        class: "block text-sm font-medium text-gray-300 mb-1",
                         "Content"
                     }
                     textarea {
-                        class: "form-input min-h-[200px]",
+                        class: "w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[200px]",
                         value: "{body}",
                         placeholder: "Enter post content",
                         required: true,
@@ -89,11 +89,11 @@ pub fn PostForm(
                 // Category field
                 div { class: "mb-4",
                     label {
-                        class: "form-label",
+                        class: "block text-sm font-medium text-gray-300 mb-1",
                         "Category (optional)"
                     }
                     input {
-                        class: "form-input",
+                        class: "w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
                         r#type: "text",
                         value: "{category().unwrap_or_default()}",
                         placeholder: "E.g., News, Tutorial, Announcement",
@@ -104,11 +104,11 @@ pub fn PostForm(
                 // Tags field
                 div { class: "mb-4",
                     label {
-                        class: "form-label",
+                        class: "block text-sm font-medium text-gray-300 mb-1",
                         "Tags (comma separated)"
                     }
                     input {
-                        class: "form-input",
+                        class: "w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
                         r#type: "text",
                         value: "{tags_input}",
                         placeholder: "E.g., news, important, featured",
@@ -132,7 +132,7 @@ pub fn PostForm(
                 // Submit button
                 div { class: "flex justify-end",
                     button {
-                        class: "btn btn-lg btn-primary disabled:opacity-50 disabled:cursor-not-allowed",
+                        class: "px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
                         r#type: "submit",
                         disabled: is_submitting,
                         if is_submitting {
