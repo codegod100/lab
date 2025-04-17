@@ -18,6 +18,10 @@ fn main() {
     // and load the initial data if needed
     let _ = &db::DB_POOL;
 
+    // Print a message to confirm server functions are enabled
+    #[cfg(not(target_arch = "wasm32"))]
+    println!("Server functions are enabled. Starting server...");
+
     // Launch the app
     dioxus::launch(App);
 }
