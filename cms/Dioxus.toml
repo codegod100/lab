@@ -13,8 +13,7 @@ server_functions.enabled = true
 
 # Additional CSS style files
 style = [
-    "https://cdn.quilljs.com/1.3.6/quill.snow.css",
-    "/assets/custom.css"
+    "https://cdn.quilljs.com/1.3.6/quill.snow.css"
 ]
 
 # Additional JavaScript files

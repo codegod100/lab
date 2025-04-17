@@ -41,7 +41,7 @@ pub fn get_all_posts(conn: &Connection) -> SqliteResult<Vec<Post>> {
     let mut stmt = conn.prepare(
         "SELECT p.id, p.title, p.body, p.published, p.category, p.created_at, p.updated_at
          FROM posts p
-         ORDER BY p.created_at DESC"
+         ORDER BY p.created_at DESC",
     )?;
 
     let post_iter = stmt.query_map([], |row| {
@@ -83,7 +83,7 @@ pub fn get_published_posts(conn: &Connection) -> SqliteResult<Vec<Post>> {
         "SELECT p.id, p.title, p.body, p.published, p.category, p.created_at, p.updated_at
          FROM posts p
          WHERE p.published = 1
-         ORDER BY p.created_at DESC"
+         ORDER BY p.created_at DESC",
     )?;
 
     let post_iter = stmt.query_map([], |row| {
@@ -124,7 +124,7 @@ pub fn get_post_by_id(conn: &Connection, id: usize) -> SqliteResult<Option<Post>
     let mut stmt = conn.prepare(
         "SELECT p.id, p.title, p.body, p.published, p.category, p.created_at, p.updated_at
          FROM posts p
-         WHERE p.id = ?1"
+         WHERE p.id = ?1",
     )?;
 
     let post_result = stmt.query_row(params![id], |row| {
@@ -145,7 +145,7 @@ pub fn get_post_by_id(conn: &Connection, id: usize) -> SqliteResult<Option<Post>
             // Get tags for the post
             post.tags = get_tags_for_post(conn, post.id)?;
             Ok(Some(post))
-        },
+        }
         Err(SqliteError::QueryReturnedNoRows) => Ok(None),
         Err(e) => Err(e),
     }
@@ -207,10 +207,7 @@ pub fn update_post(
 
     // Execute the update if there are fields to update
     if !query_parts.is_empty() {
-        let query = format!(
-            "UPDATE posts SET {} WHERE id = ?",
-            query_parts.join(", ")
-        );
+        let query = format!("UPDATE posts SET {} WHERE id = ?", query_parts.join(", "));
 
         let mut stmt = tx.prepare(&query)?;
         let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
@@ -225,10 +222,7 @@ pub fn update_post(
     // Update tags if provided
     if let Some(new_tags) = tags {
         // Delete existing tags
-        tx.execute(
-            "DELETE FROM post_tags WHERE post_id = ?1",
-            params![id],
-        )?;
+        tx.execute("DELETE FROM post_tags WHERE post_id = ?1", params![id])?;
 
         // Insert new tags
         insert_tags(&tx, id, &new_tags)?;
@@ -247,16 +241,10 @@ pub fn delete_post(conn: &mut Connection, id: usize) -> SqliteResult<bool> {
     let tx = conn.transaction()?;
 
     // Delete post tags (cascade will handle this, but being explicit)
-    tx.execute(
-        "DELETE FROM post_tags WHERE post_id = ?1",
-        params![id],
-    )?;
+    tx.execute("DELETE FROM post_tags WHERE post_id = ?1", params![id])?;
 
     // Delete the post
-    let rows_affected = tx.execute(
-        "DELETE FROM posts WHERE id = ?1",
-        params![id],
-    )?;
+    let rows_affected = tx.execute("DELETE FROM posts WHERE id = ?1", params![id])?;
 
     // Commit the transaction
     tx.commit()?;
@@ -283,23 +271,18 @@ fn insert_tags(tx: &Transaction, post_id: usize, tags: &[String]) -> SqliteResul
 // Helper function to insert a tag or get its ID if it already exists
 fn insert_or_get_tag(tx: &Transaction, tag: &str) -> SqliteResult<usize> {
     // Try to get the tag ID
-    let tag_id_result = tx.query_row(
-        "SELECT id FROM tags WHERE name = ?1",
-        params![tag],
-        |row| row.get(0),
-    );
+    let tag_id_result = tx.query_row("SELECT id FROM tags WHERE name = ?1", params![tag], |row| {
+        row.get(0)
+    });
 
     match tag_id_result {
         Ok(id) => Ok(id),
         Err(SqliteError::QueryReturnedNoRows) => {
             // Tag doesn't exist, insert it
-            tx.execute(
-                "INSERT INTO tags (name) VALUES (?1)",
-                params![tag],
-            )?;
+            tx.execute("INSERT INTO tags (name) VALUES (?1)", params![tag])?;
 
             Ok(tx.last_insert_rowid() as usize)
-        },
+        }
         Err(e) => Err(e),
     }
 }
@@ -312,12 +295,10 @@ fn get_tags_for_post(conn: &Connection, post_id: usize) -> SqliteResult<Vec<Stri
          FROM tags t
          JOIN post_tags pt ON t.id = pt.tag_id
          WHERE pt.post_id = ?1
-         ORDER BY t.name"
+         ORDER BY t.name",
     )?;
 
-    let tag_iter = stmt.query_map(params![post_id], |row| {
-        row.get::<_, String>(0)
-    })?;
+    let tag_iter = stmt.query_map(params![post_id], |row| row.get::<_, String>(0))?;
 
     let mut tags = Vec::new();
     for tag_result in tag_iter {
@@ -328,7 +309,10 @@ fn get_tags_for_post(conn: &Connection, post_id: usize) -> SqliteResult<Vec<Stri
 }
 
 // Helper function to get tags for multiple posts
-fn get_tags_for_posts(conn: &Connection, posts: &[Post]) -> SqliteResult<HashMap<usize, Vec<String>>> {
+fn get_tags_for_posts(
+    conn: &Connection,
+    posts: &[Post],
+) -> SqliteResult<HashMap<usize, Vec<String>>> {
     if posts.is_empty() {
         return Ok(HashMap::new());
     }
@@ -354,7 +338,10 @@ fn get_tags_for_posts(conn: &Connection, posts: &[Post]) -> SqliteResult<HashMap
     let mut stmt = conn.prepare(&query)?;
 
     // Convert post_ids to ToSql trait objects
-    let params: Vec<&dyn rusqlite::ToSql> = post_ids.iter().map(|id| id as &dyn rusqlite::ToSql).collect();
+    let params: Vec<&dyn rusqlite::ToSql> = post_ids
+        .iter()
+        .map(|id| id as &dyn rusqlite::ToSql)
+        .collect();
 
     let rows = stmt.query_map(params.as_slice(), |row| {
         Ok((row.get::<_, usize>(0)?, row.get::<_, String>(1)?))

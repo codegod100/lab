@@ -38,5 +38,6 @@ pub static USERS: Lazy<Arc<Mutex<Vec<User>>>> = Lazy::new(|| {
         },
     ];
 
+    println!("Initializing USERS static variable with {} users", initial_users.len());
     Arc::new(Mutex::new(initial_users))
 });

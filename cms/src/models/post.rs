@@ -21,6 +21,10 @@ pub struct Post {
 
 impl Post {
     pub fn new(title: String, body: String, published: bool, category: Option<String>, tags: Vec<String>) -> Self {
+        #[cfg(target_arch = "wasm32")]
+        let now = 1672531200; // January 1, 2023 - fixed timestamp for WASM
+
+        #[cfg(not(target_arch = "wasm32"))]
         let now = current_timestamp();
 
         Self {
@@ -57,93 +61,19 @@ impl Post {
             self.tags = tags;
         }
 
-        self.updated_at = current_timestamp();
-    }
-}
+        #[cfg(target_arch = "wasm32")]
+        {
+            // In WASM, use a fixed timestamp to avoid any issues
+            self.updated_at = 1672531200; // January 1, 2023
+        }
 
-// Global in-memory store for posts - kept for backward compatibility
-// but now backed by database (SQLite for native, in-memory for WASM)
-#[allow(dead_code)]
-pub static POSTS: Lazy<Arc<Mutex<Vec<Post>>>> = Lazy::new(|| {
-    // Initialize with sample data if the database is empty
-    let initial_posts = create_sample_posts();
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        // Native implementation using SQLite
-        let conn = db::DB_POOL.get().expect("Failed to get database connection");
-
-        // Check if we have any posts
-        let posts = post_repository::get_all_posts(&conn).unwrap_or_default();
-
-        if posts.is_empty() {
-            // Migrate initial posts to the database
-            let mut conn_mut = db::DB_POOL.get().expect("Failed to get database connection");
-            if let Err(e) = post_repository::migrate_posts(&mut conn_mut, &initial_posts) {
-                eprintln!("Failed to migrate initial posts to database: {}", e);
-            }
-
-            return Arc::new(Mutex::new(initial_posts));
-        } else {
-            // Use existing posts from the database
-            return Arc::new(Mutex::new(posts));
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.updated_at = current_timestamp();
         }
     }
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        // WASM implementation using in-memory storage
-        let posts = match db::get_all_posts() {
-            Ok(posts) if !posts.is_empty() => posts,
-            _ => {
-                // Migrate initial posts to the in-memory store
-                if let Err(e) = db::migrate_posts(&initial_posts) {
-                    eprintln!("Failed to migrate initial posts to in-memory store: {:?}", e);
-                }
-                initial_posts
-            }
-        };
-
-        Arc::new(Mutex::new(posts))
-    }
-});
-
-// Create sample posts for initialization
-fn create_sample_posts() -> Vec<Post> {
-    let now = current_timestamp();
-    vec![
-        Post {
-            id: 1,
-            title: "Welcome to the CMS".to_string(),
-            body: "This is your first post in the content management system. You can edit or delete it.".to_string(),
-            published: true,
-            category: Some("Announcements".to_string()),
-            tags: vec!["welcome".to_string(), "getting-started".to_string()],
-            created_at: now - 86400,
-            updated_at: now - 86400,
-        },
-        Post {
-            id: 2,
-            title: "How to Use This CMS".to_string(),
-            body: "This CMS allows you to create, edit, and manage your content. Use the dashboard to see an overview of your site.".to_string(),
-            published: true,
-            category: Some("Tutorials".to_string()),
-            tags: vec!["tutorial".to_string(), "help".to_string()],
-            created_at: now - 43200,
-            updated_at: now - 43200,
-        },
-        Post {
-            id: 3,
-            title: "Draft Post Example".to_string(),
-            body: "This is an example of a draft post. It won't be visible on the public blog until you publish it.".to_string(),
-            published: false,
-            category: Some("Examples".to_string()),
-            tags: vec!["draft".to_string(), "example".to_string()],
-            created_at: now - 21600,
-            updated_at: now - 21600,
-        },
-    ]
 }
+
 
 // Helper functions to interact with the database
 

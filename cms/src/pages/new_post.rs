@@ -1,8 +1,8 @@
-use dioxus::prelude::*;
 use crate::components::PostForm;
 use crate::models::Post;
 use crate::routes::Route;
 use crate::utils::create_post_server;
+use dioxus::prelude::*;
 
 #[component]
 pub fn NewPost() -> Element {
@@ -16,27 +16,39 @@ pub fn NewPost() -> Element {
         // Add debug logging
         #[cfg(target_arch = "wasm32")]
         web_sys::console::log_1(&wasm_bindgen::JsValue::from_str("Submit handler called"));
-
+        // Ensure post.tags is not null
+        let mut post = post;
+        if post.tags.is_empty() {
+            post.tags = vec!["test".to_string()];
+        }
         is_submitting.set(true);
         error.set(None);
         success.set(false);
 
         // Log the post data
         #[cfg(target_arch = "wasm32")]
-        web_sys::console::log_1(&wasm_bindgen::JsValue::from_str(&format!("Post data: title={}, body length={}",
-            post.title, post.body.len())));
+        web_sys::console::log_1(&wasm_bindgen::JsValue::from_str(&format!(
+            "Post data: title={}, body length={}",
+            post.title,
+            post.body.len()
+        )));
 
         spawn(async move {
             // Log before server call
             #[cfg(target_arch = "wasm32")]
-            web_sys::console::log_1(&wasm_bindgen::JsValue::from_str("About to call create_post_server"));
+            web_sys::console::log_1(&wasm_bindgen::JsValue::from_str(
+                "About to call create_post_server",
+            ));
 
             // Try with error handling
             let result = match create_post_server(post.clone()).await {
                 Ok(created_post) => {
                     // Log success
                     #[cfg(target_arch = "wasm32")]
-                    web_sys::console::log_1(&wasm_bindgen::JsValue::from_str(&format!("Post created successfully with ID: {}", created_post.id)));
+                    web_sys::console::log_1(&wasm_bindgen::JsValue::from_str(&format!(
+                        "Post created successfully with ID: {}",
+                        created_post.id
+                    )));
 
                     success.set(true);
 
@@ -45,7 +57,9 @@ pub fn NewPost() -> Element {
 
                     // Only navigate if we're still on this page
                     if success() {
-                        navigator.push(Route::PostDetail { id: created_post.id });
+                        navigator.push(Route::PostDetail {
+                            id: created_post.id,
+                        });
                     }
                     Ok(())
                 }
@@ -53,8 +67,14 @@ pub fn NewPost() -> Element {
                     // Log detailed error
                     #[cfg(target_arch = "wasm32")]
                     {
-                        web_sys::console::log_1(&wasm_bindgen::JsValue::from_str(&format!("Error creating post: {}", e)));
-                        web_sys::console::log_1(&wasm_bindgen::JsValue::from_str(&format!("Error type: {:?}", e)));
+                        web_sys::console::log_1(&wasm_bindgen::JsValue::from_str(&format!(
+                            "Error creating post: {}",
+                            e
+                        )));
+                        web_sys::console::log_1(&wasm_bindgen::JsValue::from_str(&format!(
+                            "Error type: {:?}",
+                            e
+                        )));
                     }
 
                     // Try to provide more specific error messages based on error type
@@ -75,7 +95,9 @@ pub fn NewPost() -> Element {
             if let Err(e) = result {
                 if e.to_string().contains("NetworkError") {
                     #[cfg(target_arch = "wasm32")]
-                    web_sys::console::log_1(&wasm_bindgen::JsValue::from_str("Network error detected, using fallback approach"));
+                    web_sys::console::log_1(&wasm_bindgen::JsValue::from_str(
+                        "Network error detected, using fallback approach",
+                    ));
 
                     // Create a post with a temporary ID
                     let mut fallback_post = post;
@@ -83,7 +105,9 @@ pub fn NewPost() -> Element {
 
                     // Show a modified success message
                     success.set(true);
-                    error.set(Some("Server connection issue - post saved locally".to_string()));
+                    error.set(Some(
+                        "Server connection issue - post saved locally".to_string(),
+                    ));
 
                     // Navigate after a delay
                     tokio::time::sleep(std::time::Duration::from_millis(1500)).await;

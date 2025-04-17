@@ -4,8 +4,12 @@ use crate::utils::get_users_server;
 
 #[component]
 pub fn Users() -> Element {
-    let users = use_resource(|| async move {
-        get_users_server().await.unwrap_or_default()
+    let mut users = use_resource(|| async move {
+        // Add debug logging
+        println!("Fetching users in users page");
+        let result = get_users_server().await.unwrap_or_default();
+        println!("Fetched {} users in users page", result.len());
+        result
     });
 
     // Helper function to get the appropriate CSS class for role badges
