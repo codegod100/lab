@@ -221,15 +221,9 @@ pub fn PostDetail(id: usize) -> Element {
 
                             // Post content
                             div { class: "bg-gray-800 p-6 rounded-lg border border-gray-700 shadow-lg",
-                                div { class: "text-gray-200 max-w-none",
-                                    // Split paragraphs and render them
-                                    for paragraph in post.body.split("\n\n") {
-                                        if paragraph.trim().is_empty() {
-                                            br {}
-                                        } else {
-                                            p { class: "mb-4 last:mb-0", "{paragraph}" }
-                                        }
-                                    }
+                                div { class: "text-gray-200 max-w-none prose prose-invert prose-lg",
+                                    // Render HTML content
+                                    dangerous_inner_html: "{post.body}"
                                 }
                             }
                         }

@@ -102,14 +102,8 @@ pub fn BlogPost(id: usize) -> Element {
 
                                     // Post content
                                     div { class: "card-body prose prose-invert prose-lg max-w-none",
-                                        // Split paragraphs and render them
-                                        for paragraph in post.body.split("\n\n") {
-                                            if paragraph.trim().is_empty() {
-                                                br {}
-                                            } else {
-                                                p { "{paragraph}" }
-                                            }
-                                        }
+                                        // Render HTML content
+                                        dangerous_inner_html: "{post.body}"
                                     }
                                 }
                             }
