@@ -1,11 +1,10 @@
 use serde::{Serialize, Deserialize};
-use std::sync::{Arc, Mutex};
-use once_cell::sync::Lazy;
-use crate::utils::current_timestamp;
-use crate::db;
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::db::post_repository;
+/* Removed unused import to reduce warnings */
+
+use crate::utils::current_timestamp;
+use crate::db;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Post {

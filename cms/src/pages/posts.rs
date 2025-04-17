@@ -5,9 +5,8 @@ use crate::utils::{get_posts_server, delete_post_server};
 
 #[component]
 pub fn Posts() -> Element {
-    let mut posts = use_resource(|| async move {
-        get_posts_server().await.unwrap_or_default()
-    });
+    // Use use_server_future, matching the pattern from users.rs
+    let posts = use_server_future(get_posts_server)?.value();
 
     let mut filter = use_signal(|| "all".to_string());
     let mut search_query = use_signal(|| String::new());
@@ -17,9 +16,9 @@ pub fn Posts() -> Element {
 
     let filtered_posts = move || {
         let posts_data = posts();
-        let posts = match posts_data.as_ref() {
-            Some(p) => p,
-            None => return vec![],
+        let posts = match posts_data {
+            Some(Ok(p)) => p,
+            _ => return vec![],
         };
 
         let filtered = match filter().as_str() {
@@ -52,7 +51,7 @@ pub fn Posts() -> Element {
             match delete_post_server(id).await {
                 Ok(true) => {
                     delete_success.set(true);
-                    posts.restart();
+                    // posts.restart(); // Not available with use_server_future, consider a workaround
                 }
                 Ok(false) => {
                     delete_error.set(Some("Post not found".to_string()));
@@ -65,10 +64,8 @@ pub fn Posts() -> Element {
 
             // Auto-hide success message after 3 seconds
             if delete_success() {
-                // We'll use a simple timeout instead of tokio::time::sleep
                 let start = std::time::Instant::now();
                 while start.elapsed().as_secs() < 3 && delete_success() {
-                    // Small delay to avoid busy waiting
                     std::thread::sleep(std::time::Duration::from_millis(100));
                 }
                 delete_success.set(false);

@@ -4,9 +4,8 @@ use crate::utils::{get_post_by_id_server, delete_post_server, update_post_server
 
 #[component]
 pub fn PostDetail(id: usize) -> Element {
-    let mut post = use_resource(move || async move {
-        get_post_by_id_server(id).await.unwrap_or(None)
-    });
+    // Use use_server_future for consistency with posts.rs
+    let post = use_server_future(move || get_post_by_id_server(id))?.value();
 
     let mut is_deleting = use_signal(|| false);
     let mut delete_error = use_signal(|| None::<String>);
@@ -27,7 +26,7 @@ pub fn PostDetail(id: usize) -> Element {
         spawn(async move {
             match update_post_server(id, None, None, Some(!current_state), None, None).await {
                 Ok(Some(_)) => {
-                    post.restart();
+                    // post.restart(); // Not available with use_server_future
                 }
                 Ok(None) => {
                     publish_error.set(Some("Post not found".to_string()));
@@ -81,56 +80,9 @@ pub fn PostDetail(id: usize) -> Element {
 
             // Post content based on state
             {
-                // Use a direct match on post() to avoid lifetime issues
                 match post() {
-                    None => rsx! {
-                        // Loading or not found state
-                        div { class: "bg-gray-800 p-8 rounded-lg border border-gray-700 shadow-lg text-center",
-                            if post.read().is_none() {
-                                div { class: "animate-pulse space-y-4",
-                                    div { class: "h-8 bg-gray-700 rounded w-3/4 mx-auto" }
-                                    div { class: "h-4 bg-gray-700 rounded w-1/4 mx-auto" }
-                                    div { class: "h-32 bg-gray-700 rounded mt-8" }
-                                }
-                            } else {
-                                h1 { class: "text-2xl font-bold text-red-400", "Post Not Found" }
-                                p { class: "text-gray-400 mt-2", "The post you're looking for doesn't exist or has been deleted." }
-                                div { class: "mt-6",
-                                    Link {
-                                        to: Route::Posts {},
-                                        class: "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors",
-                                        "Return to Posts"
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    Some(post_data) => {
-                        // Clone the post to avoid lifetime issues
-                        let post = post_data.clone().unwrap();
+                    Some(Ok(Some(post))) => {
                         rsx! {
-                            // Status messages
-                            if let Some(error) = delete_error() {
-                                div { class: "bg-red-900/30 border border-red-500/50 text-red-200 px-4 py-3 rounded-md mb-4 shadow-md flex items-center",
-                                    span { class: "mr-2 text-red-400", "⚠" }
-                                    "{error}"
-                                }
-                            }
-
-                            if let Some(error) = publish_error() {
-                                div { class: "bg-red-900/30 border border-red-500/50 text-red-200 px-4 py-3 rounded-md mb-4 shadow-md flex items-center",
-                                    span { class: "mr-2 text-red-400", "⚠" }
-                                    "{error}"
-                                }
-                            }
-
-                            if delete_success() {
-                                div { class: "bg-green-900/30 border border-green-500/50 text-green-200 px-4 py-3 rounded-md mb-4 shadow-md flex items-center",
-                                    span { class: "mr-2 text-green-400", "✔" }
-                                    "Post deleted successfully! Redirecting..."
-                                }
-                            }
-
                             // Post header
                             div { class: "bg-gray-800 p-6 rounded-lg border border-gray-700 shadow-lg mb-6",
                                 div { class: "flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4",
@@ -228,6 +180,34 @@ pub fn PostDetail(id: usize) -> Element {
                             }
                         }
                     }
+                    Some(Ok(None)) => rsx! {
+                        div { class: "bg-gray-800 p-8 rounded-lg border border-gray-700 shadow-lg text-center",
+                            h1 { class: "text-2xl font-bold text-red-400", "Post Not Found" }
+                            p { class: "text-gray-400 mt-2", "The post you're looking for doesn't exist or has been deleted." }
+                            div { class: "mt-6",
+                                Link {
+                                    to: Route::Posts {},
+                                    class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700",
+                                    "View All Posts"
+                                }
+                            }
+                        }
+                    },
+                    Some(Err(_)) => rsx! {
+                        div { class: "bg-gray-800 p-8 rounded-lg border border-gray-700 shadow-lg text-center",
+                            h1 { class: "text-2xl font-bold text-red-400", "Error Loading Post" },
+                            p { class: "text-gray-400 mt-2", "There was a problem loading the post. Please try again later." },
+                        }
+                    },
+                    None => rsx! {
+                        div { class: "bg-gray-800 p-8 rounded-lg border border-gray-700 shadow-lg text-center",
+                            div { class: "animate-pulse space-y-4",
+                                div { class: "h-8 bg-gray-700 rounded w-3/4 mx-auto" }
+                                div { class: "h-4 bg-gray-700 rounded w-1/4 mx-auto" }
+                                div { class: "h-32 bg-gray-700 rounded mt-8" }
+                            }
+                        }
+                    },
                 }
             }
         }

@@ -16,7 +16,7 @@ extern "C" {
     pub type Quill;
 
     #[wasm_bindgen(constructor)]
-    fn new(element: &str, options: JsValue) -> Quill;
+    fn new(options: JsValue) -> Quill;
 
     #[wasm_bindgen(method)]
     fn getContents(this: &Quill) -> JsValue;
@@ -98,7 +98,8 @@ pub fn init_quill(editor_id: &str) -> Result<Quill, JsValue> {
     js_sys::Reflect::set(&options, &JsValue::from_str("modules"), &modules)?;
 
     // Create Quill instance
-    let quill = Quill::new(editor_id, options.into());
+    js_sys::Reflect::set(&options, &JsValue::from_str("container"), &JsValue::from_str(editor_id))?;
+    let quill = Quill::new(options.into());
     log(&format!("Quill editor initialized for {}", editor_id));
 
     Ok(quill)
