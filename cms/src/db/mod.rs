@@ -8,7 +8,7 @@ use r2d2::Pool;
 #[cfg(not(target_arch = "wasm32"))]
 use r2d2_sqlite::SqliteConnectionManager;
 #[cfg(not(target_arch = "wasm32"))]
-use rusqlite::Error as SqliteError;
+use rusqlite::{Error as SqliteError, params};
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 
@@ -40,12 +40,15 @@ pub mod native {
     // Initialize the database pool
     fn init_db_pool() -> Result<DbPool, DbError> {
         let db_path = "cms_data.db";
+        println!("Initializing database pool with path: {}", db_path);
         let manager = SqliteConnectionManager::file(db_path);
         let pool = Pool::new(manager).expect("Failed to create connection pool");
 
         // Initialize the database schema
         let conn = pool.get().expect("Failed to get connection from pool");
+        println!("Initializing database schema");
         init_schema(&conn)?;
+        println!("Database schema initialized successfully");
 
         Ok(pool)
     }
@@ -86,6 +89,53 @@ pub mod native {
             )",
             [],
         )?;
+
+        // Check if there are any posts in the database
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM posts", [], |row| row.get(0))?;
+
+        // If there are no posts, create a sample post
+        if count == 0 {
+            println!("No posts found in database. Creating a sample post...");
+
+            // Insert a sample post
+            conn.execute(
+                "INSERT INTO posts (title, body, published, category, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?)",
+                params![
+                    "Welcome to Your CMS",
+                    "<p>This is a sample post to get you started with your content management system.</p><p>You can edit or delete this post, or create new ones.</p>",
+                    true,
+                    "Getting Started",
+                    crate::utils::current_timestamp(),
+                    crate::utils::current_timestamp()
+                ],
+            )?;
+
+            // Get the post ID
+            let post_id = conn.last_insert_rowid() as usize;
+
+            // Insert sample tags
+            let sample_tags = ["welcome", "sample", "getting-started"];
+            for tag in sample_tags.iter() {
+                // Insert the tag
+                conn.execute("INSERT OR IGNORE INTO tags (name) VALUES (?)", params![tag])?;
+
+                // Get the tag ID
+                let tag_id: i64 = conn.query_row(
+                    "SELECT id FROM tags WHERE name = ?",
+                    params![tag],
+                    |row| row.get(0)
+                )?;
+
+                // Link the tag to the post
+                conn.execute(
+                    "INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)",
+                    params![post_id, tag_id],
+                )?;
+            }
+
+            println!("Sample post created successfully with ID: {}", post_id);
+        }
 
         Ok(())
     }

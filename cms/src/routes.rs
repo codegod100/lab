@@ -10,7 +10,6 @@ use crate::pages::users::Users;
 use crate::pages::not_found::NotFound;
 
 #[derive(Debug, Clone, Routable, PartialEq)]
-#[rustfmt::skip]
 pub enum Route {
     #[layout(crate::components::Layout)]
     #[route("/")]
