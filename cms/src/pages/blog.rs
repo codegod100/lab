@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 use crate::routes::Route;
-use crate::utils::get_published_posts_server;
+use crate::utils::{get_published_posts_server, format_date};
 use std::collections::HashSet;
 
 // Helper function to get post excerpt
@@ -91,10 +91,7 @@ pub fn Blog() -> Element {
             .collect::<Vec<_>>()
     };
 
-    let format_date = |timestamp: u64| -> String {
-        let datetime = chrono::DateTime::from_timestamp(timestamp as i64, 0).unwrap().naive_local();
-        datetime.format("%B %d, %Y").to_string()
-    };
+    // Use the imported format_date function from utils
 
     rsx! {
         div { class: "container mx-auto px-4 py-8",

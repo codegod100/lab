@@ -1,11 +1,11 @@
 use dioxus::prelude::*;
 use crate::models::Post;
 use crate::routes::Route;
-use std::time::{SystemTime, UNIX_EPOCH};
+use crate::utils::format_relative_time;
 
 #[component]
 pub fn PostCard(post: Post, on_delete: Option<EventHandler<usize>>) -> Element {
-    let formatted_date = format_timestamp(post.updated_at);
+    let formatted_date = format_relative_time(post.updated_at);
 
     // Create a signal to store the delete handler
     let delete_handler = use_signal(|| on_delete);
@@ -84,21 +84,4 @@ pub fn PostCard(post: Post, on_delete: Option<EventHandler<usize>>) -> Element {
     }
 }
 
-fn format_timestamp(timestamp: u64) -> String {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-
-    let diff = now.saturating_sub(timestamp);
-
-    if diff < 60 {
-        "just now".to_string()
-    } else if diff < 3600 {
-        format!("{} minutes ago", diff / 60)
-    } else if diff < 86400 {
-        format!("{} hours ago", diff / 3600)
-    } else {
-        format!("{} days ago", diff / 86400)
-    }
-}
+// Using the imported format_relative_time function from utils

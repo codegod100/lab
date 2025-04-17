@@ -1,7 +1,7 @@
 use serde::{Serialize, Deserialize};
 use std::sync::{Arc, Mutex};
 use once_cell::sync::Lazy;
-use std::time::{SystemTime, UNIX_EPOCH};
+use crate::utils::current_timestamp;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Post {
@@ -17,10 +17,7 @@ pub struct Post {
 
 impl Post {
     pub fn new(title: String, body: String, published: bool, category: Option<String>, tags: Vec<String>) -> Self {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+        let now = current_timestamp();
 
         Self {
             id: 0, // Will be set when added to the store
@@ -56,10 +53,7 @@ impl Post {
             self.tags = tags;
         }
 
-        self.updated_at = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+        self.updated_at = current_timestamp();
     }
 }
 
@@ -67,6 +61,7 @@ impl Post {
 #[allow(dead_code)]
 pub static POSTS: Lazy<Arc<Mutex<Vec<Post>>>> = Lazy::new(|| {
     // Initialize with some sample data
+    let now = current_timestamp();
     let initial_posts = vec![
         Post {
             id: 1,
@@ -75,8 +70,8 @@ pub static POSTS: Lazy<Arc<Mutex<Vec<Post>>>> = Lazy::new(|| {
             published: true,
             category: Some("Announcements".to_string()),
             tags: vec!["welcome".to_string(), "getting-started".to_string()],
-            created_at: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() - 86400,
-            updated_at: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() - 86400,
+            created_at: now - 86400,
+            updated_at: now - 86400,
         },
         Post {
             id: 2,
@@ -85,8 +80,8 @@ pub static POSTS: Lazy<Arc<Mutex<Vec<Post>>>> = Lazy::new(|| {
             published: true,
             category: Some("Tutorials".to_string()),
             tags: vec!["tutorial".to_string(), "help".to_string()],
-            created_at: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() - 43200,
-            updated_at: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() - 43200,
+            created_at: now - 43200,
+            updated_at: now - 43200,
         },
         Post {
             id: 3,
@@ -95,8 +90,8 @@ pub static POSTS: Lazy<Arc<Mutex<Vec<Post>>>> = Lazy::new(|| {
             published: false,
             category: Some("Examples".to_string()),
             tags: vec!["draft".to_string(), "example".to_string()],
-            created_at: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() - 21600,
-            updated_at: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() - 21600,
+            created_at: now - 21600,
+            updated_at: now - 21600,
         },
     ];
 

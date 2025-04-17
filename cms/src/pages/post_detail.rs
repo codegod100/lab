@@ -1,7 +1,6 @@
 use dioxus::prelude::*;
 use crate::routes::Route;
-use crate::utils::{get_post_by_id_server, delete_post_server, update_post_server};
-use chrono;
+use crate::utils::{get_post_by_id_server, delete_post_server, update_post_server, format_relative_time};
 
 #[component]
 pub fn PostDetail(id: usize) -> Element {
@@ -18,27 +17,8 @@ pub fn PostDetail(id: usize) -> Element {
 
     let navigator = use_navigator();
 
-    // Format timestamp as relative time or date
-    let format_date = |timestamp: u64| -> String {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-
-        let diff = now.saturating_sub(timestamp);
-
-        if diff < 60 {
-            "just now".to_string()
-        } else if diff < 3600 {
-            format!("{} minutes ago", diff / 60)
-        } else if diff < 86400 {
-            format!("{} hours ago", diff / 3600)
-        } else {
-            // More than a day, show date
-            let datetime = chrono::DateTime::from_timestamp(timestamp as i64, 0).unwrap().naive_local();
-            datetime.format("%B %d, %Y").to_string()
-        }
-    };
+    // Use the imported format_relative_time function from utils
+    let format_date = format_relative_time;
 
     let mut toggle_publish = move |current_state: bool| {
         is_publishing.set(true);

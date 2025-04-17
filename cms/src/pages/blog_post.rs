@@ -1,7 +1,6 @@
 use dioxus::prelude::*;
 use crate::routes::Route;
-use crate::utils::get_post_by_id_server;
-use chrono;
+use crate::utils::{get_post_by_id_server, format_date};
 
 #[component]
 pub fn BlogPost(id: usize) -> Element {
@@ -9,10 +8,7 @@ pub fn BlogPost(id: usize) -> Element {
         get_post_by_id_server(id).await.unwrap_or(None)
     });
 
-    let format_date = |timestamp: u64| -> String {
-        let datetime = chrono::DateTime::from_timestamp(timestamp as i64, 0).unwrap().naive_local();
-        datetime.format("%B %d, %Y").to_string()
-    };
+    // Use the imported format_date function from utils
 
     rsx! {
         div { class: "max-w-4xl mx-auto",
