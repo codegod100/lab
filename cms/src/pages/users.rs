@@ -7,27 +7,28 @@ pub fn Users() -> Element {
     let users = use_resource(|| async move {
         get_users_server().await.unwrap_or_default()
     });
-    
+
     // Helper function to get the appropriate CSS class for role badges
     fn get_role_badge_class(role: &UserRole) -> &'static str {
         match role {
             UserRole::Admin => "bg-red-900 text-red-200",
             UserRole::Editor => "bg-blue-900 text-blue-200",
             UserRole::Author => "bg-green-900 text-green-200",
+            UserRole::Viewer => "bg-purple-900 text-purple-200",
             UserRole::Subscriber => "bg-gray-700 text-gray-300",
         }
     }
-    
+
     rsx! {
         div { class: "container mx-auto px-4 py-8",
             h1 { class: "text-3xl font-bold mb-8", "User Management" }
-            
+
             match users().as_ref() {
                 None => {
                     rsx! {
                         // Loading state
                         div { class: "bg-gray-800 rounded-lg p-8 text-center",
-                            if users.loading() {
+                            if users.read().is_none() {
                                 div { class: "animate-pulse space-y-4",
                                     div { class: "h-8 bg-gray-700 rounded w-1/4 mx-auto" }
                                     div { class: "h-64 bg-gray-700 rounded mt-8" }
@@ -67,17 +68,23 @@ pub fn Users() -> Element {
                                     tbody { class: "bg-gray-800 divide-y divide-gray-700",
                                         {users.iter().map(|user| {
                                             let role_class = get_role_badge_class(&user.role);
+                                            let user_id = user.id;
+                                            let username = user.username.clone();
+                                            let display_name = user.display_name.clone();
+                                            let role_str = format!("{:?}", user.role);
+
                                             rsx! {
-                                                tr { key: user.id,
-                                                    td { class: "px-6 py-4 whitespace-nowrap text-sm text-gray-300", "{user.id}" }
-                                                    td { class: "px-6 py-4 whitespace-nowrap text-sm text-white", "{user.username}" }
-                                                    td { class: "px-6 py-4 whitespace-nowrap text-sm text-white", "{user.display_name}" }
+                                                tr {
+                                                    key: user_id,
+                                                    td { class: "px-6 py-4 whitespace-nowrap text-sm text-gray-300", "{user_id}" },
+                                                    td { class: "px-6 py-4 whitespace-nowrap text-sm text-white", "{username}" },
+                                                    td { class: "px-6 py-4 whitespace-nowrap text-sm text-white", "{display_name}" },
                                                     td { class: "px-6 py-4 whitespace-nowrap",
                                                         span {
                                                             class: "px-2 py-1 text-xs rounded-full {role_class}",
-                                                            "{format!(\"{:?}\", user.role)}"
+                                                            "{role_str}"
                                                         }
-                                                    }
+                                                    },
                                                     td { class: "px-6 py-4 whitespace-nowrap text-right text-sm font-medium",
                                                         button {
                                                             class: "text-blue-400 hover:text-blue-300 mr-3",
