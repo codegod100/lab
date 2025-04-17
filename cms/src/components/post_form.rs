@@ -44,23 +44,25 @@ pub fn PostForm(
 
     rsx! {
         form {
-            class: "bg-gray-800 rounded-lg p-6 shadow-lg",
+            class: "card p-6 shadow-lg",
             onsubmit: handle_submit,
 
-            h2 {
-                class: "text-2xl font-bold mb-6 pb-2 border-b border-gray-700",
-                if is_edit_mode { "Edit Post" } else { "Create New Post" }
+            div { class: "card-header pb-2 mb-6",
+                h2 {
+                    class: "text-2xl font-bold",
+                    if is_edit_mode { "Edit Post" } else { "Create New Post" }
+                }
             }
 
-            div { class: "space-y-4",
+            div { class: "card-body space-y-4",
                 // Title field
                 div { class: "mb-4",
                     label {
-                        class: "block text-sm font-medium text-gray-300 mb-1",
+                        class: "form-label",
                         "Title"
                     }
                     input {
-                        class: "w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-white",
+                        class: "form-input",
                         r#type: "text",
                         value: "{title}",
                         placeholder: "Enter post title",
@@ -72,11 +74,11 @@ pub fn PostForm(
                 // Content field
                 div { class: "mb-4",
                     label {
-                        class: "block text-sm font-medium text-gray-300 mb-1",
+                        class: "form-label",
                         "Content"
                     }
                     textarea {
-                        class: "w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-white min-h-[200px]",
+                        class: "form-input min-h-[200px]",
                         value: "{body}",
                         placeholder: "Enter post content",
                         required: true,
@@ -87,11 +89,11 @@ pub fn PostForm(
                 // Category field
                 div { class: "mb-4",
                     label {
-                        class: "block text-sm font-medium text-gray-300 mb-1",
+                        class: "form-label",
                         "Category (optional)"
                     }
                     input {
-                        class: "w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-white",
+                        class: "form-input",
                         r#type: "text",
                         value: "{category().unwrap_or_default()}",
                         placeholder: "E.g., News, Tutorial, Announcement",
@@ -102,11 +104,11 @@ pub fn PostForm(
                 // Tags field
                 div { class: "mb-4",
                     label {
-                        class: "block text-sm font-medium text-gray-300 mb-1",
+                        class: "form-label",
                         "Tags (comma separated)"
                     }
                     input {
-                        class: "w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-white",
+                        class: "form-input",
                         r#type: "text",
                         value: "{tags_input}",
                         placeholder: "E.g., news, important, featured",
@@ -118,7 +120,7 @@ pub fn PostForm(
                 div { class: "mb-6 flex items-center",
                     label { class: "flex items-center cursor-pointer",
                         input {
-                            class: "mr-2 h-4 w-4",
+                            class: "mr-2 h-4 w-4 accent-blue-500",
                             r#type: "checkbox",
                             checked: "{published}",
                             onchange: move |e| published.set(e.value() == "on")
@@ -130,7 +132,7 @@ pub fn PostForm(
                 // Submit button
                 div { class: "flex justify-end",
                     button {
-                        class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed",
+                        class: "btn btn-lg btn-primary disabled:opacity-50 disabled:cursor-not-allowed",
                         r#type: "submit",
                         disabled: is_submitting,
                         if is_submitting {

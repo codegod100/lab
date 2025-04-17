@@ -16,7 +16,7 @@ pub fn StatsCard(
         "red" => "bg-red-900/20 border-red-500/50",
         _ => "bg-gray-800 border-gray-700",
     };
-    
+
     let icon_class = match color.as_str() {
         "blue" => "text-blue-400",
         "green" => "text-green-400",
@@ -25,20 +25,20 @@ pub fn StatsCard(
         "red" => "text-red-400",
         _ => "text-gray-400",
     };
-    
+
     rsx! {
-        div { 
-            class: "rounded-lg border p-4 shadow-md {bg_class}",
-            
+        div {
+            class: "card border p-4 shadow-md transition-all hover:shadow-lg {bg_class}",
+
             div { class: "flex justify-between items-start",
                 div {
                     h3 { class: "text-sm font-medium text-gray-400", "{title}" }
                     p { class: "text-2xl font-bold mt-1 text-white", "{value}" }
-                    
+
                     if let Some((percentage, is_positive)) = change {
-                        div { 
+                        div {
                             class: "mt-1 flex items-center text-xs",
-                            span { 
+                            span {
                                 class: if is_positive { "text-green-400" } else { "text-red-400" },
                                 if is_positive { "↑" } else { "↓" }
                                 " {percentage:.1}%"
@@ -47,9 +47,9 @@ pub fn StatsCard(
                         }
                     }
                 }
-                
-                div { 
-                    class: "flex h-10 w-10 items-center justify-center rounded-full {icon_class} bg-opacity-10",
+
+                div {
+                    class: "flex h-12 w-12 items-center justify-center rounded-full {icon_class} bg-opacity-20 shadow-md",
                     span { class: "text-xl", "{icon}" }
                 }
             }
