@@ -198,8 +198,26 @@ mod wasm_impl {
 }
 
 // Use the appropriate implementation based on target
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) use native_impl::*;
-
 #[cfg(target_arch = "wasm32")]
 pub(crate) use wasm_impl::*;
+
+// Re-export DB helper functions at the top level for server use
+#[cfg(not(target_arch = "wasm32"))]
+pub use native_impl::{
+    get_all_posts,
+    get_published_posts,
+    get_post_by_id,
+    create_post,
+    update_post,
+    delete_post,
+};
+
+#[cfg(target_arch = "wasm32")]
+pub use wasm_impl::{
+    get_all_posts,
+    get_published_posts,
+    get_post_by_id,
+    create_post,
+    update_post,
+    delete_post,
+};

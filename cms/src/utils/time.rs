@@ -92,6 +92,7 @@ pub fn log_wasm(message: &str) {
 /// Create a fixed timestamp for a specific date
 /// This is useful for creating sample data in WASM environments
 /// where time functionality might be limited
+#[allow(dead_code)]
 pub fn fixed_timestamp(year: i32, month: i32, day: i32) -> u64 {
     #[cfg(target_arch = "wasm32")]
     {

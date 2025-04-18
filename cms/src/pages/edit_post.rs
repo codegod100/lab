@@ -4,8 +4,13 @@ use crate::models::Post;
 use crate::routes::Route;
 use crate::utils::{get_post_by_id_server, update_post_server};
 
+#[derive(Props, PartialEq, Clone)]
+pub struct EditPostProps {
+    pub id: usize,
+}
+
 #[component]
-pub fn EditPost(id: usize) -> Element {
+pub fn EditPost(EditPostProps { id }: EditPostProps) -> Element {
     // Use use_server_future for consistency with posts.rs
     let post = use_server_future(move || get_post_by_id_server(id))?.value();
 
