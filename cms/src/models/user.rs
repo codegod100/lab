@@ -57,6 +57,7 @@ pub static USERS: Lazy<Arc<Mutex<Vec<User>>>> = Lazy::new(|| {
 
 // Helper function to get all users
 // This can be used as a fallback if the static variable is not accessible
+#[allow(dead_code)]
 pub fn get_all_users() -> Vec<User> {
     match USERS.lock() {
         Ok(guard) => guard.clone(),

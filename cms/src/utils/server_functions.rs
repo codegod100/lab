@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
-use crate::models::{Post, User, UserRole, post};
+use crate::models::{Post, User};
+use crate::models::user;
 /* Removed unused imports to reduce warnings */
 
 // Post-related server functions
@@ -9,7 +10,7 @@ pub async fn get_posts_server() -> Result<Vec<Post>, ServerFnError> {
     eprintln!("Attempting to get all posts from database");
 
     // Get posts from the database
-    match post::get_all_posts() {
+    match crate::models::post::get_all_posts() {
         Ok(posts) => {
             eprintln!("Successfully retrieved {} posts", posts.len());
             Ok(posts)
@@ -25,7 +26,7 @@ pub async fn get_posts_server() -> Result<Vec<Post>, ServerFnError> {
 #[server(GetPostByIdServer)]
 pub async fn get_post_by_id_server(id: usize) -> Result<Option<Post>, ServerFnError> {
     // Get post from the database
-    match post::get_post_by_id(id) {
+    match crate::models::post::get_post_by_id(id) {
         Ok(post) => Ok(post),
         Err(e) => {
             eprintln!("Error getting post by id: {}", e);
@@ -41,7 +42,7 @@ pub async fn create_post_server(new_post: Post) -> Result<Post, ServerFnError> {
     eprintln!("create_post_server called with title: {}", new_post.title);
 
     // Create post in the database
-    match post::create_post(new_post.clone()) {
+    match crate::models::post::create_post(new_post.clone()) {
         Ok(post) => Ok(post),
         Err(e) => {
             eprintln!("Error creating post: {}", e);
@@ -58,7 +59,7 @@ pub async fn update_post_server(id: usize, title: Option<String>, body: Option<S
 
     println!("updating post");                            
     // Update post in the database
-    match post::update_post(id, title.clone(), body.clone(), published, category.clone(), tags.clone()) {
+    match crate::models::post::update_post(id, title.clone(), body.clone(), published, category.clone(), tags.clone()) {
         Ok(updated_post) => Ok(updated_post),
         Err(e) => {
             eprintln!("Error updating post: {}", e);
@@ -71,7 +72,7 @@ pub async fn update_post_server(id: usize, title: Option<String>, body: Option<S
 #[server(DeletePostServer)]
 pub async fn delete_post_server(id: usize) -> Result<bool, ServerFnError> {
     // Delete post from the database
-    match post::delete_post(id) {
+    match crate::models::post::delete_post(id) {
         Ok(success) => Ok(success),
         Err(e) => {
             eprintln!("Error deleting post: {}", e);
@@ -84,7 +85,7 @@ pub async fn delete_post_server(id: usize) -> Result<bool, ServerFnError> {
 #[server(GetPublishedPostsServer)]
 pub async fn get_published_posts_server() -> Result<Vec<Post>, ServerFnError> {
     // Get published posts from the database
-    match post::get_published_posts() {
+    match crate::models::post::get_published_posts() {
         Ok(posts) => Ok(posts),
         Err(e) => {
             eprintln!("Error getting published posts: {}", e);
@@ -106,13 +107,13 @@ pub async fn get_users_server() -> Result<Vec<User>, ServerFnError> {
             id: 1,
             username: "testuser".to_string(),
             display_name: "Test User".to_string(),
-            role: UserRole::Viewer,
+            role: crate::models::UserRole::Viewer,
         },
         User {
             id: 2,
             username: "admin".to_string(),
             display_name: "Administrator".to_string(),
-            role: UserRole::Admin,
+            role: crate::models::UserRole::Admin,
         },
     ];
 
@@ -134,7 +135,7 @@ pub async fn get_user_by_id_server(id: usize) -> Result<Option<User>, ServerFnEr
 #[server(GetStatsServer)]
 pub async fn get_stats_server() -> Result<DashboardStats, ServerFnError> {
     // Get posts from the database
-    let posts = match post::get_all_posts() {
+    let posts = match crate::models::post::get_all_posts() {
         Ok(db_posts) => db_posts,
         Err(e) => {
             eprintln!("Error getting posts for stats: {}", e);

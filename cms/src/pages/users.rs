@@ -1,7 +1,6 @@
 use dioxus::prelude::*;
 use crate::models::UserRole;
 use crate::utils::get_users_server;
-use crate::models::User;
 
 // async fn test_users() -> Vec<User> {
 //     let users = vec![

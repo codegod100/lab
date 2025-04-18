@@ -30,15 +30,14 @@ fn get_excerpt(html: &str) -> String {
 #[component]
 pub fn Blog() -> Element {
     // Use use_server_future for posts, matching posts.rs
-    let posts = use_server_future(get_published_posts_server)?.value();
+    let posts_data = use_server_future(get_published_posts_server)?.value();
 
     let mut search_query = use_signal(|| String::new());
     let mut selected_category = use_signal(|| None::<String>);
     let mut selected_tag = use_signal(|| None::<String>);
 
     let filtered_posts = move || {
-        let posts_data = posts();
-        let posts = match posts_data {
+        let posts = match posts_data() {
             Some(Ok(p)) => p,
             _ => return vec![],
         };
@@ -77,8 +76,7 @@ pub fn Blog() -> Element {
     };
 
     let all_categories = move || {
-        let posts_data = posts();
-        let posts = match posts_data {
+        let posts = match posts_data() {
             Some(Ok(p)) => p,
             _ => return vec![],
         };
@@ -91,8 +89,7 @@ pub fn Blog() -> Element {
     };
 
     let all_tags = move || {
-        let posts_data = posts();
-        let posts = match posts_data {
+        let posts = match posts_data() {
             Some(Ok(p)) => p,
             _ => return vec![],
         };
@@ -212,11 +209,11 @@ pub fn Blog() -> Element {
 
             // Posts grid
             div { class: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8",
-                match posts() {
+                match posts_data() {
                     None => {
                         rsx! {
                             div { class: "bg-gray-800 rounded-lg p-8 text-center",
-                                if posts.read().is_none() {
+                                if posts_data.read().is_none() {
                                     div { class: "animate-pulse grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4",
                                         div { class: "h-8 bg-gray-700 rounded w-1/4 mx-auto" }
                                         div { class: "h-64 bg-gray-700 rounded mt-8" }
@@ -239,6 +236,7 @@ pub fn Blog() -> Element {
                         }
                     }
                     Some(Ok(posts)) => {
+                        let _ = &posts; // suppress unused variable warning
                         rsx! {
                             for post in filtered_posts() {
                                 article {

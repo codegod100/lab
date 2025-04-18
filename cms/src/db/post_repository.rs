@@ -357,6 +357,7 @@ fn get_tags_for_posts(
 }
 
 // Migrate in-memory posts to the database
+#[allow(dead_code)]
 pub fn migrate_posts(conn: &mut Connection, posts: &[Post]) -> SqliteResult<()> {
     let tx = conn.transaction()?;
 
