@@ -9,9 +9,19 @@
     file_system: string;
   };
 
+  type ProcessInfo = {
+    name: string;
+    pid: number;
+    cpu_usage: number;
+    memory: number;
+  };
+
   let disks: DiskUsage[] = [];
   let loading = true;
   let error: string | null = null;
+
+  let stats: { cpu_usage: number; total_memory: number; used_memory: number; top_processes: ProcessInfo[]; top_mem_processes: ProcessInfo[] } | null = null;
+  let statsError: string | null = null;
 
   function formatBytes(bytes: number): string {
     if (bytes === 0) return '0 B';
@@ -21,6 +31,33 @@
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
+  function formatGiB(bytes: number): string {
+    return (bytes / 1024 / 1024 / 1024).toFixed(2) + ' GiB';
+  }
+
+  function formatMB(kib: number): string {
+    return (kib / 1024).toFixed(2) + ' MB';
+  }
+
+  function formatProcMem(bytes: number): string {
+    const mb = bytes / 1024 / 1024;
+    if (mb > 1000) {
+      return (mb / 1024).toFixed(2) + ' GB';
+    } else {
+      return mb.toFixed(2) + ' MB';
+    }
+  }
+
+  async function fetchStats() {
+    try {
+      stats = await invoke('get_system_stats');
+      statsError = null;
+    } catch (e) {
+      statsError = 'Failed to fetch system stats.';
+    }
+  }
+
+  let statsInterval: any;
   onMount(async () => {
     try {
       disks = await invoke<DiskUsage[]>('get_disks');
@@ -29,12 +66,61 @@
     } finally {
       loading = false;
     }
+    await fetchStats();
+    statsInterval = setInterval(fetchStats, 1000);
+    return () => clearInterval(statsInterval);
   });
 </script>
 
 <main class="container">
   <h1>💾 Disk Usage Utility</h1>
   <p class="subtitle">See your disk usage at a glance!</p>
+  <div class="system-stats">
+    {#if stats}
+      <div class="stat">
+        <span class="stat-label">CPU Usage:</span>
+        <span class="stat-value">{stats.cpu_usage.toFixed(1)}%</span>
+      </div>
+      <div class="process-list">
+        <span class="stat-label">Top Processes:</span>
+        {#each stats.top_processes.slice(0, 5) as proc, i}
+          <div class="process-row">
+            <span class="proc-rank">{i+1}.</span>
+            <span class="proc-name" title={proc.name}>{proc.name}</span>
+            <span class="proc-pid">({proc.pid})</span>
+            <div class="proc-bar-wrap">
+              <div class="proc-bar" style="width: {proc.cpu_usage}%"></div>
+            </div>
+            <span class="proc-cpu">{proc.cpu_usage.toFixed(1)}%</span>
+          </div>
+        {/each}
+      </div>
+      <div class="process-list">
+        <span class="stat-label">Top Memory Hogs:</span>
+        {#each stats.top_mem_processes.slice(0, 5) as proc, i}
+          <div class="process-row">
+            <span class="proc-rank">{i+1}.</span>
+            <span class="proc-name" title={proc.name}>{proc.name}</span>
+            <span class="proc-pid">({proc.pid})</span>
+            <div class="proc-bar-wrap">
+              <div class="proc-bar mem" style="width: {Math.min(100, (proc.memory / stats.total_memory) * 100)}%"></div>
+            </div>
+            <span class="proc-mem">{formatProcMem(proc.memory)}</span>
+          </div>
+        {/each}
+      </div>
+      <div class="stat">
+        <span class="stat-label">Memory Used:</span>
+        <span class="stat-value">{formatGiB(stats.used_memory)} / {formatGiB(stats.total_memory)}
+          <span style="font-size:0.85em;color:#888;"> (raw: {stats.used_memory} / {stats.total_memory})</span>
+        </span>
+      </div>
+    {:else if statsError}
+      <div class="error">{statsError}</div>
+    {:else}
+      <div class="loading">Loading system stats...</div>
+    {/if}
+  </div>
   {#if loading}
     <div class="loading">Loading disks...</div>
   {:else if error}
@@ -148,6 +234,96 @@ h1 {
   justify-content: space-between;
   font-size: 0.98em;
   color: #444;
+}
+.system-stats {
+  width: 100%;
+  margin-bottom: 2em;
+  background: #23272e;
+  border-radius: 0.8em;
+  padding: 1em 1.5em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7em;
+  box-shadow: 0 1px 6px rgba(36,200,219,0.13);
+  align-items: flex-start;
+}
+.stat {
+  display: flex;
+  gap: 1em;
+  font-size: 1.1em;
+  align-items: center;
+}
+.stat-label {
+  color: #1ec8e7;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.stat-value {
+  font-family: monospace;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px #000a;
+}
+.process-list {
+  margin-top: 1em;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+.process-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  font-size: 0.97em;
+}
+.proc-rank {
+  color: #1ec8e7;
+  font-weight: 700;
+}
+.proc-name {
+  flex: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 10em;
+}
+.proc-pid {
+  color: #888;
+  font-size: 0.95em;
+}
+.proc-bar-wrap {
+  flex: 2;
+  background: #2e3a43;
+  border-radius: 6px;
+  height: 12px;
+  margin: 0 0.5em;
+  overflow: hidden;
+  min-width: 60px;
+  max-width: 160px;
+  display: flex;
+  align-items: center;
+}
+.proc-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #f7b731 0%, #24c8db 100%);
+  border-radius: 6px;
+  transition: width 0.4s;
+}
+.proc-bar.mem {
+  background: linear-gradient(90deg, #f76e6e 0%, #f7b731 100%);
+}
+.proc-cpu {
+  font-family: monospace;
+  color: #fff;
+  font-size: 0.97em;
+  margin-left: 0.4em;
+}
+.proc-mem {
+  font-family: monospace;
+  color: #ffd;
+  font-size: 0.97em;
+  margin-left: 0.4em;
 }
 @media (max-width: 600px) {
   .container { padding: 2vw; }
