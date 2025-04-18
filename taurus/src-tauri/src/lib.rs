@@ -3,6 +3,7 @@ use sysinfo::{CpuExt, DiskExt, PidExt, ProcessExt, System, SystemExt};
 use std::{thread, time::Duration};
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
+use tauri::{Emitter};
 
 #[derive(Serialize)]
 pub struct DiskUsage {
@@ -89,6 +90,18 @@ fn get_system_stats() -> SystemStats {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            let app_handle = app.handle().clone();
+            std::thread::spawn(move || {
+                loop {
+                    let stats = get_system_stats();
+                    // Ignore error for now; in production, handle gracefully
+                    let _ = app_handle.emit("system_stats", &stats);
+                    std::thread::sleep(std::time::Duration::from_secs(2));
+                }
+            });
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![get_disks, get_system_stats])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

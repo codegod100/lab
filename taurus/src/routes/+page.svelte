@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { listen } from '@tauri-apps/api/event';
 
   type DiskUsage = {
     name: string;
@@ -57,7 +58,6 @@
     }
   }
 
-  let statsInterval: any;
   onMount(async () => {
     try {
       disks = await invoke<DiskUsage[]>('get_disks');
@@ -66,9 +66,12 @@
     } finally {
       loading = false;
     }
-    await fetchStats();
-    statsInterval = setInterval(fetchStats, 1000);
-    return () => clearInterval(statsInterval);
+    const unlisten = await listen('system_stats', (event) => {
+      stats = event.payload as typeof stats;
+    });
+    return () => {
+      unlisten();
+    };
   });
 </script>
 
