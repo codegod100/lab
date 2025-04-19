@@ -149,6 +149,14 @@ fn display_long_format(entries: &[DirEntry]) -> io::Result<()> {
         // Format file permissions
         let permissions = metadata.permissions();
         let perm_string = format_permissions(&permissions);
+        #[cfg(unix)]
+        use std::os::unix::fs::PermissionsExt;
+        #[cfg(unix)]
+        let perm_num = permissions.mode() & 0o777;
+        #[cfg(unix)]
+        let perm_display = format!("{} ({:03o})", perm_string.green(), perm_num);
+        #[cfg(not(unix))]
+        let perm_display = perm_string.green().to_string();
 
         // Format file size
         let size = format_size(metadata.len());
@@ -161,7 +169,7 @@ fn display_long_format(entries: &[DirEntry]) -> io::Result<()> {
         let colored_name = colorize_entry(entry, &file_name);
 
         println!("{} {:>8} {} {}{}",
-                 perm_string.green(),
+                 perm_display,
                  size.yellow(),
                  mod_time.blue(),
                  get_icon(entry),
