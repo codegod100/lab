@@ -12,6 +12,7 @@
   let barCount = 64;
   let inputDevices: string[] = [];
   let outputDevices: string[] = [];
+  let cameraAngle = 0;
 
   onMount(async () => {
     // List audio devices for debugging
@@ -76,6 +77,13 @@
 
   function animate() {
     requestAnimationFrame(animate);
+    // Animate camera in a circle for 3D effect
+    cameraAngle += 0.008; // Adjust speed for taste
+    const radius = 40;
+    camera.position.x = Math.cos(cameraAngle) * radius;
+    camera.position.z = Math.sin(cameraAngle) * radius;
+    camera.position.y = Math.sin(cameraAngle * 0.7) * 10 + 10; // slight up/down for more 3D
+    camera.lookAt(0, 0, 0);
     if (audioData && bars.length) {
       // Split audioData into barCount bins
       const binSize = Math.floor(audioData.length / barCount);
