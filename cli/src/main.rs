@@ -123,7 +123,26 @@ fn display_grid_format(entries: &[DirEntry]) -> io::Result<()> {
 
 /// Display entries in a long format (similar to ls -l)
 fn display_long_format(entries: &[DirEntry]) -> io::Result<()> {
-    for entry in entries {
+    // If there are entries, get the parent folder name from the first entry
+    let folder_name = if let Some(first_entry) = entries.first() {
+        if let Some(parent) = first_entry.path().parent() {
+            let parent_str = parent.to_string_lossy().to_string();
+            parent_str
+        } else {
+            String::from(".")
+        }
+    } else {
+        String::from(".")
+    };
+
+    if !entries.is_empty() {
+        println!("\n📁 {}", folder_name.cyan().bold());
+    }
+
+    for (i, entry) in entries.iter().enumerate() {
+        if i > 0 && i % 20 == 0 {
+            println!("\n📁 {}", folder_name.cyan().bold());
+        }
         let metadata = entry.metadata()?;
         let file_name = entry.file_name().to_string_lossy().to_string();
 
@@ -161,10 +180,18 @@ fn display_tree(path: &str, show_hidden: bool, depth: usize) -> io::Result<()> {
         println!("{} {}", get_icon_for_path(path), format_breadcrumbs(path));
     }
 
-    for entry in entries {
+    for (i, entry) in entries.iter().enumerate() {
         let file_name = entry.file_name().to_string_lossy().to_string();
         let colored_name = colorize_entry(&entry, &file_name);
         let entry_path = entry.path().to_string_lossy().to_string();
+
+        // Print folder name every 20 files within a directory
+        if i > 0 && i % 20 == 0 {
+            for _ in 0..depth {
+                print!("│   ");
+            }
+            println!("📁 {}", path.cyan().bold());
+        }
 
         // Print indentation based on depth
         for _ in 0..depth {
