@@ -15,6 +15,16 @@ describe('Option Functor', () => {
     const mappedNone = optionFunctor.map(none, (x: number) => x + 5);
     expect(mappedNone).toEqual({ tag: 'none' });
   });
+
+  it('fails when expecting wrong value for Some', () => {
+    const mappedSome = optionFunctor.map(some, (x: number) => x + 5);
+    expect(() => expect(mappedSome).toEqual({ tag: 'some', value: 999 })).toThrowError();
+  });
+
+  it('fails when expecting wrong tag for None', () => {
+    const mappedNone = optionFunctor.map(none, (x: number) => x + 5);
+    expect(() => expect(mappedNone).toEqual({ tag: 'some', value: 0 })).toThrowError();
+  });
 });
 
 // --- Result Functor Tests ---
@@ -30,6 +40,16 @@ describe('Result Functor', () => {
   it('maps Err correctly', () => {
     const mappedErr = resultFunctor.map(err, (x: number) => x * 2);
     expect(mappedErr).toEqual({ tag: 'err', error: 'fail' });
+  });
+
+  it('fails when expecting wrong value for Ok', () => {
+    const mappedOk = resultFunctor.map(ok, (x: number) => x * 2);
+    expect(() => expect(mappedOk).toEqual({ tag: 'ok', value: 999 })).toThrowError();
+  });
+
+  it('fails when expecting wrong tag for Err', () => {
+    const mappedErr = resultFunctor.map(err, (x: number) => x * 2);
+    expect(() => expect(mappedErr).toEqual({ tag: 'ok', value: 0 })).toThrowError();
   });
 });
 
