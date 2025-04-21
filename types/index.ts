@@ -108,6 +108,27 @@ const promisedUser: Promisify<User> = {
   getProfile: Promise.resolve(async () => 'profile')
 };
 
+// --- Uncovered code for coverage demonstration ---
+/**
+ * This function is intentionally left uncovered by tests.
+ * It throws if called, and is here to demonstrate coverage reporting.
+ */
+export function unreachableCodeDemo(): never {
+  throw new Error('This code should not be covered by tests.');
+}
+
+/**
+ * A function that is not exported and never used.
+ * It is also not covered by tests.
+ * For coverage, we expose it via a __private__ export for testing only.
+ */
+function privateUnusedFunction(): string {
+  return 'I am never called!';
+}
+
+// Expose privateUnusedFunction for test coverage only
+export const __private__ = { privateUnusedFunction };
+
 // --- Exporting all types, interfaces, and instances for testing purposes ---
 export type { HKT, Option, Some, None, Result, Ok, Err, Functor, DeepPartial, Promisify, FunctionsOf, User };
 export { optionFunctor, resultFunctor };

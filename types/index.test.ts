@@ -1,10 +1,34 @@
-import { describe, it, expect } from 'vitest';
-import { optionFunctor, resultFunctor, type Option, type Result, type DeepPartial, type Promisify, type FunctionsOf, type User } from './index';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { 
+  optionFunctor, 
+  resultFunctor, 
+  type Option, 
+  type Result, 
+  type DeepPartial, 
+  type Promisify, 
+  type FunctionsOf, 
+  type User,
+  unreachableCodeDemo
+} from './index';
+
+// --- Mock User and Functions ---
+const mockUser: User = {
+  id: 123,
+  name: 'Mocky',
+  getProfile: vi.fn().mockResolvedValue('mocked profile'),
+};
+
+const mockGetProfile = vi.fn(async () => 'mocked profile');
 
 // --- Option Functor Tests ---
 describe('Option Functor', () => {
-  const some: Option<number> = { tag: 'some', value: 10 };
-  const none: Option<number> = { tag: 'none' };
+  let some: Option<number>;
+  let none: Option<number>;
+
+  beforeEach(() => {
+    some = { tag: 'some', value: 10 };
+    none = { tag: 'none' };
+  });
 
   it('maps Some correctly', () => {
     const mappedSome = optionFunctor.map(some, (x: number) => x + 5);
@@ -29,8 +53,13 @@ describe('Option Functor', () => {
 
 // --- Result Functor Tests ---
 describe('Result Functor', () => {
-  const ok: Result<number, string> = { tag: 'ok', value: 100 };
-  const err: Result<number, string> = { tag: 'err', error: 'fail' };
+  let ok: Result<number, string>;
+  let err: Result<number, string>;
+
+  beforeEach(() => {
+    ok = { tag: 'ok', value: 100 };
+    err = { tag: 'err', error: 'fail' };
+  });
 
   it('maps Ok correctly', () => {
     const mappedOk = resultFunctor.map(ok, (x: number) => x * 2);
@@ -56,8 +85,8 @@ describe('Result Functor', () => {
 // --- DeepPartial Test ---
 describe('DeepPartial', () => {
   it('allows partial objects', () => {
-    const user: DeepPartial<User> = { name: 'Partial', getProfile: async () => 'profile' };
-    expect(user).toEqual({ name: 'Partial', getProfile: expect.any(Function) });
+    const user: DeepPartial<User> = { name: 'Partial', getProfile: mockGetProfile };
+    expect(user).toEqual({ name: 'Partial', getProfile: mockGetProfile });
   });
 });
 
@@ -67,12 +96,12 @@ describe('Promisify', () => {
     const promisedUser: Promisify<User> = {
       id: Promise.resolve(1),
       name: Promise.resolve('Bob'),
-      getProfile: Promise.resolve(async () => 'profile')
+      getProfile: Promise.resolve(mockGetProfile)
     };
     expect(await promisedUser.id).toBe(1);
     expect(await promisedUser.name).toBe('Bob');
     const getProfileFn = await promisedUser.getProfile;
-    expect(await getProfileFn()).toBe('profile');
+    expect(await getProfileFn()).toBe('mocked profile');
   });
 });
 
@@ -80,8 +109,26 @@ describe('Promisify', () => {
 describe('FunctionsOf', () => {
   it('extracts only function properties', () => {
     const userFunctions: FunctionsOf<User> = {
-      getProfile: async () => 'profile',
+      getProfile: mockGetProfile,
     };
     expect(Object.keys(userFunctions)).toEqual(['getProfile']);
+    // Call the mock to verify it's a mock
+    userFunctions.getProfile();
+    expect(mockGetProfile).toHaveBeenCalled();
+  });
+});
+
+describe('unreachableCodeDemo', () => {
+  it('throws an error when called', () => {
+    expect(() => {
+      unreachableCodeDemo();
+    }).toThrowError('This code should not be covered by tests.');
+  });
+});
+
+describe('privateUnusedFunction', () => {
+  it('returns the expected string', async () => {
+    const mod = await import('./index');
+    expect(mod.__private__.privateUnusedFunction()).toBe('I am never called!');
   });
 });
