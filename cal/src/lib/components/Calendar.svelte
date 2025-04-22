@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isToday, isSameMonth, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+  import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isToday, isSameMonth, isWithinInterval, startOfDay, endOfDay, getHours, getMinutes } from 'date-fns';
   import type { CalendarEvent } from '$lib/types/calendar';
   import EventDetails from './EventDetails.svelte';
 
@@ -48,9 +48,9 @@
       if (isMidnight && isEndDay) {
         return false;
       }
-      const withinInterval = isWithinInterval(day, { 
-        start: startOfDay(eventStart), 
-        end: isMidnight ? endOfDay(new Date(eventEnd.getTime() - 1)) : endOfDay(eventEnd) 
+      const withinInterval = isWithinInterval(day, {
+        start: startOfDay(eventStart),
+        end: isMidnight ? endOfDay(new Date(eventEnd.getTime() - 1)) : endOfDay(eventEnd)
       });
       console.dir([day, eventStart, eventEnd, withinInterval]);
       // Check if the day is within the event's time range
@@ -62,6 +62,35 @@
 
     console.dir({ day: format(day, 'yyyy-MM-dd'), events: dayEvents }, { depth: null });
     return dayEvents;
+  }
+
+  // Calculate position and height for non-all-day events
+  function getEventTimePosition(event: CalendarEvent, day: Date): { top: number, height: number } {
+    const eventStart = new Date(event.start);
+    const eventEnd = new Date(event.end);
+    const dayStart = startOfDay(day);
+    const dayEnd = endOfDay(day);
+
+    // Adjust start and end times to be within the current day
+    const startTime = eventStart < dayStart ? dayStart : eventStart;
+    const endTime = eventEnd > dayEnd ? dayEnd : eventEnd;
+
+    // Calculate position as percentage of day
+    const dayMinutes = 24 * 60; // minutes in a day
+    const startMinutes = getHours(startTime) * 60 + getMinutes(startTime);
+    const endMinutes = getHours(endTime) * 60 + getMinutes(endTime);
+
+    const top = (startMinutes / dayMinutes) * 100;
+    // Ensure minimum height for very short events
+    const calculatedHeight = ((endMinutes - startMinutes) / dayMinutes) * 100;
+    const height = Math.max(calculatedHeight, 3); // Minimum height of 3%
+
+    return { top, height };
+  }
+
+  // Format time for display
+  function formatEventTime(date: Date): string {
+    return format(date, 'HH:mm');
   }
 
   function selectEvent(event: CalendarEvent) {
@@ -101,15 +130,40 @@
             <div class="day {isToday(day) ? 'today' : ''} {!isSameMonth(day, currentDate) ? 'other-month' : ''}">
               <div class="day-number">{format(day, 'd')}</div>
               <div class="day-events">
-                {#each getEventsForDay(day) as event}
+                <!-- All-day events at the top -->
+                {#each getEventsForDay(day).filter(event => event.allDay) as event}
                   <button
-                    class="event"
+                    class="event all-day-event"
                     style="background-color: {event.color || '#4285f4'};"
                     on:click={() => selectEvent(event)}
                   >
                     {event.title}
                   </button>
                 {/each}
+
+                <!-- Timeline for non-all-day events -->
+                <div class="day-timeline">
+                  <!-- Time markers -->
+                  <div class="time-marker" style="top: 25%;"><span>06:00</span></div>
+                  <div class="time-marker" style="top: 50%;"><span>12:00</span></div>
+                  <div class="time-marker" style="top: 75%;"><span>18:00</span></div>
+
+                  {#each getEventsForDay(day).filter(event => !event.allDay) as event}
+                    {@const position = getEventTimePosition(event, day)}
+                    <button
+                      class="event timeline-event"
+                      style="
+                        background-color: {event.color || '#4285f4'};
+                        top: {position.top}%;
+                        height: {position.height}%;
+                      "
+                      on:click={() => selectEvent(event)}
+                    >
+                      <span class="event-time">{formatEventTime(new Date(event.start))}</span>
+                      {event.title}
+                    </button>
+                  {/each}
+                </div>
               </div>
             </div>
           {/each}
@@ -176,7 +230,7 @@
   }
 
   .day {
-    min-height: 100px;
+    min-height: 150px;
     padding: 0.5rem;
     border-right: 1px solid #e0e0e0;
     position: relative;
@@ -206,6 +260,33 @@
     gap: 0.25rem;
   }
 
+  .day-timeline {
+    position: relative;
+    height: 100px;
+    margin-top: 0.5rem;
+    border-top: 1px dashed #e0e0e0;
+    background: linear-gradient(to bottom, rgba(240, 240, 240, 0.3) 0%, rgba(240, 240, 240, 0.3) 25%, transparent 25%, transparent 50%, rgba(240, 240, 240, 0.3) 50%, rgba(240, 240, 240, 0.3) 75%, transparent 75%, transparent 100%);
+  }
+
+  .time-marker {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    border-top: 1px dotted #ccc;
+    pointer-events: none;
+  }
+
+  .time-marker span {
+    position: absolute;
+    top: -8px;
+    left: 0;
+    font-size: 0.6rem;
+    color: #999;
+    background-color: rgba(255, 255, 255, 0.7);
+    padding: 0 2px;
+  }
+
   .event {
     padding: 0.25rem;
     border-radius: 2px;
@@ -215,5 +296,30 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .all-day-event {
+    margin-bottom: 0.25rem;
+  }
+
+  .timeline-event {
+    position: absolute;
+    left: 0;
+    right: 0;
+    margin: 0 0.25rem;
+    min-height: 1.5rem;
+    z-index: 1;
+    border-left: 3px solid rgba(0, 0, 0, 0.2);
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    padding-left: 0.35rem;
+  }
+
+  .event-time {
+    font-size: 0.65rem;
+    font-weight: bold;
+    margin-right: 0.25rem;
+    white-space: nowrap;
   }
 </style>
