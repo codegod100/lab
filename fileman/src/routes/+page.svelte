@@ -4,26 +4,31 @@
   import SplitPane from '../lib/components/SplitPane.svelte';
   import Sidebar from '../lib/components/Sidebar.svelte';
   import FileList from '../lib/components/FileList.svelte';
+  import FileContent from '../lib/components/FileContent.svelte';
   import PathBar from '../lib/components/PathBar.svelte';
-  import Toolbar from '../lib/components/Toolbar.svelte';
   import ContextMenu from '../lib/components/ContextMenu.svelte';
-  import { fileSystem, type FileItem } from '../lib/stores/fs';
+  import AppLayout from '../lib/components/AppLayout.svelte';
+  import { fileSystem, leftPaneFS, rightPaneFS, type FileItem } from '../lib/stores/fs';
+  import { get } from 'svelte/store';
   import { settings } from '../lib/stores/settings';
 
   // State for context menu
-  let contextMenuVisible = $state(false);
-  let contextMenuX = $state(0);
-  let contextMenuY = $state(0);
-  let contextMenuItems = $state<FileItem[]>([]);
-  let isBackgroundContextMenu = $state(false);
+  let contextMenuVisible = false;
+  let contextMenuX = 0;
+  let contextMenuY = 0;
+  let contextMenuItems: FileItem[] = [];
+  let isBackgroundContextMenu = false;
 
-  // State for clipboard
-  let clipboardItems = $state<FileItem[]>([]);
-  let clipboardOperation = $state<'cut' | 'copy' | null>(null);
+  // State for clipboard and active file system
+  let clipboardItems: FileItem[] = [];
+  let clipboardOperation: 'cut' | 'copy' | null = null;
+  let activeFS = leftPaneFS; // Track which file system is active for context menu operations
 
-  // Initialize file system on mount
+  // Initialize file systems on mount
   onMount(() => {
-    fileSystem.init();
+    // Initialize both file system instances
+    leftPaneFS.init();
+    rightPaneFS.init();
 
     // Add keyboard shortcuts
     document.addEventListener('keydown', handleKeyDown);
@@ -70,18 +75,37 @@
 
     // F2: Rename
     if (event.key === 'F2') {
-      if ($fileSystem.selectedItems.size === 1) {
-        const selectedPath = Array.from($fileSystem.selectedItems)[0];
-        const item = $fileSystem.items.find(i => i.path === selectedPath);
+      // Use the active file system or check both if none is active
+      const fsState = get(activeFS || leftPaneFS);
+      if (fsState.selectedItems.size === 1) {
+        const selectedPath = Array.from(fsState.selectedItems)[0];
+        const item = fsState.items.find(i => i.path === selectedPath);
         if (item) {
           handleRename(item);
+        }
+      } else if (!activeFS) {
+        // If no active FS and nothing selected in left pane, try right pane
+        const rightState = get(rightPaneFS);
+        if (rightState.selectedItems.size === 1) {
+          const selectedPath = Array.from(rightState.selectedItems)[0];
+          const item = rightState.items.find(i => i.path === selectedPath);
+          if (item) {
+            activeFS = rightPaneFS;
+            handleRename(item);
+          }
         }
       }
     }
 
     // F5: Refresh
     if (event.key === 'F5') {
-      fileSystem.refreshCurrentDirectory();
+      // Refresh the active file system or both if none is active
+      if (activeFS) {
+        activeFS.refreshCurrentDirectory();
+      } else {
+        leftPaneFS.refreshCurrentDirectory();
+        rightPaneFS.refreshCurrentDirectory();
+      }
     }
   }
 
@@ -90,7 +114,10 @@
     const { item } = event.detail;
 
     try {
-      await invoke('plugin:opener:open', { path: item.path });
+      // Just display file info for now since we don't have the shell plugin
+      const content = await invoke<string>('get_file_content', { path: item.path, maxSize: 1024 * 1024 });
+      console.log(`File content preview: ${content.substring(0, 100)}...`);
+      alert(`File: ${item.name}\nSize: ${item.size} bytes\nPath: ${item.path}`);
     } catch (error) {
       console.error('Failed to open file:', error);
       alert(`Failed to open file: ${error}`);
@@ -99,24 +126,30 @@
 
   // Handle context menu for items
   function handleContextMenu(event: CustomEvent) {
-    const { items, x, y } = event.detail;
+    const { items, x, y, fs } = event.detail;
 
     contextMenuItems = items;
     contextMenuX = x;
     contextMenuY = y;
     contextMenuVisible = true;
     isBackgroundContextMenu = false;
+
+    // Store the active file system for context menu operations
+    activeFS = fs || leftPaneFS;
   }
 
   // Handle context menu for background
   function handleBackgroundContextMenu(event: CustomEvent) {
-    const { x, y } = event.detail;
+    const { x, y, fs } = event.detail;
 
     contextMenuItems = [];
     contextMenuX = x;
     contextMenuY = y;
     contextMenuVisible = true;
     isBackgroundContextMenu = true;
+
+    // Store the active file system for context menu operations
+    activeFS = fs || leftPaneFS;
   }
 
   // Handle cut operation
@@ -150,10 +183,11 @@
     if (clipboardItems.length === 0 || !clipboardOperation) return;
 
     try {
+      const currentPath = get(activeFS).currentPath;
       if (clipboardOperation === 'cut') {
-        await fileSystem.moveSelected($fileSystem.currentPath);
+        await activeFS.moveSelected(currentPath);
       } else {
-        await fileSystem.copySelected($fileSystem.currentPath);
+        await activeFS.copySelected(currentPath);
       }
 
       // Clear clipboard after cut operation
@@ -169,14 +203,15 @@
 
   // Handle delete operation
   function handleDelete() {
-    if ($fileSystem.selectedItems.size === 0) return;
+    const state = get(activeFS);
+    if (state.selectedItems.size === 0) return;
 
-    const confirmMessage = $fileSystem.selectedItems.size === 1
+    const confirmMessage = state.selectedItems.size === 1
       ? 'Are you sure you want to delete the selected item?'
-      : `Are you sure you want to delete ${$fileSystem.selectedItems.size} items?`;
+      : `Are you sure you want to delete ${state.selectedItems.size} items?`;
 
     if (confirm(confirmMessage)) {
-      fileSystem.deleteSelected(true);
+      activeFS.deleteSelected(true);
     }
   }
 
@@ -184,73 +219,103 @@
   function handleRename(item: FileItem) {
     const newName = prompt('Enter new name:', item.name);
     if (newName && newName !== item.name) {
-      fileSystem.renameItem(item.path, newName);
+      activeFS.renameItem(item.path, newName);
     }
   }
 </script>
 
-<main class="file-manager">
-  <div class="app-layout">
+<AppLayout
+  contextMenuVisible={contextMenuVisible}
+  contextMenuX={contextMenuX}
+  contextMenuY={contextMenuY}
+  contextMenuItems={contextMenuItems}
+  isBackgroundContextMenu={isBackgroundContextMenu}
+  onContextMenuClose={() => contextMenuVisible = false}
+  onCut={handleCut}
+  onCopy={handleCopy}
+  onPaste={handlePaste}
+  onOpen={handleFileOpen}
+>
+  <div class="file-manager">
     {#if $settings.splitView}
-      <SplitPane direction="horizontal" initialSplit={20}>
+      <SplitPane direction="horizontal" initialSplit={15}>
         <div slot="first" class="sidebar-container">
           <Sidebar />
         </div>
 
         <div slot="second" class="content-container">
-          <div class="toolbar-container">
-            <Toolbar selectedCount={$fileSystem.selectedItems.size} />
-          </div>
-
-          <div class="path-bar-container">
-            <PathBar path={$fileSystem.currentPath} />
-          </div>
-
           <SplitPane direction="horizontal" initialSplit={50}>
-            <div slot="first" class="file-list-container">
-              <FileList
-                items={$fileSystem.items}
-                selectedItems={$fileSystem.selectedItems}
-                path={$fileSystem.currentPath}
-                on:open={handleFileOpen}
-                on:contextmenu={handleContextMenu}
-                on:backgroundcontextmenu={handleBackgroundContextMenu}
-              />
+            <div slot="first" class="split-pane-container">
+              <div class="pane-fixed-header">
+                <div class="path-bar-container">
+                  <PathBar path={$leftPaneFS.currentPath} fs={leftPaneFS} />
+                </div>
+              </div>
+              <div class="pane-fixed-controls">
+                <FileList pane="left" />
+              </div>
+              <div class="pane-scrollable-content" style="height: calc(100% - 76px);">
+                <FileContent
+                  items={$leftPaneFS.items}
+                  selectedItems={$leftPaneFS.selectedItems}
+                  path={$leftPaneFS.currentPath}
+                  fs={leftPaneFS}
+                  pane="left"
+                  on:open={handleFileOpen}
+                  on:contextmenu={handleContextMenu}
+                  on:backgroundcontextmenu={handleBackgroundContextMenu}
+                />
+              </div>
             </div>
 
-            <div slot="second" class="file-list-container">
-              <FileList
-                items={$fileSystem.items}
-                selectedItems={$fileSystem.selectedItems}
-                path={$fileSystem.currentPath}
-                on:open={handleFileOpen}
-                on:contextmenu={handleContextMenu}
-                on:backgroundcontextmenu={handleBackgroundContextMenu}
-              />
+            <div slot="second" class="split-pane-container">
+              <div class="pane-fixed-header">
+                <div class="path-bar-container">
+                  <PathBar path={$rightPaneFS.currentPath} fs={rightPaneFS} />
+                </div>
+              </div>
+              <div class="pane-fixed-controls">
+                <FileList pane="right" />
+              </div>
+              <div class="pane-scrollable-content" style="height: calc(100% - 76px);">
+                <FileContent
+                  items={$rightPaneFS.items}
+                  selectedItems={$rightPaneFS.selectedItems}
+                  path={$rightPaneFS.currentPath}
+                  fs={rightPaneFS}
+                  pane="right"
+                  on:open={handleFileOpen}
+                  on:contextmenu={handleContextMenu}
+                  on:backgroundcontextmenu={handleBackgroundContextMenu}
+                />
+              </div>
             </div>
           </SplitPane>
         </div>
       </SplitPane>
     {:else}
-      <SplitPane direction="horizontal" initialSplit={20}>
+      <SplitPane direction="horizontal" initialSplit={15}>
         <div slot="first" class="sidebar-container">
           <Sidebar />
         </div>
 
         <div slot="second" class="content-container">
-          <div class="toolbar-container">
-            <Toolbar selectedCount={$fileSystem.selectedItems.size} />
+          <div class="pane-fixed-header">
+            <div class="path-bar-container">
+              <PathBar path={$leftPaneFS.currentPath} fs={leftPaneFS} />
+            </div>
+          </div>
+          <div class="pane-fixed-controls">
+            <FileList pane="left" />
           </div>
 
-          <div class="path-bar-container">
-            <PathBar path={$fileSystem.currentPath} />
-          </div>
-
-          <div class="file-list-container">
-            <FileList
-              items={$fileSystem.items}
-              selectedItems={$fileSystem.selectedItems}
-              path={$fileSystem.currentPath}
+          <div class="pane-scrollable-content" style="height: calc(100% - 76px);">
+            <FileContent
+              items={$leftPaneFS.items}
+              selectedItems={$leftPaneFS.selectedItems}
+              path={$leftPaneFS.currentPath}
+              fs={leftPaneFS}
+              pane="left"
               on:open={handleFileOpen}
               on:contextmenu={handleContextMenu}
               on:backgroundcontextmenu={handleBackgroundContextMenu}
@@ -261,19 +326,7 @@
     {/if}
   </div>
 
-  <ContextMenu
-    visible={contextMenuVisible}
-    x={contextMenuX}
-    y={contextMenuY}
-    items={contextMenuItems}
-    isBackground={isBackgroundContextMenu}
-    on:close={() => contextMenuVisible = false}
-    on:cut={handleCut}
-    on:copy={handleCopy}
-    on:paste={handlePaste}
-    on:open={handleFileOpen}
-  />
-</main>
+</AppLayout>
 
 <style>
   :global(html, body) {
@@ -289,6 +342,14 @@
     color: #333;
   }
 
+  /* Remove any potential white borders */
+  :global(#app) {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+  }
+
   :global(.material-symbols-outlined) {
     font-variation-settings:
       'FILL' 0,
@@ -300,14 +361,8 @@
   .file-manager {
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    width: 100vw;
-    overflow: hidden;
-  }
-
-  .app-layout {
-    flex: 1;
-    display: flex;
+    height: 100%;
+    width: 100%;
     overflow: hidden;
   }
 
@@ -320,27 +375,82 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    overflow: hidden;
+    position: relative;
+    overflow: visible;
   }
 
-  .toolbar-container {
+  .split-pane-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #f6f6f6;
+    position: relative;
+    overflow: visible;
+  }
+
+  .pane-fixed-header {
     flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+    background-color: #f5f5f5;
+    border-bottom: 1px solid #ddd;
   }
 
   .path-bar-container {
     flex-shrink: 0;
+    background-color: #f5f5f5;
   }
 
-  .file-list-container {
+  .pane-fixed-controls {
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+    background-color: #f5f5f5;
+    border-bottom: 1px solid #ddd;
+  }
+
+  .pane-fixed-controls :global(.view-mode-controls) {
+    border-bottom: none;
+  }
+
+  .pane-scrollable-content {
     flex: 1;
     overflow: hidden;
+    background-color: #fff;
+    position: relative;
+    z-index: 1; /* Ensure content is below fixed headers */
+    min-height: 100px; /* Ensure there's enough space for the file list */
   }
+
+
 
   /* Dark mode */
   @media (prefers-color-scheme: dark) {
     :global(body) {
       background-color: #1e1e1e;
       color: #eee;
+    }
+
+    .split-pane-container {
+      background-color: #1e1e1e;
+    }
+
+    .pane-fixed-header {
+      background-color: #252525;
+      border-bottom: 1px solid #444;
+    }
+
+    .path-bar-container {
+      background-color: #252525;
+    }
+
+    .pane-fixed-controls {
+      background-color: #252525;
+      border-bottom: 1px solid #444;
+    }
+
+    .pane-scrollable-content {
+      background-color: #1e1e1e;
     }
   }
 </style>
