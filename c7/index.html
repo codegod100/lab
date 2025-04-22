@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bun vs Deno Comparison</title>
+    <style>
+        :root {
+            --bun-color: #fbf0df;
+            --bun-accent: #ff5d01;
+            --deno-color: #e8f9fd;
+            --deno-accent: #3178c6;
+            --neutral: #f5f5f5;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        
+        header {
+            background: linear-gradient(135deg, var(--bun-accent), var(--deno-accent));
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 2.5rem;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .intro {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .category {
+            background-color: var(--neutral);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+        
+        .category h2 {
+            margin-top: 0;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 0.5rem;
+        }
+        
+        .comparison-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .comparison-item {
+            padding: 1.5rem;
+            border-radius: 6px;
+        }
+        
+        .bun {
+            background-color: var(--bun-color);
+            border-left: 4px solid var(--bun-accent);
+        }
+        
+        .deno {
+            background-color: var(--deno-color);
+            border-left: 4px solid var(--deno-accent);
+        }
+        
+        .title-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .title-item {
+            text-align: center;
+            font-weight: bold;
+            padding: 0.5rem;
+            border-radius: 4px;
+            color: white;
+        }
+        
+        .bun-title {
+            background-color: var(--bun-accent);
+        }
+        
+        .deno-title {
+            background-color: var(--deno-accent);
+        }
+        
+        pre {
+            background-color: #f1f1f1;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 0.9rem;
+        }
+        
+        code {
+            font-family: 'Courier New', Courier, monospace;
+        }
+        
+        .summary {
+            background-color: var(--neutral);
+            padding: 2rem;
+            border-radius: 8px;
+            margin-top: 2rem;
+        }
+        
+        .summary h2 {
+            margin-top: 0;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 2rem;
+            background-color: #333;
+            color: white;
+            margin-top: 3rem;
+        }
+        
+        @media (max-width: 768px) {
+            .comparison-grid, .comparison-row, .title-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Bun vs Deno</h1>
+        <p>A comprehensive comparison of modern JavaScript runtimes</p>
+    </header>
+    
+    <div class="container">
+        <section class="intro">
+            <h2>Modern JavaScript Runtimes</h2>
+            <p>Both Bun and Deno represent the next generation of JavaScript runtimes, each with unique approaches to performance, security, and developer experience.</p>
+        </section>
+        
+        <div class="title-row">
+            <div class="title-item bun-title">Bun</div>
+            <div class="title-item deno-title">Deno</div>
+        </div>
+        
+        <section class="category">
+            <h2>Overview</h2>
+            <div class="comparison-row">
+                <div class="comparison-item bun">
+                    <h3>Bun</h3>
+                    <p>An all-in-one JavaScript runtime, bundler, test runner, and package manager focused on speed and developer experience.</p>
+                    <p>Built on JavaScriptCore (Safari's JS engine) with a focus on performance and compatibility.</p>
+                </div>
+                <div class="comparison-item deno">
+                    <h3>Deno</h3>
+                    <p>A secure JavaScript/TypeScript runtime built with a focus on security, modern web standards, and developer productivity.</p>
+                    <p>Built on V8 (Chrome's JS engine) with a focus on security and web standards.</p>
+                </div>
+            </div>
+        </section>
+        
+        <section class="category">
+            <h2>Installation</h2>
+            <div class="comparison-row">
+                <div class="comparison-item bun">
+                    <h3>Bun Installation</h3>
+                    <pre><code># Mac/Linux
+curl -fsSL https://bun.sh/install | bash
+
+# Windows (via npm)
+npm install -g bun</code></pre>
+                </div>
+                <div class="comparison-item deno">
+                    <h3>Deno Installation</h3>
+                    <pre><code># Mac/Linux
+curl -fsSL https://deno.land/install.sh | sh
+
+# Windows (PowerShell)
+irm https://deno.land/install.ps1 | iex
+
+# Windows (WinGet)
+winget install --id=DenoLand.Deno</code></pre>
+                </div>
+            </div>
+        </section>
+        
+        <section class="category">
+            <h2>Web Server Implementation</h2>
+            <div class="comparison-row">
+                <div class="comparison-item bun">
+                    <h3>Bun Server</h3>
+                    <pre><code>// server.ts
+Bun.serve({
+  fetch(req) {
+    return new Response("Hello from Bun!");
+  },
+  port: 3000
+});</code></pre>
+                </div>
+                <div class="comparison-item deno">
+                    <h3>Deno Server</h3>
+                    <pre><code>// server.ts
+Deno.serve((_req: Request) => {
+  return new Response("Hello from Deno!");
+});</code></pre>
+                </div>
+            </div>
+        </section>
+        
+        <section class="category">
+            <h2>Package Management</h2>
+            <div class="comparison-row">
+                <div class="comparison-item bun">
+                    <h3>Bun Package Management</h3>
+                    <p>Uses a built-in package manager with npm compatibility.</p>
+                    <pre><code># Install dependencies
+bun install
+
+# Add a package
+bun add react
+
+# Run a script
+bun run start</code></pre>
+                    <p>Uses standard package.json for dependency management.</p>
+                </div>
+                <div class="comparison-item deno">
+                    <h3>Deno Package Management</h3>
+                    <p>Uses URL imports instead of a package manager.</p>
+                    <pre><code>// Direct URL imports
+import { serve } from "https://deno.land/std/http/server.ts";
+
+// npm compatibility (Deno 1.28+)
+import express from "npm:express@4.18.2";</code></pre>
+                    <p>No package.json needed; dependencies are cached on first download.</p>
+                </div>
+            </div>
+        </section>
+        
+        <section class="category">
+            <h2>Security Model</h2>
+            <div class="comparison-row">
+                <div class="comparison-item bun">
+                    <h3>Bun Security</h3>
+                    <p>Similar to Node.js with minimal security restrictions by default.</p>
+                    <p>Requires explicit permission flags for some operations but generally less restrictive.</p>
+                    <pre><code># Some operations may require flags
+bun run --allow-ffi script.ts</code></pre>
+                </div>
+                <div class="comparison-item deno">
+                    <h3>Deno Security</h3>
+                    <p>Secure by default with explicit permission system.</p>
+                    <p>Requires flags for file, network, and environment access.</p>
+                    <pre><code># Run with network access
+deno run --allow-net server.ts
+
+# Run with file access
+deno run --allow-read --allow-write file.ts
+
+# Run with all permissions (not recommended)
+deno run --allow-all script.ts</code></pre>
+                </div>
+            </div>
+        </section>
+        
+        <section class="category">
+            <h2>TypeScript Support</h2>
+            <div class="comparison-row">
+                <div class="comparison-item bun">
+                    <h3>Bun TypeScript</h3>
+                    <p>Native TypeScript and JSX support without configuration.</p>
+                    <p>Fast transpilation integrated with the runtime.</p>
+                    <pre><code>// Just run TypeScript directly
+bun run app.ts
+
+// TypeScript with JSX
+bun run component.tsx</code></pre>
+                </div>
+                <div class="comparison-item deno">
+                    <h3>Deno TypeScript</h3>
+                    <p>First-class TypeScript support built into the runtime.</p>
+                    <p>No tsconfig needed by default, but can be customized.</p>
+                    <pre><code>// Run TypeScript directly
+deno run app.ts
+
+// Type checking
+deno check app.ts</code></pre>
+                </div>
+            </div>
+        </section>
+        
+        <section class="category">
+            <h2>Testing</h2>
+            <div class="comparison-row">
+                <div class="comparison-item bun">
+                    <h3>Bun Testing</h3>
+                    <pre><code>// test.ts
+import { test, expect } from "bun:test";
+
+test("addition works", () => {
+  expect(1 + 1).toBe(2);
+});
+
+// Run with: bun test</code></pre>
+                </div>
+                <div class="comparison-item deno">
+                    <h3>Deno Testing</h3>
+                    <pre><code>// test.ts
+import { assertEquals } from "https://deno.land/std/testing/asserts.ts";
+
+Deno.test("addition works", () => {
+  assertEquals(1 + 1, 2);
+});
+
+// Run with: deno test</code></pre>
+                </div>
+            </div>
+        </section>
+        
+        <section class="category">
+            <h2>File System Access</h2>
+            <div class="comparison-row">
+                <div class="comparison-item bun">
+                    <h3>Bun File System</h3>
+                    <pre><code>// Reading a file
+const content = await Bun.file("file.txt").text();
+
+// Writing a file
+await Bun.write("output.txt", "Hello, world!");</code></pre>
+                </div>
+                <div class="comparison-item deno">
+                    <h3>Deno File System</h3>
+                    <pre><code>// Reading a file (requires --allow-read)
+const content = await Deno.readTextFile("file.txt");
+
+// Writing a file (requires --allow-write)
+await Deno.writeTextFile("output.txt", "Hello, world!");</code></pre>
+                </div>
+            </div>
+        </section>
+        
+        <section class="category">
+            <h2>Performance</h2>
+            <div class="comparison-row">
+                <div class="comparison-item bun">
+                    <h3>Bun Performance</h3>
+                    <p>Extremely fast startup and execution times.</p>
+                    <p>Built on JavaScriptCore for optimal performance.</p>
+                    <p>Optimized for speed in all operations including package installation, bundling, and runtime execution.</p>
+                </div>
+                <div class="comparison-item deno">
+                    <h3>Deno Performance</h3>
+                    <p>Good performance with focus on security.</p>
+                    <p>Built on V8 engine with additional security layers.</p>
+                    <p>Slightly slower startup than Bun due to security checks, but still faster than Node.js in many cases.</p>
+                </div>
+            </div>
+        </section>
+        
+        <section class="summary">
+            <h2>Which One Should You Choose?</h2>
+            <div class="comparison-row">
+                <div class="comparison-item bun">
+                    <h3>Choose Bun if:</h3>
+                    <ul>
+                        <li>Raw performance is your top priority</li>
+                        <li>You need high Node.js compatibility</li>
+                        <li>You want an all-in-one tool (runtime, bundler, package manager)</li>
+                        <li>You prefer minimal configuration</li>
+                        <li>You're building performance-critical applications</li>
+                    </ul>
+                </div>
+                <div class="comparison-item deno">
+                    <h3>Choose Deno if:</h3>
+                    <ul>
+                        <li>Security is a major concern</li>
+                        <li>You prefer web standard APIs</li>
+                        <li>You want a more structured approach to permissions</li>
+                        <li>You like URL-based imports without package.json</li>
+                        <li>You value a stable, mature ecosystem</li>
+                    </ul>
+                </div>
+            </div>
+            <p>Both runtimes are actively developed and represent modern approaches to JavaScript/TypeScript execution, with different priorities and design philosophies.</p>
+        </section>
+    </div>
+    
+    <footer>
+        <p>Bun vs Deno Comparison - Created with ❤️ for JavaScript developers</p>
+        <p><small>Last updated: 2023</small></p>
+    </footer>
+</body>
+</html>
