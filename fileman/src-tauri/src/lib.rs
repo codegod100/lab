@@ -22,7 +22,8 @@ pub fn run() {
             copy_item,
             get_home_dir,
             get_drives,
-            get_file_content
+            get_file_content,
+            get_platform
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
