@@ -12,6 +12,7 @@ fn greet(name: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_clipboard::init())
         .invoke_handler(tauri::generate_handler![
             greet,
             list_directory,
@@ -23,7 +24,8 @@ pub fn run() {
             get_home_dir,
             get_drives,
             get_file_content,
-            get_platform
+            get_platform,
+            copy_paths_to_clipboard
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

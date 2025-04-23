@@ -2,6 +2,7 @@
   import { onMount, createEventDispatcher } from 'svelte';
   import type { FileItem } from '../stores/fs';
   import { fileSystem, FileType } from '../stores/fs';
+  import { invoke } from '@tauri-apps/api/core';
 
   export let x = 0;
   export let y = 0;
@@ -43,6 +44,46 @@
 
   function handleCopy() {
     dispatch('copy', { items });
+    closeMenu();
+  }
+
+  function handleCopyPath() {
+    if (items.length > 0) {
+      const paths = items.map(item => item.path);
+
+      // Call the Rust function for logging purposes
+      invoke('copy_paths_to_clipboard', { paths })
+        .then(() => {
+          console.log('Copied paths to clipboard');
+
+          // Show a brief notification
+          const notification = document.createElement('div');
+          notification.className = 'notification';
+          notification.textContent = 'Path copied to clipboard';
+          document.body.appendChild(notification);
+          setTimeout(() => {
+            if (notification.parentNode) {
+              document.body.removeChild(notification);
+            }
+          }, 2000);
+
+          // Use the browser's clipboard API if available
+          if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(paths.join('\n'))
+              .then(() => console.log('Copied using browser API'))
+              .catch(clipErr => console.error('Browser clipboard failed:', clipErr));
+          }
+        })
+        .catch(err => {
+          console.error('Failed to copy paths:', err);
+          // Fallback: Use the browser's clipboard API if available
+          if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(paths.join('\n'))
+              .then(() => console.log('Copied using browser API'))
+              .catch(clipErr => console.error('Browser clipboard failed:', clipErr));
+          }
+        });
+    }
     closeMenu();
   }
 
@@ -166,6 +207,11 @@
         <span>Copy</span>
       </button>
 
+      <button class="menu-item" on:click={handleCopyPath}>
+        <span class="material-symbols-outlined">link</span>
+        <span>Copy Path</span>
+      </button>
+
       {#if items.length === 1}
         <button class="menu-item" on:click={handleRename}>
           <span class="material-symbols-outlined">drive_file_rename</span>
@@ -230,6 +276,27 @@
     margin: 4px 0;
   }
 
+  /* Notification */
+  .notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: #4caf50;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    z-index: 2000;
+    animation: fadeInOut 2s ease-in-out;
+  }
+
+  @keyframes fadeInOut {
+    0% { opacity: 0; transform: translateY(20px); }
+    10% { opacity: 1; transform: translateY(0); }
+    90% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-20px); }
+  }
+
   /* Dark mode */
   @media (prefers-color-scheme: dark) {
     .context-menu {
@@ -245,6 +312,11 @@
 
     .menu-divider {
       background-color: #444;
+    }
+
+    .notification {
+      background-color: #388e3c;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
     }
   }
 </style>
