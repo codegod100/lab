@@ -18,35 +18,6 @@
   let isDraggingOver = false;
   let draggedItem: FileItem | null = null;
 
-  // Helper function to get platform-specific file path
-  async function getPlatformPath(path: string): Promise<string> {
-    try {
-      // Try to detect the platform using Tauri API
-      const platform = await invoke<string>('get_platform').catch(() => {
-        // If the command doesn't exist, try to detect platform from the path format
-        if (path.match(/^[A-Za-z]:\\/)) {
-          return 'windows';
-        } else if (path.startsWith('/')) {
-          return 'unix';
-        } else {
-          return 'unknown';
-        }
-      });
-
-      // Format the path based on the platform
-      if (platform === 'windows') {
-        // Windows paths need special handling
-        return path.replace(/\//g, '\\');
-      } else {
-        // Unix paths (Linux, macOS)
-        return path.startsWith('/') ? path : `/${path}`;
-      }
-    } catch (e) {
-      console.error('Error getting platform path:', e);
-      return path; // Return the original path as fallback
-    }
-  }
-
   // Get the settings for this pane
   $: paneSettings = pane === 'left' ? $settings.leftPane : $settings.rightPane;
 
@@ -132,43 +103,39 @@
       itemsToDrag = [item];
     }
 
+    // Get the file paths
+    const filePaths = itemsToDrag.map(i => i.path);
+
     // Set data for internal operations
     event.dataTransfer.setData('application/json', JSON.stringify(item));
     if (itemsToDrag.length > 1) {
       event.dataTransfer.setData('application/json+items', JSON.stringify(itemsToDrag));
     }
 
-    // Try to get the platform information
-    let platform = 'unknown';
+    // Always set text/plain format for maximum compatibility
+    event.dataTransfer.setData('text/plain', filePaths.join('\n'));
+
+    // Copy the paths to clipboard to enable drag to external applications
     try {
-      platform = await invoke<string>('get_platform');
+      // Call the Rust function for logging purposes
+      await invoke('copy_paths_to_clipboard', { paths: filePaths });
+      console.log('Copied paths to clipboard:', filePaths);
+
+      // Use the browser's clipboard API if available
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(filePaths.join('\n'));
+      }
     } catch (e) {
-      console.error('Error getting platform:', e);
+      // Log the error but continue with the drag operation
+      console.error('Failed to copy paths to clipboard:', e);
     }
 
-    // Set data for external applications
-    // The most important format for external applications is text/plain with the file path
-    const filePaths = itemsToDrag.map(i => i.path).join('\n');
-    event.dataTransfer.setData('text/plain', filePaths);
-
-    // For browsers and some applications, set text/uri-list format
-    const fileUris = itemsToDrag.map(i => {
-      // Get the absolute path
-      const path = i.path;
-
-      // Format as a proper file URI based on platform and path format
-      if (platform === 'windows' || path.match(/^[A-Za-z]:\\/)) {
-        // Windows path (e.g., C:\path\to\file)
-        // Make sure to use forward slashes in the URI
-        const windowsPath = path.replace(/\//g, '\\');
-        return `file:///${windowsPath.replace(/\\/g, '/')}`;
-      }
-
-      // Unix path (ensure it starts with a slash)
-      const unixPath = path.startsWith('/') ? path : `/${path}`;
-      return `file://${unixPath}`;
-    }).join('\r\n');
-    event.dataTransfer.setData('text/uri-list', fileUris);
+    // Set additional formats for better compatibility
+    try {
+      event.dataTransfer.setData('text/uri-list', filePaths.map(p => `file://${p}`).join('\r\n'));
+    } catch (fallbackError) {
+      console.error('Failed to set drag data:', fallbackError);
+    }
 
     // Set the drag effect - allow both copy and move operations
     event.dataTransfer.effectAllowed = 'copyMove';
@@ -326,7 +293,62 @@
   <div
     class="file-list-overlay"
     on:click={handleBackgroundClick}
-    on:keydown={(e) => e.key === 'Escape' && fs.clearSelection()}
+    on:keydown={(e) => {
+      // Clear selection on Escape
+      if (e.key === 'Escape') {
+        fs.clearSelection();
+      }
+
+      // Copy selected items on Ctrl+C
+      if (e.key === 'c' && (e.ctrlKey || e.metaKey) && selectedItems.size > 0) {
+        const selectedPaths = Array.from(selectedItems);
+
+        // Use async IIFE to handle async operations
+        (async () => {
+          try {
+            // Call the Rust function for logging purposes
+            await invoke('copy_paths_to_clipboard', { paths: selectedPaths });
+            console.log('Copied paths to clipboard');
+
+            // Use the browser's clipboard API if available
+            if (navigator.clipboard?.writeText) {
+              await navigator.clipboard.writeText(selectedPaths.join('\n'));
+            }
+
+            // Show a brief notification
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = 'Path copied to clipboard';
+            notification.style.position = 'fixed';
+            notification.style.bottom = '20px';
+            notification.style.right = '20px';
+            notification.style.backgroundColor = '#4caf50';
+            notification.style.color = 'white';
+            notification.style.padding = '12px 20px';
+            notification.style.borderRadius = '4px';
+            notification.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.2)';
+            notification.style.zIndex = '2000';
+            document.body.appendChild(notification);
+            setTimeout(() => {
+              if (notification.parentNode) {
+                document.body.removeChild(notification);
+              }
+            }, 2000);
+          } catch (err) {
+            console.error('Failed to copy paths:', err);
+            // Fallback: Use the browser's clipboard API if available
+            if (navigator.clipboard?.writeText) {
+              try {
+                await navigator.clipboard.writeText(selectedPaths.join('\n'));
+                console.log('Copied using browser API');
+              } catch (clipErr) {
+                console.error('Browser clipboard failed:', clipErr);
+              }
+            }
+          }
+        })();
+      }
+    }}
     on:contextmenu={handleBackgroundContextMenu}
     tabindex="0"
     role="grid"
@@ -374,7 +396,7 @@
           on:click={(e) => handleItemClick(item, e)}
           on:dblclick={() => handleItemDoubleClick(item)}
           on:contextmenu={(e) => handleContextMenu(item, e)}
-          on:dragstart={(e) => handleDragStart(e, item)}
+          on:dragstart={async (e) => await handleDragStart(e, item)}
           draggable="true"
           title={item.name}
         >
@@ -403,7 +425,7 @@
         on:click={(e) => handleItemClick(item, e)}
         on:dblclick={() => handleItemDoubleClick(item)}
         on:contextmenu={(e) => handleContextMenu(item, e)}
-        on:dragstart={(e) => handleDragStart(e, item)}
+        on:dragstart={async (e) => await handleDragStart(e, item)}
         on:keydown={(e) => e.key === 'Enter' && handleItemDoubleClick(item)}
         draggable="true"
         role="button"
@@ -421,7 +443,7 @@
         class="list-item {item.file_type.toLowerCase()} {selectedItems.has(item.path) ? 'selected' : ''}"
         on:click={(e) => handleItemClick(item, e)}
         on:dblclick={() => handleItemDoubleClick(item)}
-        on:dragstart={(e) => handleDragStart(e, item)}
+        on:dragstart={async (e) => await handleDragStart(e, item)}
         on:keydown={(e) => e.key === 'Enter' && handleItemDoubleClick(item)}
         draggable="true"
         role="button"

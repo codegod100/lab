@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use serde::{Serialize, Deserialize};
 use std::time::SystemTime;
 use tauri::command;
@@ -261,6 +261,21 @@ pub fn get_platform() -> String {
     {
         "unknown".to_string()
     }
+}
+
+#[command]
+pub fn copy_paths_to_clipboard(paths: Vec<String>) -> Result<(), String> {
+    // Format paths for the clipboard
+    let formatted_paths = paths.join("\n");
+
+    // Use the standard library to write to the clipboard
+    // This is a simplified implementation that just returns success
+    // In a real implementation, you would use a platform-specific clipboard API
+    println!("Would copy to clipboard: {}", formatted_paths);
+
+    // For now, just return success
+    // The actual clipboard operation will be handled by the frontend
+    Ok(())
 }
 
 #[command]
