@@ -257,10 +257,31 @@ function createFileSystemStore(id: string = 'main') {
         const fileName = path.split('/').pop() || '';
         const destPath = `${targetPath}/${fileName}`.replace(/\/\//g, '/');
 
-        await invoke('rename_item', { from: path, to: destPath });
+        // Skip if source and destination are the same
+        if (path === destPath) continue;
+
+        // Check if source and destination are on the same filesystem/drive
+        // If they are, use rename_item (faster), otherwise use copy+delete
+        try {
+          await invoke('rename_item', { from: path, to: destPath });
+        } catch (e) {
+          // If rename fails (e.g., across different drives), fall back to copy+delete
+          await invoke('copy_item', { from: path, to: destPath });
+          await invoke('delete_item', { path, recursive: true });
+        }
       }
 
+      // Refresh both panes to show the updated content
       await refreshCurrentDirectory();
+
+      // If we're in split view, refresh the other pane too
+      if (id === 'left' || id === 'right') {
+        const otherFS = id === 'left' ? rightPaneFS : leftPaneFS;
+        const otherState = get(otherFS);
+        if (otherState.currentPath === targetPath) {
+          await otherFS.refreshCurrentDirectory();
+        }
+      }
     } catch (error) {
       console.error('Failed to move items:', error);
       update(state => ({ ...state, error: String(error) }));

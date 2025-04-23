@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { openPath } from '@tauri-apps/plugin-opener';
   import SplitPane from '../lib/components/SplitPane.svelte';
   import Sidebar from '../lib/components/Sidebar.svelte';
   import FileList from '../lib/components/FileList.svelte';
@@ -114,10 +115,8 @@
     const { item } = event.detail;
 
     try {
-      // Just display file info for now since we don't have the shell plugin
-      const content = await invoke<string>('get_file_content', { path: item.path, maxSize: 1024 * 1024 });
-      console.log(`File content preview: ${content.substring(0, 100)}...`);
-      alert(`File: ${item.name}\nSize: ${item.size} bytes\nPath: ${item.path}`);
+      // Open the file with the system's default application
+      await openPath(item.path);
     } catch (error) {
       console.error('Failed to open file:', error);
       alert(`Failed to open file: ${error}`);

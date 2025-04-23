@@ -1,14 +1,11 @@
 <script lang="ts">
   import { fileSystem } from '../stores/fs';
-  import { getBreadcrumbs } from '../utils/fileUtils';
 
   export let path: string = '';
   export let fs = fileSystem; // Default to the main file system instance
 
   let isEditing = false;
   let editPath = '';
-
-  $: breadcrumbs = getBreadcrumbs(path);
 
   function startEditing() {
     isEditing = true;
@@ -38,10 +35,6 @@
     }
     isEditing = false;
   }
-
-  function navigateToBreadcrumb(breadcrumbPath: string) {
-    fs.navigateTo(breadcrumbPath);
-  }
 </script>
 
 <div class="path-bar">
@@ -56,18 +49,8 @@
       />
     </div>
   {:else}
-    <div class="breadcrumbs" on:click={startEditing}>
-      {#each breadcrumbs as crumb, index}
-        <span
-          class="breadcrumb"
-          on:click|stopPropagation={() => navigateToBreadcrumb(crumb.path)}
-        >
-          {crumb.name}
-        </span>
-        {#if index < breadcrumbs.length - 1}
-          <span class="separator">/</span>
-        {/if}
-      {/each}
+    <div class="path-display" on:click={startEditing}>
+      {path}
     </div>
   {/if}
 
@@ -118,32 +101,17 @@
     width: 100%;
   }
 
-  .breadcrumbs {
+  .path-display {
     flex: 1;
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
     background-color: #fff;
     border: 1px solid #ddd;
     border-radius: 4px;
-    padding: 4px 8px;
+    padding: 6px 8px;
     cursor: text;
-    min-height: 32px;
-  }
-
-  .breadcrumb {
-    cursor: pointer;
-    padding: 2px 4px;
-    border-radius: 4px;
-  }
-
-  .breadcrumb:hover {
-    background-color: #e3f2fd;
-  }
-
-  .separator {
-    margin: 0 4px;
-    color: #999;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: monospace;
   }
 
   .path-edit {
@@ -191,14 +159,10 @@
       border-bottom: 1px solid #444;
     }
 
-    .breadcrumbs {
+    .path-display {
       background-color: #333;
       border: 1px solid #444;
       color: #eee;
-    }
-
-    .breadcrumb:hover {
-      background-color: #0d47a1;
     }
 
     .path-edit input {
