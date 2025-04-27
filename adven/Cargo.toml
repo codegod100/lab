@@ -1,0 +1,20 @@
+[package]
+name = "adven"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.36.0", features = ["full"] }
+anyhow = "1.0.80"
+futures = "0.3.30"
+rand = "0.8.5"
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.114"
+log = "0.4.21"
+env_logger = "0.11.2"
+async-trait = "0.1.77"
+tokio-util = "0.7.10"
+russh = "0.40.2"
+russh-keys = "0.40.1"
+bytes = "1.5.0"
+thiserror = "1.0.57"
