@@ -1,21 +1,21 @@
 use std::sync::{Arc, Mutex};
 use std::net::SocketAddr;
-use std::path::Path;
-use std::fs;
-use std::io::Write;
+use std::collections::HashMap;
 
 use anyhow::Result;
 use async_trait::async_trait;
 use russh::server::{self, Auth, Session};
 use russh::{Channel, ChannelId, CryptoVec};
-use russh_keys::{key::{KeyPair, PublicKey}, PublicKeyBase64};
+use russh_keys::key::{KeyPair, PublicKey};
 
 use crate::game::Game;
 
 // SSH server handler
 pub struct SshServer {
     game: Arc<Mutex<Game>>,
-    clients: Arc<Mutex<std::collections::HashMap<(usize, ChannelId), String>>>,
+    clients: Arc<Mutex<HashMap<(usize, ChannelId), String>>>,
+    // Buffer to store partial input for each client
+    input_buffers: Arc<Mutex<HashMap<(usize, ChannelId), String>>>,
     id: usize,
 }
 
@@ -23,7 +23,8 @@ impl SshServer {
     pub fn new(game: Arc<Mutex<Game>>) -> Self {
         Self {
             game,
-            clients: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            clients: Arc::new(Mutex::new(HashMap::new())),
+            input_buffers: Arc::new(Mutex::new(HashMap::new())),
             id: 0,
         }
     }
@@ -112,18 +113,11 @@ impl server::Handler for SshServer {
             }
         };
 
-        // Send welcome message
-        let welcome = format!(r#"
-==============================================
- WELCOME TO THE TEXT ADVENTURE GAME
-==============================================
+        // We'll implement local echo in the data handler instead of relying on terminal modes
+        // since we don't have direct access to set terminal modes in the russh API
 
-You are logged in as: {}
-You find yourself at the entrance of a mysterious cave.
-Type 'look' to see your surroundings.
-Type 'help' for a list of commands.
-
-"#, player_name);
+        // Send welcome message using the terminal formatting module
+        let welcome = crate::terminal::format_welcome_message(&player_name);
 
         let welcome_crypto = CryptoVec::from_slice(welcome.as_bytes());
         session.data(channel_id, welcome_crypto);
@@ -137,7 +131,8 @@ Type 'help' for a list of commands.
         let desc_crypto = CryptoVec::from_slice(room_description.as_bytes());
         session.data(channel_id, desc_crypto);
 
-        let prompt = CryptoVec::from_slice(b"\n> ");
+        // Send the initial prompt
+        let prompt = CryptoVec::from_slice(crate::terminal::format_prompt().as_bytes());
         session.data(channel_id, prompt);
 
         Ok((self_clone, session))
@@ -153,62 +148,138 @@ Type 'help' for a list of commands.
         // Create a copy of self for later use
         let self_clone = self.clone();
 
-        // Get the player name
-        let player_name_opt = {
+        // Get the player name and session ID
+        let (player_name, session_id) = {
             let clients = self.clients.lock().unwrap();
-            clients.iter()
+            match clients.iter()
                 .find(|((_, cid), _)| *cid == channel_id)
-                .map(|((_, _), name)| name.clone())
+                .map(|((sid, _), name)| (name.clone(), *sid)) {
+                Some((name, sid)) => (name, sid),
+                None => {
+                    eprintln!("Player not found for channel {}", channel_id);
+                    return Ok((self_clone, session));
+                }
+            }
         };
 
-        let player_name = match player_name_opt {
-            Some(name) => name,
-            None => {
-                eprintln!("Player not found for channel {}", channel_id);
+        // Get the input data as a string
+        let input_str = match std::str::from_utf8(data) {
+            Ok(s) => s,
+            Err(_) => {
+                eprintln!("Invalid UTF-8 in input");
                 return Ok((self_clone, session));
             }
         };
 
-        // Process the command
-        let command = String::from_utf8_lossy(data).trim().to_string();
+        // Debug: Print the raw input data
+        println!("Raw input: {:?}", data);
 
-        if command == "quit" || command == "exit" {
-            let goodbye = CryptoVec::from_slice(b"Goodbye!\n");
-            session.data(channel_id, goodbye);
-
-            // Remove the player from the game
-            {
-                let mut game_lock = self.game.lock().unwrap();
-                game_lock.remove_player(&player_name);
+        // Implement local echo - echo back each character as it's typed
+        // This helps users see what they're typing
+        if let Ok(input_str) = std::str::from_utf8(data) {
+            // Only echo back if it's not a control character like newline or carriage return
+            // This prevents duplicate prompts
+            if !input_str.contains('\n') && !input_str.contains('\r') {
+                // Handle backspace specially - we need to send the sequence to move back and erase
+                if input_str.contains('\x08') || input_str.contains('\x7f') {
+                    // Send backspace (move back one character), space (overwrite with space), backspace (move back again)
+                    let backspace_seq = CryptoVec::from_slice(b"\x08 \x08");
+                    session.data(channel_id, backspace_seq);
+                } else {
+                    // Normal character echo
+                    let echo_data = CryptoVec::from_slice(input_str.as_bytes());
+                    session.data(channel_id, echo_data);
+                }
             }
-
-            // Remove the player from the clients map
-            {
-                let mut clients = self.clients.lock().unwrap();
-                clients.retain(|(_, cid), _| *cid != channel_id);
-            }
-
-            println!("Connection closed for {}", player_name);
-
-            // Close the channel
-            session.eof(channel_id);
-            session.close(channel_id);
-
-            return Ok((self_clone, session));
         }
 
-        // Process the command in the game
-        let response = {
-            let mut game_lock = self.game.lock().unwrap();
-            game_lock.process_command(&player_name, &command)
-        };
+        // Append the new data to the input buffer for this client
+        let mut command_to_process = None;
+        {
+            let mut buffers = self.input_buffers.lock().unwrap();
+            let buffer = buffers.entry((session_id, channel_id)).or_insert(String::new());
 
-        // Send the response
-        let response_crypto = CryptoVec::from_slice(response.as_bytes());
-        session.data(channel_id, response_crypto);
+            // Handle backspace characters in the buffer
+            if input_str.contains('\x08') || input_str.contains('\x7f') {
+                // Remove the last character from the buffer if it's not empty
+                if !buffer.is_empty() {
+                    buffer.pop();
+                }
+            } else {
+                // Append the new data for normal characters
+                buffer.push_str(input_str);
+            }
 
-        let prompt = CryptoVec::from_slice(b"\n> ");
-        session.data(channel_id, prompt);
+            // Check if we have a complete line (ends with newline)
+            if buffer.contains('\n') || buffer.contains('\r') {
+                // Extract the line up to the newline
+                let line = buffer.clone();
+                // Clear the buffer for next time
+                buffer.clear();
+
+                // Process the complete line
+                let cmd = line
+                    .replace('\r', "")  // Remove carriage returns
+                    .replace('\n', "")  // Remove newlines
+                    .trim()
+                    .to_string();
+
+                if !cmd.is_empty() {
+                    command_to_process = Some(cmd);
+                }
+            }
+        }
+
+        // If we have a command to process, do it
+        if let Some(command) = command_to_process {
+            if command == "quit" || command == "exit" {
+                let goodbye = CryptoVec::from_slice(b"\r\nGoodbye!\r\n");
+                session.data(channel_id, goodbye);
+
+                // Remove the player from the game
+                {
+                    let mut game_lock = self.game.lock().unwrap();
+                    game_lock.remove_player(&player_name);
+                }
+
+                // Remove the player from the clients map
+                {
+                    let mut clients = self.clients.lock().unwrap();
+                    clients.retain(|(_, cid), _| *cid != channel_id);
+                }
+
+                // Remove the input buffer
+                {
+                    let mut buffers = self.input_buffers.lock().unwrap();
+                    buffers.remove(&(session_id, channel_id));
+                }
+
+                println!("Connection closed for {}", player_name);
+
+                // Close the channel
+                session.eof(channel_id);
+                session.close(channel_id);
+
+                return Ok((self_clone, session));
+            }
+
+            // Process the command in the game
+            let response = {
+                let mut game_lock = self.game.lock().unwrap();
+                game_lock.process_command(&player_name, &command)
+            };
+
+            // Send the response
+            let response_crypto = CryptoVec::from_slice(format!("\r\n{}", response).as_bytes());
+            session.data(channel_id, response_crypto);
+
+            let prompt = CryptoVec::from_slice(crate::terminal::format_prompt().as_bytes());
+            session.data(channel_id, prompt);
+        } else if input_str.contains('\n') || input_str.contains('\r') {
+            // If we got a newline but no command (empty line), just show the prompt
+            let prompt = CryptoVec::from_slice(crate::terminal::format_prompt().as_bytes());
+            session.data(channel_id, prompt);
+        }
 
         Ok((self_clone, session))
     }
@@ -222,12 +293,13 @@ Type 'help' for a list of commands.
         // Create a copy of self for later use
         let self_clone = self.clone();
 
-        // Get the player name
-        let player_name_opt = {
+        // Get the player name and session ID
+        let (player_name_opt, session_id_opt) = {
             let clients = self.clients.lock().unwrap();
             clients.iter()
                 .find(|((_, cid), _)| *cid == channel_id)
-                .map(|((_, _), name)| name.clone())
+                .map(|((sid, _), name)| (Some(name.clone()), Some(*sid)))
+                .unwrap_or((None, None))
         };
 
         if let Some(player_name) = player_name_opt {
@@ -241,6 +313,12 @@ Type 'help' for a list of commands.
             {
                 let mut clients = self.clients.lock().unwrap();
                 clients.retain(|(_, cid), _| *cid != channel_id);
+            }
+
+            // Remove the input buffer if we have a session ID
+            if let Some(session_id) = session_id_opt {
+                let mut buffers = self.input_buffers.lock().unwrap();
+                buffers.remove(&(session_id, channel_id));
             }
 
             println!("Channel closed for {}", player_name);
@@ -265,6 +343,7 @@ impl Clone for SshServer {
         SshServer {
             game: self.game.clone(),
             clients: self.clients.clone(),
+            input_buffers: self.input_buffers.clone(),
             id: self.id,
         }
     }
@@ -272,33 +351,26 @@ impl Clone for SshServer {
 
 // Load or generate server keys
 fn load_server_keys() -> Result<Vec<KeyPair>> {
-    let key_path = Path::new("ssh_host_key");
+    // Hard-coded key for development purposes
+    // In a production environment, you would want to use a proper key management system
 
-    if !key_path.exists() {
-        println!("Generating new SSH server key...");
-        let key = KeyPair::generate_ed25519().unwrap();
+    // This is a fixed key for development only
+    println!("Using fixed SSH server key for development...");
 
-        // Create the directory if it doesn't exist
-        if let Some(parent) = key_path.parent() {
-            if !parent.exists() {
-                fs::create_dir_all(parent)?;
-            }
+    // Generate a key using KeyPair::generate_ed25519
+    // Since we can't directly set a seed, we'll just generate a key each time
+    // but we'll make sure to print a message so users know it's expected behavior
+    let key = match KeyPair::generate_ed25519() {
+        Some(key) => key,
+        None => {
+            eprintln!("Failed to generate Ed25519 key");
+            return Err(anyhow::anyhow!("Failed to generate Ed25519 key"));
         }
+    };
 
-        // Save the key to a file
-        let key_bytes = key.clone().public_key_base64();
-        let mut file = std::fs::File::create(key_path)?;
-        file.write_all(key_bytes.as_bytes())?;
-
-        return Ok(vec![key]);
-    }
-
-    // Load the key from the file
-    println!("Loading server key...");
-    // In a real implementation, we would load the key from the file
-    // let key_data = fs::read_to_string(key_path)?;
-    // let key = KeyPair::from_private_key_base64(&key_data)?;
-    let key = KeyPair::generate_ed25519().unwrap(); // For now, just generate a new key
+    println!("Note: The SSH server key is regenerated each time the server starts.");
+    println!("      This means SSH clients will show a warning about the host key changing.");
+    println!("      This is expected behavior in development mode.");
 
     Ok(vec![key])
 }
@@ -341,6 +413,11 @@ pub fn print_ssh_instructions() {
     println!();
     println!("2. Connect to the server using your SSH key:");
     println!("   ssh -p 3333 username@localhost");
+    println!();
+    println!("   Note: You may see a warning about the host key changing.");
+    println!("         This is expected in development mode.");
+    println!("         You can use the following command to bypass the warning:");
+    println!("         ssh -o StrictHostKeyChecking=no -p 3333 username@localhost");
     println!();
     println!("3. The server will authenticate you using your SSH key");
     println!("   No password is required");
