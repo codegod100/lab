@@ -1,12 +1,14 @@
 use std::sync::{Arc, Mutex};
 use std::net::SocketAddr;
 use std::collections::HashMap;
+use std::path::Path;
 
 use anyhow::Result;
 use async_trait::async_trait;
 use russh::server::{self, Auth, Session};
 use russh::{Channel, ChannelId, CryptoVec};
 use russh_keys::key::{KeyPair, PublicKey};
+use russh_keys::load_secret_key;
 
 use crate::game::Game;
 
@@ -174,21 +176,21 @@ impl server::Handler for SshServer {
         // Debug: Print the raw input data
         println!("Raw input: {:?}", data);
 
-        // Implement local echo - echo back each character as it's typed
-        // This helps users see what they're typing
-        if let Ok(input_str) = std::str::from_utf8(data) {
-            // Only echo back if it's not a control character like newline or carriage return
-            // This prevents duplicate prompts
-            if !input_str.contains('\n') && !input_str.contains('\r') {
-                // Handle backspace specially - we need to send the sequence to move back and erase
-                if input_str.contains('\x08') || input_str.contains('\x7f') {
-                    // Send backspace (move back one character), space (overwrite with space), backspace (move back again)
+        // Implement local echo with proper backspace handling
+        // Process each character for proper terminal display
+        for &byte in data {
+            match byte {
+                // Handle backspace (ASCII BS or DEL)
+                8 | 127 => {
+                    // Send backspace sequence: BS + space + BS
+                    // This moves cursor back, overwrites with space, then moves back again
                     let backspace_seq = CryptoVec::from_slice(b"\x08 \x08");
                     session.data(channel_id, backspace_seq);
-                } else {
-                    // Normal character echo
-                    let echo_data = CryptoVec::from_slice(input_str.as_bytes());
-                    session.data(channel_id, echo_data);
+                },
+                // For all other characters, just echo them back
+                _ => {
+                    let echo_char = CryptoVec::from_slice(&[byte]);
+                    session.data(channel_id, echo_char);
                 }
             }
         }
@@ -199,15 +201,22 @@ impl server::Handler for SshServer {
             let mut buffers = self.input_buffers.lock().unwrap();
             let buffer = buffers.entry((session_id, channel_id)).or_insert(String::new());
 
-            // Handle backspace characters in the buffer
-            if input_str.contains('\x08') || input_str.contains('\x7f') {
-                // Remove the last character from the buffer if it's not empty
-                if !buffer.is_empty() {
-                    buffer.pop();
+            // Process the input data
+            for c in input_str.chars() {
+                match c {
+                    // Handle backspace (ASCII BS or DEL)
+                    '\x08' | '\x7f' => {
+                        if !buffer.is_empty() {
+                            buffer.pop();
+                        }
+                    },
+                    // Skip other control characters except newline and carriage return
+                    c if c < ' ' && c != '\n' && c != '\r' => {
+                        // Skip control characters
+                    },
+                    // Add normal characters to the buffer
+                    _ => buffer.push(c),
                 }
-            } else {
-                // Append the new data for normal characters
-                buffer.push_str(input_str);
             }
 
             // Check if we have a complete line (ends with newline)
@@ -351,27 +360,8 @@ impl Clone for SshServer {
 
 // Load or generate server keys
 fn load_server_keys() -> Result<Vec<KeyPair>> {
-    // Hard-coded key for development purposes
-    // In a production environment, you would want to use a proper key management system
-
-    // This is a fixed key for development only
-    println!("Using fixed SSH server key for development...");
-
-    // Generate a key using KeyPair::generate_ed25519
-    // Since we can't directly set a seed, we'll just generate a key each time
-    // but we'll make sure to print a message so users know it's expected behavior
-    let key = match KeyPair::generate_ed25519() {
-        Some(key) => key,
-        None => {
-            eprintln!("Failed to generate Ed25519 key");
-            return Err(anyhow::anyhow!("Failed to generate Ed25519 key"));
-        }
-    };
-
-    println!("Note: The SSH server key is regenerated each time the server starts.");
-    println!("      This means SSH clients will show a warning about the host key changing.");
-    println!("      This is expected behavior in development mode.");
-
+    let secret_key_path = Path::new("ssh_host_key");
+    let key = load_secret_key(secret_key_path, None)?;
     Ok(vec![key])
 }
 
@@ -419,7 +409,11 @@ pub fn print_ssh_instructions() {
     println!("         You can use the following command to bypass the warning:");
     println!("         ssh -o StrictHostKeyChecking=no -p 3333 username@localhost");
     println!();
-    println!("3. The server will authenticate you using your SSH key");
+    println!("3. If you can't see what you're typing, enable local echo in your SSH client");
+    println!("   Most SSH clients have local echo enabled by default");
+    println!("   In PuTTY, you can enable it in Terminal > Features > Local echo: Force on");
+    println!();
+    println!("4. The server will authenticate you using your SSH key");
     println!("   No password is required");
     println!("=== END OF SSH CONNECTION INSTRUCTIONS ===\n");
 }
