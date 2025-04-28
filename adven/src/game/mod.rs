@@ -73,21 +73,20 @@ impl Game {
             None => return "You are in a void. Something went wrong.".to_string(),
         };
 
-        let mut description = format!("\n== {} ==\n\n{}\n", room.name(), room.description());
+        // Use the terminal formatting module
+        let title = room.name();
+        let mut description = crate::terminal::format_room_title(title);
+        description.push_str(&crate::terminal::format_room_description(room.description()));
 
-        // Add exits
+        // Format exits
         let exits = room.exits();
-        if !exits.is_empty() {
-            description.push_str("\nExits: ");
-            description.push_str(&exits.keys().map(|k| k.to_string()).collect::<Vec<_>>().join(", "));
-        }
+        let exit_names: Vec<String> = exits.keys().map(|k| k.to_string()).collect();
+        description.push_str(&crate::terminal::format_exits(&exit_names));
 
-        // Add items in the room
+        // Format items
         let items = room.items();
-        if !items.is_empty() {
-            description.push_str("\n\nYou can see: ");
-            description.push_str(&items.iter().map(|i| i.name().to_string()).collect::<Vec<_>>().join(", "));
-        }
+        let item_names: Vec<String> = items.iter().map(|i| i.name().to_string()).collect();
+        description.push_str(&crate::terminal::format_items(&item_names));
 
         description
     }

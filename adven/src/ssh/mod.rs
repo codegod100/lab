@@ -49,9 +49,7 @@ async fn handle_connection(mut socket: TcpStream, game: Arc<Mutex<Game>>) -> Res
 
     // Send welcome message
     let welcome = r#"
-==============================================
- WELCOME TO THE TEXT ADVENTURE GAME
-==============================================
+WELCOME TO THE TEXT ADVENTURE
 
 You find yourself at the entrance of a mysterious cave.
 Type 'look' to see your surroundings.
@@ -72,6 +70,8 @@ Type 'help' for a list of commands.
 
     // Buffer for reading input
     let mut buffer = [0u8; 1024];
+    // String buffer to accumulate partial lines
+    let mut line_buffer = String::new();
 
     // Main game loop
     loop {
@@ -81,8 +81,36 @@ Type 'help' for a list of commands.
                 break;
             }
             Ok(n) => {
-                // Process the command
-                let command = String::from_utf8_lossy(&buffer[..n]).trim().to_string();
+                // Convert the bytes to a string
+                let data = String::from_utf8_lossy(&buffer[..n]).to_string();
+
+                // Debug: Print the raw input data
+                println!("TCP Raw input: {:?}", &buffer[..n]);
+
+                // Append to our line buffer
+                line_buffer.push_str(&data);
+
+                // Check if we have a complete line
+                if !line_buffer.contains('\n') && !line_buffer.contains('\r') {
+                    // No complete line yet, continue reading
+                    continue;
+                }
+
+                // Process the command (remove newlines and carriage returns)
+                let command = line_buffer
+                    .replace('\r', "")
+                    .replace('\n', "")
+                    .trim()
+                    .to_string();
+
+                // Clear the line buffer for the next command
+                line_buffer.clear();
+
+                // Skip empty commands
+                if command.is_empty() {
+                    socket.write_all(b"\n> ").await?;
+                    continue;
+                }
 
                 if command == "quit" || command == "exit" {
                     socket.write_all(b"Goodbye!\n").await?;

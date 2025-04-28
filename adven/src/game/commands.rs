@@ -2,6 +2,7 @@ use anyhow::Result;
 
 use super::player::Player;
 use super::world::World;
+use crate::terminal;
 
 /// Represents a command in the game
 #[derive(Debug, Clone)]
@@ -21,11 +22,11 @@ impl Command {
     pub fn parse(input: &str) -> Self {
         let input = input.trim().to_lowercase();
         let parts: Vec<&str> = input.split_whitespace().collect();
-        
+
         if parts.is_empty() {
             return Command::Unknown("".to_string());
         }
-        
+
         match parts[0] {
             "look" | "l" => Command::Look,
             "go" | "move" | "walk" => {
@@ -67,7 +68,7 @@ impl Command {
             _ => Command::Unknown(input),
         }
     }
-    
+
     /// Execute the command and return the result
     pub fn execute(&self, player: &mut Player, world: &mut World) -> Result<String> {
         match self {
@@ -75,23 +76,22 @@ impl Command {
                 let room_id = player.current_room();
                 let room = world.get_room(room_id)
                     .ok_or_else(|| anyhow::anyhow!("Room not found"))?;
-                
-                let mut output = format!("\n== {} ==\n\n{}\n", room.name(), room.description());
-                
-                // Add exits
+
+                // Use the terminal formatting module
+                let title = room.name();
+                let mut output = crate::terminal::format_room_title(title);
+                output.push_str(&crate::terminal::format_room_description(room.description()));
+
+                // Format exits
                 let exits = room.exits();
-                if !exits.is_empty() {
-                    output.push_str("\nExits: ");
-                    output.push_str(&exits.keys().map(|k| k.to_string()).collect::<Vec<_>>().join(", "));
-                }
-                
-                // Add items in the room
+                let exit_names: Vec<String> = exits.keys().map(|k| k.to_string()).collect();
+                output.push_str(&crate::terminal::format_exits(&exit_names));
+
+                // Format items
                 let items = room.items();
-                if !items.is_empty() {
-                    output.push_str("\n\nYou can see: ");
-                    output.push_str(&items.iter().map(|i| i.name().to_string()).collect::<Vec<_>>().join(", "));
-                }
-                
+                let item_names: Vec<String> = items.iter().map(|i| i.name().to_string()).collect();
+                output.push_str(&crate::terminal::format_items(&item_names));
+
                 Ok(output)
             },
             Command::Go(direction) => {
@@ -99,27 +99,29 @@ impl Command {
                 match world.move_player(current_room, direction) {
                     Ok(new_room_id) => {
                         player.set_current_room(new_room_id);
-                        
+
                         // Return the description of the new room
                         let room = world.get_room(new_room_id)
                             .ok_or_else(|| anyhow::anyhow!("New room not found"))?;
-                        
-                        let mut output = format!("\nYou go {}.\n\n== {} ==\n\n{}\n", direction, room.name(), room.description());
-                        
-                        // Add exits
+
+                        // Create a simple movement message
+                        let mut output = format!("\nYou go {}.\n", direction);
+
+                        // Use the terminal formatting module
+                        let title = room.name();
+                        output.push_str(&crate::terminal::format_room_title(title));
+                        output.push_str(&crate::terminal::format_room_description(room.description()));
+
+                        // Format exits
                         let exits = room.exits();
-                        if !exits.is_empty() {
-                            output.push_str("\nExits: ");
-                            output.push_str(&exits.keys().map(|k| k.to_string()).collect::<Vec<_>>().join(", "));
-                        }
-                        
-                        // Add items in the room
+                        let exit_names: Vec<String> = exits.keys().map(|k| k.to_string()).collect();
+                        output.push_str(&crate::terminal::format_exits(&exit_names));
+
+                        // Format items
                         let items = room.items();
-                        if !items.is_empty() {
-                            output.push_str("\n\nYou can see: ");
-                            output.push_str(&items.iter().map(|i| i.name().to_string()).collect::<Vec<_>>().join(", "));
-                        }
-                        
+                        let item_names: Vec<String> = items.iter().map(|i| i.name().to_string()).collect();
+                        output.push_str(&crate::terminal::format_items(&item_names));
+
                         Ok(output)
                     },
                     Err(e) => Err(e),
@@ -129,12 +131,12 @@ impl Command {
                 let room_id = player.current_room();
                 let room = world.get_room_mut(room_id)
                     .ok_or_else(|| anyhow::anyhow!("Room not found"))?;
-                
+
                 match room.take_item(item_name) {
                     Some(item) => {
                         let item_name = item.name().to_string();
                         player.add_to_inventory(item);
-                        Ok(format!("You take the {}.", item_name))
+                        Ok(format!("\nYou take the {}.", item_name))
                     },
                     None => Err(anyhow::anyhow!("You don't see that here.")),
                 }
@@ -142,62 +144,58 @@ impl Command {
             Command::Drop(item_name) => {
                 let item = player.take_from_inventory(item_name)
                     .ok_or_else(|| anyhow::anyhow!("You don't have that."))?;
-                
+
                 let room_id = player.current_room();
                 let room = world.get_room_mut(room_id)
                     .ok_or_else(|| anyhow::anyhow!("Room not found"))?;
-                
+
                 let item_name = item.name().to_string();
                 room.add_item(item);
-                
-                Ok(format!("You drop the {}.", item_name))
+
+                Ok(format!("\nYou drop the {}.", item_name))
             },
             Command::Inventory => {
                 let inventory = player.inventory();
-                if inventory.is_empty() {
-                    Ok("Your inventory is empty.".to_string())
-                } else {
-                    let items = inventory.iter()
-                        .map(|i| i.name().to_string())
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    
-                    Ok(format!("You are carrying: {}", items))
-                }
+
+                // Use the terminal formatting module
+                let mut output = crate::terminal::format_inventory_title();
+
+                // Format inventory items
+                let item_names: Vec<String> = inventory.iter().map(|i| i.name().to_string()).collect();
+                output.push_str(&crate::terminal::format_inventory_items(&item_names));
+
+                Ok(output)
             },
             Command::Examine(item_name) => {
                 // Check if the item is in the player's inventory
                 let inventory = player.inventory();
                 if let Some(item) = inventory.iter().find(|i| i.name().to_lowercase() == item_name.to_lowercase()) {
-                    return Ok(format!("{}: {}", item.name(), item.description()));
+                    let name = item.name();
+                    let desc = item.description();
+                    return Ok(crate::terminal::format_item_examination(name, desc));
                 }
-                
+
                 // Check if the item is in the room
                 let room_id = player.current_room();
                 let room = world.get_room(room_id)
                     .ok_or_else(|| anyhow::anyhow!("Room not found"))?;
-                
+
                 if let Some(item) = room.items().iter().find(|i| i.name().to_lowercase() == item_name.to_lowercase()) {
-                    Ok(format!("{}: {}", item.name(), item.description()))
+                    let name = item.name();
+                    let desc = item.description();
+                    Ok(crate::terminal::format_item_examination(name, desc))
                 } else {
                     Err(anyhow::anyhow!("You don't see that here."))
                 }
             },
             Command::Help => {
-                Ok(r#"Available commands:
-- look (l): Look around
-- go [direction] (or just type the direction): Move in a direction (north/n, south/s, east/e, west/w, up/u, down/d)
-- take [item] (get): Take an item
-- drop [item]: Drop an item
-- inventory (inv, i): Show your inventory
-- examine [item] (x): Examine an item
-- help (?): Show this help message"#.to_string())
+                Ok(crate::terminal::format_help_text())
             },
             Command::Unknown(input) => {
                 if input.is_empty() {
-                    Ok("Type 'help' for a list of commands.".to_string())
+                    Ok("\nType 'help' for a list of commands.".to_string())
                 } else {
-                    Ok(format!("I don't understand '{}'.\nType 'help' for a list of commands.", input))
+                    Ok(format!("\nI don't understand '{}'.\nType 'help' for a list of commands.", input))
                 }
             },
         }

@@ -1,6 +1,7 @@
 mod game;
 mod ssh;
 mod ssh_server;
+mod terminal;
 
 use anyhow::Result;
 use tokio;
