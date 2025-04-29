@@ -9,25 +9,23 @@ if not l.rep then l.rep = function(p, n) return n and p ^ n or p ^ 0 end end
 print("Parsing org-mode text using Lua string manipulation...")
 
 -- Example Usage
-local sample_org_text = ""
-sample_org_text = sample_org_text .. "* Heading 1\n"
-sample_org_text = sample_org_text ..
-    "This is a paragraph with *bold*, /italic/, _underline_, and +strikethrough+ text.\n"
-sample_org_text = sample_org_text .. "\n"
-sample_org_text = sample_org_text .. "** Heading 2\n"
-sample_org_text = sample_org_text .. "- List item 1\n"
-sample_org_text = sample_org_text .. "- List item 2\n"
-sample_org_text = sample_org_text .. "\n"
-sample_org_text = sample_org_text .. "#+BEGIN_SRC\n"
-sample_org_text = sample_org_text .. "print(\"Hello, world!\")\n"
-sample_org_text = sample_org_text .. "#+END_SRC\n"
-sample_org_text = sample_org_text .. "\n"
-sample_org_text = sample_org_text .. "Another paragraph with a [[https://www.example.com][link to example.com]].\n"
-sample_org_text = sample_org_text .. "And another link: [[https://www.google.com]].\n"
-sample_org_text = sample_org_text .. "\n"
-sample_org_text = sample_org_text .. "-----\n"
-sample_org_text = sample_org_text .. "\n"
-sample_org_text = sample_org_text .. "Final paragraph.\n"
+local sample_org_text = [=[* Heading 1
+This is a paragraph with *bold*, /italic/, _underline_, and +strikethrough+ text.
+
+** Heading 2
+- List item 1
+- List item 2
+
+#+BEGIN_SRC
+print("Hello, world!")
+#+END_SRC
+
+Another paragraph with a [[https://www.example.com][link to example.com]].
+And another link: [[https://www.google.com]].
+
+-----
+
+Final paragraph.]=]
 
 
 -- Split text into lines using Lua string manipulation
