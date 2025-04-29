@@ -9,20 +9,25 @@ if not l.rep then l.rep = function(p, n) return n and p^n or p^0 end end
 print("Parsing org-mode text using Lua string manipulation...")
 
 -- Example Usage
-local sample_org_text = [[
-* Heading 1
-This is a paragraph under heading 1.
+local sample_org_text = ""
+sample_org_text = sample_org_text .. "* Heading 1\n"
+sample_org_text = sample_org_text .. "This is a paragraph with *bold*, /italic/, _underline_, and +strikethrough+ text.\n"
+sample_org_text = sample_org_text .. "\n"
+sample_org_text = sample_org_text .. "** Heading 2\n"
+sample_org_text = sample_org_text .. "- List item 1\n"
+sample_org_text = sample_org_text .. "- List item 2\n"
+sample_org_text = sample_org_text .. "\n"
+sample_org_text = sample_org_text .. "#+BEGIN_SRC\n"
+sample_org_text = sample_org_text .. "print(\"Hello, world!\")\n"
+sample_org_text = sample_org_text .. "#+END_SRC\n"
+sample_org_text = sample_org_text .. "\n"
+sample_org_text = sample_org_text .. "Another paragraph with a [[https://www.example.com][link to example.com]].\n"
+sample_org_text = sample_org_text .. "And another link: [[https://www.google.com]].\n"
+sample_org_text = sample_org_text .. "\n"
+sample_org_text = sample_org_text .. "-----\n"
+sample_org_text = sample_org_text .. "\n"
+sample_org_text = sample_org_text .. "Final paragraph.\n"
 
-** Heading 2
-- List item 1
-- List item 2
-
-#+BEGIN_SRC
-print("Hello, world!")
-#+END_SRC
-
-Another paragraph.
-]]
 
 -- Split text into lines using Lua string manipulation
 local lines = {}
@@ -44,16 +49,59 @@ if type(lines) == "table" then
     end
 end
 
-
 local function escape_html(text)
-    local entities = {
-        ["&"] = "&",
-        ["<"] = "<",
-        [">"] = ">",
-        ['"'] = '"',
-        ["'"] = "'"
-    }
-    return (text:gsub("[&<>\'\"]", entities))
+    -- Only escape characters that aren't part of HTML tags
+    if not text:match("<[^>]+>") then
+        local entities = {
+            ["&"] = "&amp;",
+            ["<"] = "&lt;",
+            [">"] = "&gt;",
+            ['"'] = "&quot;",
+            ["'"] = "&#39;"
+        }
+        return (text:gsub("[&<>\'\"]", entities))
+    end
+    return text
+end
+
+local function process_inline_markup(text)
+    local result = text
+
+    -- Process markup styles one at a time in specific order
+    for _, style in ipairs({
+        {marker = "%*", tag = "strong"},   -- Bold
+        {marker = "/", tag = "em"},        -- Italic
+        {marker = "_", tag = "u"},         -- Underline
+        {marker = "%+", tag = "del"}       -- Strikethrough
+    }) do
+        -- Find all instances of the marker in text
+        local positions = {}
+        for pos in result:gmatch("()" .. style.marker) do
+            table.insert(positions, pos)
+        end
+        
+        -- Process pairs of markers from the end
+        for i = #positions-1, 1, -2 do
+            local start_pos = positions[i]
+            local end_pos = positions[i+1]
+            if start_pos and end_pos then
+                local prefix = result:sub(1, start_pos-1)
+                local content = result:sub(start_pos+1, end_pos-1)
+                local suffix = result:sub(end_pos+1)
+                -- Only process if markers are at word boundaries
+                if (start_pos == 1 or prefix:match("[%s%p]$")) and
+                   (end_pos == #result or suffix:match("^[%s%p]")) then
+                    result = prefix .. "<" .. style.tag .. ">" .. content .. "</" .. style.tag .. ">" .. suffix
+                end
+            end
+        end
+    end
+    
+    -- Process links last
+    result = result:gsub("%[%[([^%]]+)%]%[([^%]]+)%]%]", "<a href='%1'>%2</a>") -- [[url][description]]
+    result = result:gsub("%[%[([^%]]+)%]%]", "<a href='%1'>%1</a>") -- [[url]]
+    
+    return result
 end
 
 local function orgmode_to_html(lines)
@@ -82,7 +130,8 @@ local function orgmode_to_html(lines)
             close_code()
             local level = line:match("^%*+")
             local text = line:match("^%*+%s*(.*)")
-            table.insert(html, string.format("<h%d>%s</h%d>", #level, escape_html(text), #level))
+            text = process_inline_markup(text) -- Process inline markup in headings
+            table.insert(html, string.format("<h%d>%s</h%d>", #level, text, #level))
         elseif line:match("^[-+*]%s") then
             close_code()
             if not in_list then
@@ -90,25 +139,32 @@ local function orgmode_to_html(lines)
                 in_list = true
             end
             local text = line:match("^[-+*]%s*(.*)")
-            table.insert(html, string.format("<li>%s</li>", escape_html(text)))
+            text = process_inline_markup(text) -- Process inline markup in list items
+            table.insert(html, string.format("<li>%s</li>", text))
         elseif line:match("^#%+BEGIN_SRC") then
             close_list()
-            close_code() -- Close any existing code block before starting a new one
+            close_code()
             table.insert(html, "<pre><code>")
             in_code = true
         elseif line:match("^#%+END_SRC") then
             close_code()
         elseif in_code then
-            -- Add escaped line content without extra newline
-            table.insert(html, escape_html(line))
+            -- Add code content without HTML escaping
+            table.insert(html, line)
+        elseif line:match("^%s*%-{5,} *$") then -- Horizontal rule
+            close_list()
+            close_code()
+            table.insert(html, "<hr>")
         elseif line:match("^%s*$") then
-            -- Ignore blank lines outside of code blocks
+            -- Handle blank lines
             close_list()
             close_code()
         else
             close_list()
             close_code()
-            table.insert(html, string.format("<p>%s</p>", escape_html(line)))
+            -- Process inline markup before wrapping in paragraph tags
+            local processed_text = process_inline_markup(line)
+            table.insert(html, string.format("<p>%s</p>", processed_text))
         end
     end
 
@@ -119,7 +175,6 @@ local function orgmode_to_html(lines)
     while #html > 0 and html[#html]:match("^%s*$") do
         table.remove(html)
     end
-
 
     return table.concat(html, "\n")
 end
