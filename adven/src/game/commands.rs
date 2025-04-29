@@ -13,6 +13,7 @@ pub enum Command {
     Drop(String),
     Inventory,
     Examine(String),
+    Use(String),
     Help,
     Unknown(String),
 }
@@ -62,6 +63,13 @@ impl Command {
                     Command::Unknown("Examine what?".to_string())
                 } else {
                     Command::Examine(parts[1..].join(" "))
+                }
+            },
+            "use" => {
+                if parts.len() < 2 {
+                    Command::Unknown("Use what?".to_string())
+                } else {
+                    Command::Use(parts[1..].join(" "))
                 }
             },
             "help" | "?" => Command::Help,
@@ -184,6 +192,32 @@ impl Command {
                     let name = item.name();
                     let desc = item.description();
                     Ok(crate::terminal::format_item_examination(name, desc))
+                } else {
+                    Err(anyhow::anyhow!("You don't see that here."))
+                }
+            },
+            Command::Use(item_name) => {
+                // First check if the item is in the player's inventory
+                let inventory = player.inventory();
+                if let Some(item) = inventory.iter().find(|i| i.name().to_lowercase() == item_name.to_lowercase()) {
+                    if let Some(use_message) = item.use_message() {
+                        return Ok(format!("\n{}", use_message));
+                    } else {
+                        return Ok(format!("\nYou can't figure out how to use the {}.", item.name()));
+                    }
+                }
+
+                // Then check if the item is in the room
+                let room_id = player.current_room();
+                let room = world.get_room(room_id)
+                    .ok_or_else(|| anyhow::anyhow!("Room not found"))?;
+
+                if let Some(item) = room.items().iter().find(|i| i.name().to_lowercase() == item_name.to_lowercase()) {
+                    if let Some(use_message) = item.use_message() {
+                        Ok(format!("\n{}", use_message))
+                    } else {
+                        Ok(format!("\nYou can't figure out how to use the {}.", item.name()))
+                    }
                 } else {
                     Err(anyhow::anyhow!("You don't see that here."))
                 }

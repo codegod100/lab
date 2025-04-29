@@ -41,6 +41,19 @@ impl Game {
         Ok(())
     }
 
+    /// Add a new player to the game with SSH key information
+    pub fn add_player_with_ssh_info(&mut self, name: String, ssh_key_type: Option<String>, ssh_key_comment: Option<String>) -> Result<()> {
+        if self.players.contains_key(&name) {
+            return Err(anyhow::anyhow!("Player already exists"));
+        }
+
+        let starting_room = self.world.starting_room_id();
+        let player = Player::new_with_ssh_info(name.clone(), starting_room, ssh_key_type, ssh_key_comment);
+        self.players.insert(name, player);
+
+        Ok(())
+    }
+
     /// Remove a player from the game
     pub fn remove_player(&mut self, name: &str) {
         self.players.remove(name);
@@ -89,6 +102,11 @@ impl Game {
         description.push_str(&crate::terminal::format_items(&item_names));
 
         description
+    }
+
+    /// Get SSH information display for a player
+    pub fn get_player_ssh_info(&self, player_name: &str) -> Option<String> {
+        self.players.get(player_name).map(|p| p.ssh_info_display())
     }
 
     /// Get a shared reference to the game that can be used across threads

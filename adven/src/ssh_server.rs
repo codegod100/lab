@@ -18,6 +18,8 @@ pub struct SshServer {
     clients: Arc<Mutex<HashMap<(usize, ChannelId), String>>>,
     // Buffer to store partial input for each client
     input_buffers: Arc<Mutex<HashMap<(usize, ChannelId), String>>>,
+    // Store SSH key information for each client
+    ssh_key_info: Arc<Mutex<HashMap<String, (Option<String>, Option<String>)>>>, // player_name -> (key_type, key_comment)
     id: usize,
 }
 
@@ -27,8 +29,21 @@ impl SshServer {
             game,
             clients: Arc::new(Mutex::new(HashMap::new())),
             input_buffers: Arc::new(Mutex::new(HashMap::new())),
+            ssh_key_info: Arc::new(Mutex::new(HashMap::new())),
             id: 0,
         }
+    }
+
+    /// Extract information from an SSH public key
+    fn extract_key_info(public_key: &PublicKey) -> (Option<String>, Option<String>) {
+        // Get the key type
+        let key_type = Some(format!("{}", public_key.name()));
+
+        // For simplicity, we'll use the username as the comment
+        // In a real implementation, you would extract the comment from the key
+        let comment = None;
+
+        (key_type, comment)
     }
 }
 
@@ -48,10 +63,23 @@ impl server::Handler for SshServer {
     type Error = anyhow::Error;
 
     // Handle authentication with public key
-    async fn auth_publickey(self, username: &str, _public_key: &PublicKey) -> Result<(Self, Auth), Self::Error> {
+    async fn auth_publickey(self, username: &str, public_key: &PublicKey) -> Result<(Self, Auth), Self::Error> {
         // In a real implementation, you would verify the public key against authorized keys
         // For this example, we'll accept any key
         println!("Authenticating user {} with public key", username);
+
+        // Extract key information
+        let (key_type, key_comment) = Self::extract_key_info(public_key);
+
+        // Generate a player name based on the username and session ID
+        let player_name = format!("player_{}", self.id);
+
+        // Store the key information for later use
+        {
+            let mut ssh_key_info = self.ssh_key_info.lock().unwrap();
+            ssh_key_info.insert(player_name, (key_type, key_comment));
+        }
+
         Ok((self, Auth::Accept))
     }
 
@@ -79,10 +107,18 @@ impl server::Handler for SshServer {
             clients.insert((self.id, channel.id()), player_name.clone());
         }
 
-        // Add the player to the game
+        // Get SSH key information if available
+        let (key_type, key_comment) = {
+            let ssh_key_info = self.ssh_key_info.lock().unwrap();
+            ssh_key_info.get(&player_name)
+                .cloned()
+                .unwrap_or((None, None))
+        };
+
+        // Add the player to the game with SSH key information
         {
             let mut game_lock = self.game.lock().unwrap();
-            if let Err(e) = game_lock.add_player(player_name.clone()) {
+            if let Err(e) = game_lock.add_player_with_ssh_info(player_name.clone(), key_type, key_comment) {
                 eprintln!("Error adding player: {}", e);
             }
         }
@@ -118,8 +154,14 @@ impl server::Handler for SshServer {
         // We'll implement local echo in the data handler instead of relying on terminal modes
         // since we don't have direct access to set terminal modes in the russh API
 
+        // Get SSH key information for the player
+        let ssh_info_display = {
+            let game_lock = self.game.lock().unwrap();
+            game_lock.get_player_ssh_info(&player_name)
+        };
+
         // Send welcome message using the terminal formatting module
-        let welcome = crate::terminal::format_welcome_message(&player_name);
+        let welcome = crate::terminal::format_welcome_message(&player_name, ssh_info_display.as_deref());
 
         let welcome_crypto = CryptoVec::from_slice(welcome.as_bytes());
         session.data(channel_id, welcome_crypto);
@@ -353,6 +395,7 @@ impl Clone for SshServer {
             game: self.game.clone(),
             clients: self.clients.clone(),
             input_buffers: self.input_buffers.clone(),
+            ssh_key_info: self.ssh_key_info.clone(),
             id: self.id,
         }
     }
