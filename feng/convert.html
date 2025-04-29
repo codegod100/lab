@@ -1,0 +1,53 @@
+Parsing org-mode text using Lua string manipulation...
+Debug: lines type:	table
+Debug: lines content:
+  	1	:	string	* Heading 1
+  	2	:	string	This is a paragraph with *bold*, /italic/, _underline_, and +strikethrough+ text.
+  	3	:	string	
+  	4	:	string	** Heading 2
+  	5	:	string	- List item 1
+  	6	:	string	- List item 2
+  	7	:	string	
+  	8	:	string	#+BEGIN_SRC
+  	9	:	string	print("Hello, world!")
+  	10	:	string	#+END_SRC
+  	11	:	string	
+  	12	:	string	Another paragraph with a [[https://www.example.com][link to example.com]].
+  	13	:	string	And another link: [[https://www.google.com]].
+  	14	:	string	
+  	15	:	string	-----
+  	16	:	string	
+  	17	:	string	Final paragraph.
+Parsing successful:
+Debug: orgmode_to_html processing line:	* Heading 1
+Debug: orgmode_to_html processing line:	This is a paragraph with *bold*, /italic/, _underline_, and +strikethrough+ text.
+Debug: orgmode_to_html processing line:	
+Debug: orgmode_to_html processing line:	** Heading 2
+Debug: orgmode_to_html processing line:	- List item 1
+Debug: orgmode_to_html processing line:	- List item 2
+Debug: orgmode_to_html processing line:	
+Debug: orgmode_to_html processing line:	#+BEGIN_SRC
+Debug: orgmode_to_html processing line:	print("Hello, world!")
+Debug: orgmode_to_html processing line:	#+END_SRC
+Debug: orgmode_to_html processing line:	
+Debug: orgmode_to_html processing line:	Another paragraph with a [[https://www.example.com][link to example.com]].
+Debug: orgmode_to_html processing line:	And another link: [[https://www.google.com]].
+Debug: orgmode_to_html processing line:	
+Debug: orgmode_to_html processing line:	-----
+Debug: orgmode_to_html processing line:	
+Debug: orgmode_to_html processing line:	Final paragraph.
+Generated HTML:
+<h1>Heading 1</h1>
+<p>This is a paragraph with <strong>bold</strong>, <em>italic</em>, <u>underline</u>, and <del>strikethrough</del> text.</p>
+<h2>Heading 2</h2>
+<ul>
+<li>List item 1</li>
+<li>List item 2</li>
+</ul>
+<pre><code>
+print("Hello, world!")
+</code></pre>
+<p>Another paragraph with a <a href='https://www.example.com'>link to example.com</a>.</p>
+<p>And another link: <a href='https://www.google.com'>https://www.google.com</a>.</p>
+<p>-----</p>
+<p>Final paragraph.</p>
