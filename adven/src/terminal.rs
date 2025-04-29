@@ -67,6 +67,7 @@ HELP COMMANDS
 - drop [item]        Drop an item from your inventory
 - inventory (inv, i) Show your inventory
 - examine [item] (x) Examine an item in detail
+- use [item]         Try to use an item in a special way
 - help (?)           Show this help message
 - quit or exit       Leave the game
 
@@ -75,17 +76,19 @@ Type just the direction (e.g., 'north') as a shortcut to go that way.
 }
 
 /// Format welcome message
-pub fn format_welcome_message(player_name: &str) -> String {
+pub fn format_welcome_message(player_name: &str, ssh_info: Option<&str>) -> String {
+    let ssh_info_display = ssh_info.unwrap_or("Unknown user");
+
     format!(r#"
 WELCOME TO THE TEXT ADVENTURE
 
-You are logged in as: {}
+You are logged in as: {} ({})
 
 You find yourself at the entrance of a mysterious cave.
 Type 'look' to see your surroundings.
 Type 'help' for a list of commands.
 
-"#, player_name).replace("\n", "\r\n")
+"#, player_name, ssh_info_display).replace("\n", "\r\n")
 }
 
 /// Format prompt

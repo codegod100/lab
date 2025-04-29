@@ -8,6 +8,9 @@ pub struct Player {
     name: String,
     current_room: String,
     inventory: Vec<Item>,
+    // Additional player information from SSH key
+    ssh_key_comment: Option<String>,
+    ssh_key_type: Option<String>,
 }
 
 impl Player {
@@ -16,6 +19,19 @@ impl Player {
             name,
             current_room: starting_room.to_string(),
             inventory: Vec::new(),
+            ssh_key_comment: None,
+            ssh_key_type: None,
+        }
+    }
+
+    /// Create a new player with SSH key information
+    pub fn new_with_ssh_info(name: String, starting_room: &str, ssh_key_type: Option<String>, ssh_key_comment: Option<String>) -> Self {
+        Player {
+            name,
+            current_room: starting_room.to_string(),
+            inventory: Vec::new(),
+            ssh_key_comment,
+            ssh_key_type,
         }
     }
 
@@ -49,6 +65,26 @@ impl Player {
             Some(self.inventory.remove(pos))
         } else {
             None
+        }
+    }
+
+    /// Get the SSH key comment if available
+    pub fn ssh_key_comment(&self) -> Option<&String> {
+        self.ssh_key_comment.as_ref()
+    }
+
+    /// Get the SSH key type if available
+    pub fn ssh_key_type(&self) -> Option<&String> {
+        self.ssh_key_type.as_ref()
+    }
+
+    /// Get a formatted display of the player's SSH key information
+    pub fn ssh_info_display(&self) -> String {
+        match (&self.ssh_key_type, &self.ssh_key_comment) {
+            (Some(key_type), Some(comment)) => format!("{} ({})", comment, key_type),
+            (Some(key_type), None) => format!("Unknown user ({})", key_type),
+            (None, Some(comment)) => format!("{} (unknown key type)", comment),
+            (None, None) => "Unknown user (no SSH key info)".to_string(),
         }
     }
 }

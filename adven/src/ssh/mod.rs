@@ -41,21 +41,31 @@ async fn handle_connection(mut socket: TcpStream, game: Arc<Mutex<Game>>) -> Res
     // Generate a unique player name based on the socket address
     let player_name = format!("player_{}", socket.peer_addr()?.port());
 
-    // Add the player to the game
+    // Add the player to the game with TCP connection info as SSH key info
     {
         let mut game_lock = game.lock().unwrap();
-        game_lock.add_player(player_name.clone())?;
+        let key_type = Some("tcp".to_string());
+        let key_comment = Some(format!("TCP connection from {}", socket.peer_addr()?));
+        game_lock.add_player_with_ssh_info(player_name.clone(), key_type, key_comment)?;
     }
 
+    // Get SSH key information for the player
+    let ssh_info_display = {
+        let game_lock = game.lock().unwrap();
+        game_lock.get_player_ssh_info(&player_name)
+    };
+
     // Send welcome message
-    let welcome = r#"
+    let welcome = format!(r#"
 WELCOME TO THE TEXT ADVENTURE
+
+You are logged in as: {} ({})
 
 You find yourself at the entrance of a mysterious cave.
 Type 'look' to see your surroundings.
 Type 'help' for a list of commands.
 
-"#;
+"#, player_name, ssh_info_display.unwrap_or_else(|| "Unknown user".to_string()));
 
     socket.write_all(welcome.as_bytes()).await?;
 
