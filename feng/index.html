@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="fengari-web.js" type="text/javascript"></script>
+<script type="application/lua">
+    -- Print a welcome message
+    print("Hello World!")
+    
+    -- Define a simple function
+    function factorial(n)
+        if n == 0 then
+            return 1
+        else
+            return n * factorial(n - 1)
+        end
+    end
+    
+    -- Calculate and print some factorials
+    for i = 1, 5 do
+        print(string.format("Factorial of %d is %d", i, factorial(i)))
+    end
+    
+    -- Create a simple table
+    local colors = {"red", "green", "blue", "yellow"}
+    
+    -- Iterate through the table
+    print("Available colors:")
+    for i, color in ipairs(colors) do
+        print(string.format("%.1f: %s", i, color))
+    end
+</script>
