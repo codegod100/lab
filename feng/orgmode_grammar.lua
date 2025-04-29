@@ -2,16 +2,17 @@ local l = require("lpeg")
 if not l.any then l.any = l.P(1) end
 if not l.char then l.char = function(c) return l.P(c) end end
 if not l.space then l.space = l.S(" \t") end
-local newline = l.P("\n") -- Define newline directly
-if not l.until_newline then l.until_newline = function(p) return l.C(l.rep(p - newline)^0) end end -- Adjusted until_newline to take a pattern
-if not l.rep then l.rep = function(p, n) return n and p^n or p^0 end end
+local newline = l.P("\n")                                                                            -- Define newline directly
+if not l.until_newline then l.until_newline = function(p) return l.C(l.rep(p - newline) ^ 0) end end -- Adjusted until_newline to take a pattern
+if not l.rep then l.rep = function(p, n) return n and p ^ n or p ^ 0 end end
 
 print("Parsing org-mode text using Lua string manipulation...")
 
 -- Example Usage
 local sample_org_text = ""
 sample_org_text = sample_org_text .. "* Heading 1\n"
-sample_org_text = sample_org_text .. "This is a paragraph with *bold*, /italic/, _underline_, and +strikethrough+ text.\n"
+sample_org_text = sample_org_text ..
+    "This is a paragraph with *bold*, /italic/, _underline_, and +strikethrough+ text.\n"
 sample_org_text = sample_org_text .. "\n"
 sample_org_text = sample_org_text .. "** Heading 2\n"
 sample_org_text = sample_org_text .. "- List item 1\n"
@@ -69,38 +70,38 @@ local function process_inline_markup(text)
 
     -- Process markup styles one at a time in specific order
     for _, style in ipairs({
-        {marker = "%*", tag = "strong"},   -- Bold
-        {marker = "/", tag = "em"},        -- Italic
-        {marker = "_", tag = "u"},         -- Underline
-        {marker = "%+", tag = "del"}       -- Strikethrough
+        { marker = "%*", tag = "strong" }, -- Bold
+        { marker = "/",  tag = "em" },     -- Italic
+        { marker = "_",  tag = "u" },      -- Underline
+        { marker = "%+", tag = "del" }     -- Strikethrough
     }) do
         -- Find all instances of the marker in text
         local positions = {}
         for pos in result:gmatch("()" .. style.marker) do
             table.insert(positions, pos)
         end
-        
+
         -- Process pairs of markers from the end
-        for i = #positions-1, 1, -2 do
+        for i = #positions - 1, 1, -2 do
             local start_pos = positions[i]
-            local end_pos = positions[i+1]
+            local end_pos = positions[i + 1]
             if start_pos and end_pos then
-                local prefix = result:sub(1, start_pos-1)
-                local content = result:sub(start_pos+1, end_pos-1)
-                local suffix = result:sub(end_pos+1)
+                local prefix = result:sub(1, start_pos - 1)
+                local content = result:sub(start_pos + 1, end_pos - 1)
+                local suffix = result:sub(end_pos + 1)
                 -- Only process if markers are at word boundaries
                 if (start_pos == 1 or prefix:match("[%s%p]$")) and
-                   (end_pos == #result or suffix:match("^[%s%p]")) then
+                    (end_pos == #result or suffix:match("^[%s%p]")) then
                     result = prefix .. "<" .. style.tag .. ">" .. content .. "</" .. style.tag .. ">" .. suffix
                 end
             end
         end
     end
-    
+
     -- Process links last
     result = result:gsub("%[%[([^%]]+)%]%[([^%]]+)%]%]", "<a href='%1'>%2</a>") -- [[url][description]]
-    result = result:gsub("%[%[([^%]]+)%]%]", "<a href='%1'>%1</a>") -- [[url]]
-    
+    result = result:gsub("%[%[([^%]]+)%]%]", "<a href='%1'>%1</a>")             -- [[url]]
+
     return result
 end
 
