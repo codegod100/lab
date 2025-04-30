@@ -187,4 +187,7 @@ else
     print("Parsing failed.") -- This case should not be reached with string.gmatch
 end
 
-return nil -- Return nil as grammar is removed
+-- return nil -- Return nil as grammar is removed
+return {
+    orgmode_to_html = orgmode_to_html,
+}
