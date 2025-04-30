@@ -5,6 +5,7 @@
 
   let homePath = '';
   let drives: string[] = [];
+  let isDragOverFavorites = false;
 
   onMount(async () => {
     try {
@@ -22,6 +23,32 @@
   function removeFromFavorites(path: string, event: MouseEvent) {
     event.stopPropagation();
     fileSystem.removeFromFavorites(path);
+  }
+
+  function handleFavoritesDragOver(event: DragEvent) {
+    event.preventDefault();
+    isDragOverFavorites = true;
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
+  }
+
+  function handleFavoritesDragLeave(event: DragEvent) {
+    isDragOverFavorites = false;
+  }
+
+  function handleFavoritesDrop(event: DragEvent) {
+    event.preventDefault();
+    isDragOverFavorites = false;
+    if (!event.dataTransfer) return;
+    // Accept text/plain (file paths, one per line)
+    const text = event.dataTransfer.getData('text/plain');
+    if (text) {
+      const paths = text.split('\n').map(p => p.trim()).filter(Boolean);
+      for (const path of paths) {
+        fileSystem.addToFavorites(path);
+      }
+    }
   }
 </script>
 
@@ -76,31 +103,40 @@
 
   <section class="section">
     <div class="section-title">Favorites</div>
-    {#if $fileSystem.favorites.length === 0}
-      <div class="empty-favorites">
-        <p>No favorites yet</p>
-        <p class="hint">Right-click a folder and select "Add to Favorites"</p>
-      </div>
-    {:else}
-      <ul class="section-list">
-        {#each $fileSystem.favorites as favorite}
-          <li
-            class="section-item {$fileSystem.currentPath === favorite ? 'active' : ''}"
-            on:click={() => navigateTo(favorite)}
-          >
-            <span class="material-symbols-outlined">folder</span>
-            <span class="item-name">{favorite.split('/').pop() || favorite}</span>
-            <button
-              class="remove-favorite"
-              on:click={(e) => removeFromFavorites(favorite, e)}
-              title="Remove from favorites"
+    <div
+      class="favorites-dropzone{isDragOverFavorites ? ' drag-over' : ''}"
+      on:dragover={handleFavoritesDragOver}
+      on:dragleave={handleFavoritesDragLeave}
+      on:drop={handleFavoritesDrop}
+      tabindex="-1"
+      aria-label="Drop files or folders here to add to favorites"
+    >
+      {#if $fileSystem.favorites.length === 0}
+        <div class="empty-favorites">
+          <p>No favorites yet</p>
+          <p class="hint">Right-click a folder and select "Add to Favorites"<br>or drag here.</p>
+        </div>
+      {:else}
+        <ul class="section-list">
+          {#each $fileSystem.favorites as favorite}
+            <li
+              class="section-item {$fileSystem.currentPath === favorite ? 'active' : ''}"
+              on:click={() => navigateTo(favorite)}
             >
-              <span class="material-symbols-outlined">close</span>
-            </button>
-          </li>
-        {/each}
-      </ul>
-    {/if}
+              <span class="material-symbols-outlined">folder</span>
+              <span class="item-name">{favorite.split('/').pop() || favorite}</span>
+              <button
+                class="remove-favorite"
+                on:click={(e) => removeFromFavorites(favorite, e)}
+                title="Remove from favorites"
+              >
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </div>
   </section>
 </div>
 
@@ -195,6 +231,16 @@
     font-style: italic;
   }
 
+  .favorites-dropzone {
+    min-height: 36px;
+    border-radius: 6px;
+    transition: background 0.15s;
+  }
+  .favorites-dropzone.drag-over {
+    background: #e3f2fd;
+    outline: 2px dashed #1976d2;
+  }
+
   /* Dark mode */
   @media (prefers-color-scheme: dark) {
     .sidebar {
@@ -220,6 +266,11 @@
 
     .empty-favorites {
       color: #777;
+    }
+
+    .favorites-dropzone.drag-over {
+      background: #0d47a1;
+      outline: 2px dashed #90caf9;
     }
   }
 </style>

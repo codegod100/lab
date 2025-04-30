@@ -42,20 +42,29 @@
   .view-mode-controls {
     display: flex;
     justify-content: flex-end;
-    padding: 4px 8px;
-    height: 28px; /* Fixed height for calculations */
+    padding: 8px 16px;
+    height: 44px;
     background-color: #f5f5f5;
     border-bottom: 1px solid #ddd;
     width: 100%;
+    align-items: center;
+    box-sizing: border-box;
   }
 
   .view-mode-button {
     background: none;
     border: none;
-    border-radius: 4px;
-    padding: 4px;
-    margin-left: 4px;
+    border-radius: 6px;
+    padding: 8px;
+    margin-left: 8px;
     cursor: pointer;
+    min-width: 36px;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    transition: background 0.15s;
   }
 
   .view-mode-button:hover {
@@ -66,8 +75,6 @@
     background-color: #e3f2fd;
     color: #1976d2;
   }
-
-
 
   /* Dark mode */
   @media (prefers-color-scheme: dark) {
@@ -83,11 +90,6 @@
     .view-mode-button.active {
       background-color: #0d47a1;
       color: #fff;
-    }
-
-    .view-mode-controls {
-      background-color: #252525;
-      border-bottom: 1px solid #444;
     }
   }
 </style>

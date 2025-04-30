@@ -280,7 +280,7 @@
   }
 </script>
 
-<div class="file-content-wrapper" style="height: 500px; overflow: auto;">
+<div class="file-content-wrapper">
 <section
   class="file-list {paneSettings.viewMode} {isDraggingOver ? 'drag-over' : ''}"
   aria-label="File list"
@@ -537,7 +537,10 @@
   }
 
   .file-content-wrapper {
-    width: 100%;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
     overflow: auto;
   }
 

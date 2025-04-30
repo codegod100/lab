@@ -4,9 +4,7 @@
   import { openPath } from '@tauri-apps/plugin-opener';
   import SplitPane from '../lib/components/SplitPane.svelte';
   import Sidebar from '../lib/components/Sidebar.svelte';
-  import FileList from '../lib/components/FileList.svelte';
-  import FileContent from '../lib/components/FileContent.svelte';
-  import PathBar from '../lib/components/PathBar.svelte';
+  import FilePane from '../lib/components/FilePane.svelte';
   import ContextMenu from '../lib/components/ContextMenu.svelte';
   import AppLayout from '../lib/components/AppLayout.svelte';
   import { fileSystem, leftPaneFS, rightPaneFS, type FileItem } from '../lib/stores/fs';
@@ -237,91 +235,45 @@
 >
   <div class="file-manager">
     {#if $settings.splitView}
-      <SplitPane direction="horizontal" initialSplit={15}>
-        <div slot="first" class="sidebar-container">
-          <Sidebar />
+      <SplitPane direction="horizontal" initialSplit={50}>
+        <div slot="first" class="split-pane-container">
+          <FilePane
+            pane="left"
+            fs={leftPaneFS}
+            items={$leftPaneFS.items}
+            selectedItems={$leftPaneFS.selectedItems}
+            currentPath={$leftPaneFS.currentPath}
+            on:open={handleFileOpen}
+            on:contextmenu={handleContextMenu}
+            on:backgroundcontextmenu={handleBackgroundContextMenu}
+          />
         </div>
-
-        <div slot="second" class="content-container">
-          <SplitPane direction="horizontal" initialSplit={50}>
-            <div slot="first" class="split-pane-container">
-              <div class="pane-fixed-header">
-                <div class="path-bar-container">
-                  <PathBar path={$leftPaneFS.currentPath} fs={leftPaneFS} />
-                </div>
-              </div>
-              <div class="pane-fixed-controls">
-                <FileList pane="left" />
-              </div>
-              <div class="pane-scrollable-content" style="height: calc(100% - 76px);">
-                <FileContent
-                  items={$leftPaneFS.items}
-                  selectedItems={$leftPaneFS.selectedItems}
-                  path={$leftPaneFS.currentPath}
-                  fs={leftPaneFS}
-                  pane="left"
-                  on:open={handleFileOpen}
-                  on:contextmenu={handleContextMenu}
-                  on:backgroundcontextmenu={handleBackgroundContextMenu}
-                />
-              </div>
-            </div>
-
-            <div slot="second" class="split-pane-container">
-              <div class="pane-fixed-header">
-                <div class="path-bar-container">
-                  <PathBar path={$rightPaneFS.currentPath} fs={rightPaneFS} />
-                </div>
-              </div>
-              <div class="pane-fixed-controls">
-                <FileList pane="right" />
-              </div>
-              <div class="pane-scrollable-content" style="height: calc(100% - 76px);">
-                <FileContent
-                  items={$rightPaneFS.items}
-                  selectedItems={$rightPaneFS.selectedItems}
-                  path={$rightPaneFS.currentPath}
-                  fs={rightPaneFS}
-                  pane="right"
-                  on:open={handleFileOpen}
-                  on:contextmenu={handleContextMenu}
-                  on:backgroundcontextmenu={handleBackgroundContextMenu}
-                />
-              </div>
-            </div>
-          </SplitPane>
+        <div slot="second" class="split-pane-container">
+          <FilePane
+            pane="right"
+            fs={rightPaneFS}
+            items={$rightPaneFS.items}
+            selectedItems={$rightPaneFS.selectedItems}
+            currentPath={$rightPaneFS.currentPath}
+            on:open={handleFileOpen}
+            on:contextmenu={handleContextMenu}
+            on:backgroundcontextmenu={handleBackgroundContextMenu}
+          />
         </div>
       </SplitPane>
     {:else}
-      <SplitPane direction="horizontal" initialSplit={15}>
-        <div slot="first" class="sidebar-container">
-          <Sidebar />
-        </div>
-
-        <div slot="second" class="content-container">
-          <div class="pane-fixed-header">
-            <div class="path-bar-container">
-              <PathBar path={$leftPaneFS.currentPath} fs={leftPaneFS} />
-            </div>
-          </div>
-          <div class="pane-fixed-controls">
-            <FileList pane="left" />
-          </div>
-
-          <div class="pane-scrollable-content" style="height: calc(100% - 76px);">
-            <FileContent
-              items={$leftPaneFS.items}
-              selectedItems={$leftPaneFS.selectedItems}
-              path={$leftPaneFS.currentPath}
-              fs={leftPaneFS}
-              pane="left"
-              on:open={handleFileOpen}
-              on:contextmenu={handleContextMenu}
-              on:backgroundcontextmenu={handleBackgroundContextMenu}
-            />
-          </div>
-        </div>
-      </SplitPane>
+      <div class="content-container">
+        <FilePane
+          pane="left"
+          fs={leftPaneFS}
+          items={$leftPaneFS.items}
+          selectedItems={$leftPaneFS.selectedItems}
+          currentPath={$leftPaneFS.currentPath}
+          on:open={handleFileOpen}
+          on:contextmenu={handleContextMenu}
+          on:backgroundcontextmenu={handleBackgroundContextMenu}
+        />
+      </div>
     {/if}
   </div>
 
@@ -376,6 +328,8 @@
     height: 100%;
     position: relative;
     overflow: visible;
+    flex: 1;
+    min-height: 0;
   }
 
   .split-pane-container {
@@ -385,43 +339,8 @@
     background-color: #f6f6f6;
     position: relative;
     overflow: visible;
+    min-height: 0;
   }
-
-  .pane-fixed-header {
-    flex-shrink: 0;
-    position: relative;
-    z-index: 10;
-    background-color: #f5f5f5;
-    border-bottom: 1px solid #ddd;
-  }
-
-  .path-bar-container {
-    flex-shrink: 0;
-    background-color: #f5f5f5;
-  }
-
-  .pane-fixed-controls {
-    flex-shrink: 0;
-    position: relative;
-    z-index: 10;
-    background-color: #f5f5f5;
-    border-bottom: 1px solid #ddd;
-  }
-
-  .pane-fixed-controls :global(.view-mode-controls) {
-    border-bottom: none;
-  }
-
-  .pane-scrollable-content {
-    flex: 1;
-    overflow: hidden;
-    background-color: #fff;
-    position: relative;
-    z-index: 1; /* Ensure content is below fixed headers */
-    min-height: 100px; /* Ensure there's enough space for the file list */
-  }
-
-
 
   /* Dark mode */
   @media (prefers-color-scheme: dark) {
@@ -431,24 +350,6 @@
     }
 
     .split-pane-container {
-      background-color: #1e1e1e;
-    }
-
-    .pane-fixed-header {
-      background-color: #252525;
-      border-bottom: 1px solid #444;
-    }
-
-    .path-bar-container {
-      background-color: #252525;
-    }
-
-    .pane-fixed-controls {
-      background-color: #252525;
-      border-bottom: 1px solid #444;
-    }
-
-    .pane-scrollable-content {
       background-color: #1e1e1e;
     }
   }
