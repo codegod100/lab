@@ -113,7 +113,7 @@ local function orgmode_to_html(text)
 end
 
 -- Test runner
-if arg and arg[0]:match("orgmode_lpeg.lua$") then
+if arg and arg[0]:match("grammar.lua$") then
     local test_org = [=[
 * Heading 1
 This is a paragraph with *bold*, /italic/, _underline_, and +strikethrough+ text.
