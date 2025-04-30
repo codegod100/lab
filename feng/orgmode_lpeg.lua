@@ -9,49 +9,48 @@ local function escape_html(text)
     return (text:gsub("[&<>'\"]", entities))
 end
 
--- Process inline markup in a string
-local function process_inline(text)
-    text = text or ""
-    local links, count = {}, 0
-    -- [[url][desc]]
-    text = text:gsub("%[%[([^%]]+)%]%[([^%]]+)%]%]", function(url, desc)
-        count = count + 1
-        local key = "__LINK"..count.."__"
-        links[key] = string.format("<a href='%s'>%s</a>", url, desc)
-        return key
-    end)
-    -- [[url]]
-    text = text:gsub("%[%[([^%]]+)%]%]", function(url)
-        count = count + 1
-        local key = "__LINK"..count.."__"
-        links[key] = string.format("<a href='%s'>%s</a>", url, url)
-        return key
-    end)
-    -- escape
-    text = text:gsub("<", "__LT__"):gsub(">", "__GT__")
-    -- strikethrough
-    text = text:gsub("([%s^])%+([^%+]-)%+([%p%s]?)", "%1<del>%2</del>%3")
-    text = text:gsub("^%+([^%+]-)%+([%p%s]?)", "<del>%1</del>%2")
-    -- Improved underline: match _text_ not inside words or placeholders, including next to punctuation
-    text = text:gsub("([^%w_])_([^_%s][^_]*)_([^%w_])", "%1<u>%2</u>%3")
-    text = text:gsub("^_([^_%s][^_]*)_([^%w_])", "<u>%1</u>%2")
-    text = text:gsub("([^%w_])_([^_%s][^_]*)_$", "%1<u>%2</u>")
-    text = text:gsub("^_([^_%s][^_]*)_$", "<u>%1</u>")
-    -- bold
-    text = text:gsub("([%s^])%*([^%*]-)%*([%p%s]?)", "%1<strong>%2</strong>%3")
-    text = text:gsub("^%*([^%*]-)%*([%p%s]?)", "<strong>%1</strong>%2")
-    -- italic
-    text = text:gsub("([%s^])/([^/]-)/([%p%s]?)", "%1<em>%2</em>%3")
-    text = text:gsub("^/([^/]-)/([%p%s]?)", "<em>%1</em>%2")
-    -- restore < and >
-    text = text:gsub("__LT__", "<"):gsub("__GT__", ">")
-    -- strikethrough, underline, bold, italic, and links should be applied before restoring links
-    -- restore links LAST
-    for k, v in pairs(links) do
-        text = text:gsub(k, v)
+-- Inline LPeg grammar for Org-mode inline markup
+local function inline_grammar()
+    local lpeg = require("lpeg")
+    local P, S, C, Ct, Cg, Cmt = lpeg.P, lpeg.S, lpeg.C, lpeg.Ct, lpeg.Cg, lpeg.Cmt
+    local V = lpeg.V
+
+    local function escape_html(text)
+        local entities = { ['&']='&amp;' , ['<']='&lt;' , ['>']='&gt;' , ['\"']='&quot;' , ["'"]="&#39;" }
+        return (text:gsub("[&<>'\"]", entities))
     end
-    return text
+
+    -- Patterns for inline elements
+    local lbracket = P"[["
+    local rbracket = P"]]"
+    local link_url = C((1 - P"]")^1)
+    local link_desc = C((1 - P"]")^1)
+    -- [[url][desc]]
+    local link_with_desc = P"[[" * link_url * P"][" * link_desc * P"]]" / function(url, desc) return string.format("<a href='%s'>%s</a>", url, desc) end
+    -- [[url]]
+    local link = P"[[" * link_url * P"]]" / function(url) return string.format("<a href='%s'>%s</a>", url, url) end
+
+    local bold = P"*" * C((1 - P"*")^1) * P"*" / function(txt) return "<strong>"..escape_html(txt).."</strong>" end
+    local italic = P"/" * C((1 - P"/")^1) * P"/" / function(txt) return "<em>"..escape_html(txt).."</em>" end
+    local underline = P"_" * C((1 - P"_")^1) * P"_" / function(txt) return "<u>"..escape_html(txt).."</u>" end
+    local strike = P"+" * C((1 - P"+")^1) * P"+" / function(txt) return "<del>"..escape_html(txt).."</del>" end
+    local code = P"~" * C((1 - P"~")^1) * P"~" / function(txt) return "<code>"..escape_html(txt).."</code>" end
+
+    -- Fallback for plain text (up to next special char or link start)
+    local plain = C((1 - S"*_/+~[")^1) / escape_html
+
+    local inline = Ct((link_with_desc + link + bold + italic + underline + strike + code + plain)^1)
+
+    return function(text)
+        if not text or text == '' then return '' end
+        local html_parts = inline:match(text)
+        if not html_parts then return escape_html(text) end
+        return table.concat(html_parts)
+    end
 end
+
+-- Replace process_inline with inline_grammar()
+local process_inline = inline_grammar()
 
 -- Build PEG grammar for block-level Org elements
 local function org_grammar()
