@@ -23,13 +23,6 @@
     }
   }
 
-  function toggleViewMode() {
-    const modes = ['list', 'grid', 'details'] as const;
-    const currentIndex = modes.indexOf($settings.viewMode);
-    const nextIndex = (currentIndex + 1) % modes.length;
-    settings.setViewMode(modes[nextIndex]);
-  }
-
   function toggleSplitView() {
     settings.toggleSplitView();
   }
@@ -40,7 +33,7 @@
 </script>
 
 <div class="toolbar">
-  <div class="toolbar-group">
+  <div class="toolbar-group single-row">
     <button class="toolbar-button" on:click={createNewFolder} title="New Folder">
       <span class="material-symbols-outlined">create_new_folder</span>
     </button>
@@ -52,22 +45,6 @@
       title="Delete"
     >
       <span class="material-symbols-outlined">delete</span>
-    </button>
-  </div>
-
-  <div class="toolbar-group">
-    <button
-      class="toolbar-button"
-      on:click={toggleViewMode}
-      title="Change View"
-    >
-      {#if $settings.viewMode === 'list'}
-        <span class="material-symbols-outlined">view_list</span>
-      {:else if $settings.viewMode === 'grid'}
-        <span class="material-symbols-outlined">grid_view</span>
-      {:else}
-        <span class="material-symbols-outlined">view_list</span>
-      {/if}
     </button>
 
     <button
@@ -99,9 +76,11 @@
     width: 100%;
   }
 
-  .toolbar-group {
+  .toolbar-group.single-row {
     display: flex;
+    flex-direction: row;
     gap: 4px;
+    width: 100%;
   }
 
   .toolbar-button {

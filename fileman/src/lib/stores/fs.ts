@@ -46,6 +46,9 @@ function createFileSystemStore(id: string = 'main') {
   const freshState = { ...initialState, selectedItems: new Set<string>() };
   const { subscribe, set, update } = writable<FileSystemState>(freshState);
 
+  // --- SEARCH STATE (per instance) ---
+  let searchQuery = '';
+
   // Initialize with home directory
   async function init() {
     try {
@@ -319,6 +322,17 @@ function createFileSystemStore(id: string = 'main') {
     });
   }
 
+  // --- SEARCH API ---
+  function setSearchQuery(query: string) {
+    searchQuery = query;
+    // Trigger update so derived stores recompute
+    update(state => ({ ...state }));
+  }
+
+  function getSearchQuery() {
+    return searchQuery;
+  }
+
   return {
     subscribe,
     init,
@@ -336,6 +350,9 @@ function createFileSystemStore(id: string = 'main') {
     refreshCurrentDirectory,
     addToFavorites,
     removeFromFavorites,
+    // --- SEARCH ---
+    setSearchQuery,
+    getSearchQuery,
   };
 }
 
@@ -348,7 +365,14 @@ export const fileSystem = leftPaneFS;
 
 // Derived stores for convenience (using the left pane as the primary)
 export const currentPath = derived(leftPaneFS, $fs => $fs.currentPath);
-export const currentItems = derived(leftPaneFS, $fs => $fs.items);
+// Filter items by searchQuery if set
+export const currentItems = derived(leftPaneFS, $fs => {
+  // Use the searchQuery from the store instance
+  const query = leftPaneFS.getSearchQuery?.() || '';
+  if (!query) return $fs.items;
+  const lower = query.toLowerCase();
+  return $fs.items.filter(item => item.name.toLowerCase().includes(lower));
+});
 export const selectedItems = derived(leftPaneFS, $fs => $fs.selectedItems);
 export const isLoading = derived(leftPaneFS, $fs => $fs.loading);
 export const error = derived(leftPaneFS, $fs => $fs.error);

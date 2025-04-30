@@ -1,6 +1,7 @@
 <script lang="ts">
   import Toolbar from './Toolbar.svelte';
   import ContextMenu from './ContextMenu.svelte';
+  import Sidebar from './Sidebar.svelte';
   import { leftPaneFS, rightPaneFS } from '../stores/fs';
   import { settings } from '../stores/settings';
 
@@ -26,8 +27,13 @@
     <Toolbar selectedCount={$settings.splitView ? $leftPaneFS.selectedItems.size + $rightPaneFS.selectedItems.size : $leftPaneFS.selectedItems.size} />
   </div>
 
-  <div class="content-area">
-    <slot />
+  <div class="main-area">
+    <aside class="sidebar-area">
+      <Sidebar />
+    </aside>
+    <div class="content-area">
+      <slot />
+    </div>
   </div>
 
   {#if contextMenuVisible}
@@ -62,8 +68,32 @@
     z-index: 100;
   }
 
-  .content-area {
+  .main-area {
     grid-row: 2;
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .sidebar-area {
+    width: 220px;
+    min-width: 160px;
+    max-width: 320px;
+    flex-shrink: 0;
+    height: 100%;
+    border-right: 1px solid #ddd;
+    background: #f5f5f5;
+    z-index: 10;
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+
+  .content-area {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
     overflow: hidden;
     position: relative;
     display: flex;
@@ -75,6 +105,10 @@
     .toolbar-area {
       background-color: #252525;
       border-bottom: 1px solid #444;
+    }
+    .sidebar-area {
+      background-color: #252525;
+      border-right: 1px solid #444;
     }
   }
 </style>
