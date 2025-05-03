@@ -4,6 +4,7 @@ use serde::{Serialize, Deserialize};
 use std::time::SystemTime;
 use tauri::command;
 use tauri::async_runtime;
+use std::process::Command;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum FileType {
@@ -331,5 +332,32 @@ pub fn copy_paths_to_clipboard(paths: Vec<String>) -> Result<(), String> {
 
     // For now, just return success
     // The actual clipboard operation will be handled by the frontend
+    Ok(())
+}
+
+#[command]
+pub fn open_item(path: &str) -> Result<(), String> {
+    // Platform-specific open
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("cmd")
+            .args(["/C", "start", "", path])
+            .spawn()
+            .map_err(|e| format!("Failed to open file: {}", e))?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(path)
+            .spawn()
+            .map_err(|e| format!("Failed to open file: {}", e))?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        Command::new("xdg-open")
+            .arg(path)
+            .spawn()
+            .map_err(|e| format!("Failed to open file: {}", e))?;
+    }
     Ok(())
 }

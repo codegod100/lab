@@ -75,6 +75,7 @@
     min-height: 0;
     width: 100%;
     overflow: hidden;
+    background: #f5f5f5;
   }
 
   .sidebar-area {
@@ -88,6 +89,10 @@
     z-index: 10;
     overflow-y: auto;
     box-sizing: border-box;
+    padding-bottom: 0;
+    padding-top: 0;
+    padding-left: 0;
+    padding-right: 0;
   }
 
   .content-area {
@@ -98,6 +103,14 @@
     position: relative;
     display: flex;
     flex-direction: column;
+    background: #fff;
+    margin: 0;
+    padding: 0;
+  }
+
+  :global(body), .app-layout {
+    margin: 0;
+    padding: 0;
   }
 
   /* Dark mode */
@@ -109,6 +122,12 @@
     .sidebar-area {
       background-color: #252525;
       border-right: 1px solid #444;
+    }
+    .main-area {
+      background: #181818;
+    }
+    .content-area {
+      background: #181818;
     }
   }
 </style>

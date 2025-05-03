@@ -2,6 +2,7 @@
   import PathBar from './PathBar.svelte';
   import FileList from './FileList.svelte';
   import FileContent from './FileContent.svelte';
+  import ContextMenu from './ContextMenu.svelte';
   import { settings, type PaneSettings } from '../stores/settings';
   import { leftPaneFS, rightPaneFS } from '../stores/fs';
   import type { FileItem, FileSystemStore } from '../stores/fs';
@@ -22,6 +23,40 @@
   $: items = pane === 'left'
     ? leftPaneFS.getSearchQuery && leftPaneFS.getSearchQuery() ? $leftPaneFS.items.filter(item => item.name.toLowerCase().includes(leftPaneFS.getSearchQuery().toLowerCase())) : $leftPaneFS.items
     : rightPaneFS.getSearchQuery && rightPaneFS.getSearchQuery() ? $rightPaneFS.items.filter(item => item.name.toLowerCase().includes(rightPaneFS.getSearchQuery().toLowerCase())) : $rightPaneFS.items;
+
+  // Context menu state
+  let contextMenuVisible = false;
+  let contextMenuX = 0;
+  let contextMenuY = 0;
+  let contextMenuItems = [];
+  let contextMenuIsBackground = false;
+
+  function handleContextMenu(event) {
+    contextMenuVisible = true;
+    contextMenuX = event.detail.x;
+    contextMenuY = event.detail.y;
+    contextMenuItems = event.detail.items || (event.detail.item ? [event.detail.item] : []);
+    contextMenuIsBackground = false;
+  }
+
+  function handleBackgroundContextMenu(event) {
+    contextMenuVisible = true;
+    contextMenuX = event.detail.x;
+    contextMenuY = event.detail.y;
+    contextMenuItems = [];
+    contextMenuIsBackground = true;
+  }
+
+  function handleMenuClose() {
+    contextMenuVisible = false;
+  }
+
+  function handleMenuOpen(e) {
+    // Open file logic: delegate to FileContent's onOpen
+    if (e.detail && e.detail.item) {
+      onOpen({ detail: e.detail });
+    }
+  }
 </script>
 
 <div class="file-pane-root">
@@ -41,10 +76,19 @@
       {fs}
       {pane}
       on:open={onOpen}
-      on:contextmenu={onContextMenu}
-      on:backgroundcontextmenu={onBackgroundContextMenu}
+      on:contextmenu={handleContextMenu}
+      on:backgroundcontextmenu={handleBackgroundContextMenu}
     />
   </div>
+  <ContextMenu
+    x={contextMenuX}
+    y={contextMenuY}
+    items={contextMenuItems}
+    visible={contextMenuVisible}
+    isBackground={contextMenuIsBackground}
+    on:close={handleMenuClose}
+    on:open={handleMenuOpen}
+  />
 </div>
 
 <style>

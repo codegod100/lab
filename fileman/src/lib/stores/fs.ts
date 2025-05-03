@@ -296,6 +296,15 @@ function createFileSystemStore(id: string = 'main') {
     await navigateTo(state.currentPath, false);
   }
 
+  async function openItem(path: string) {
+    try {
+      await invoke('open_item', { path });
+    } catch (error) {
+      console.error('Failed to open item:', error);
+      update(state => ({ ...state, error: String(error) }));
+    }
+  }
+
   function addToFavorites(path: string) {
     update(state => {
       if (state.favorites.includes(path)) return state;
@@ -335,24 +344,26 @@ function createFileSystemStore(id: string = 'main') {
 
   return {
     subscribe,
+    set,
+    update,
     init,
     navigateTo,
     navigateUp,
     navigateBack,
     navigateForward,
+    refreshCurrentDirectory,
     selectItem,
     clearSelection,
-    createDirectory,
-    deleteSelected,
-    renameItem,
     copySelected,
     moveSelected,
-    refreshCurrentDirectory,
+    deleteSelected,
+    renameItem,
+    createDirectory,
     addToFavorites,
     removeFromFavorites,
-    // --- SEARCH ---
     setSearchQuery,
     getSearchQuery,
+    openItem,
   };
 }
 
