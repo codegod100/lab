@@ -390,7 +390,7 @@
       </tr>
     </thead>
     <tbody>
-      {#each sortedItems as item (item.path)}
+      {#each sortedItems as item (item)}
         <tr
           class:selected={selectedItems.has(item.path)}
           on:click={(e) => handleItemClick(item, e)}
@@ -408,7 +408,7 @@
             <span>{item.file_type === FileType.Directory ? '--' : formatFileSize(item.size)}</span>
           </td>
           <td class="type-column">
-            <span>{item.file_type === FileType.Directory ? 'Folder' : item.name.split('.').pop() || 'File'}</span>
+            <span>{item.file_type === FileType.Directory ? 'Folder' : (item?.name && typeof item.name === 'string' ? item.name.split('.').pop() || 'File' : 'File')}</span>
           </td>
           <td class="modified-column">
             <span>{item.modified ? formatDate(item.modified) : '--'}</span>
@@ -419,7 +419,7 @@
   </table>
 {:else if paneSettings.viewMode === 'grid'}
   <div class="grid-container">
-    {#each sortedItems as item (item.path)}
+    {#each sortedItems as item (item)}
       <div
         class="grid-item {item.file_type.toLowerCase()} {selectedItems.has(item.path) ? 'selected' : ''}"
         on:click={(e) => handleItemClick(item, e)}
@@ -438,7 +438,7 @@
   </div>
 {:else}
   <div class="list-container">
-    {#each sortedItems as item (item.path)}
+    {#each sortedItems as item (item)}
       <div
         class="list-item {item.file_type.toLowerCase()} {selectedItems.has(item.path) ? 'selected' : ''}"
         on:click={(e) => handleItemClick(item, e)}

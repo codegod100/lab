@@ -9,8 +9,14 @@
       "identifier": "opener:allow-open-path",
       "allow": [{ "path": "**" }]
     },
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "*" }]
+    },
     "opener:allow-reveal-item-in-dir",
     "clipboard:read-all",
-    "clipboard:write-all"
+    "clipboard:write-all",
+    "shell:allow-open",
+    "shell:default"
   ]
 }

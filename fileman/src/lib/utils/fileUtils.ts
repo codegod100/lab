@@ -18,8 +18,11 @@ export function formatDate(timestamp: number): string {
 }
 
 // Get file extension
-export function getFileExtension(filename: string): string {
-  return filename.slice((filename.lastIndexOf('.') - 1 >>> 0) + 2);
+export function getFileExtension(filenameOrName: string): string {
+  if (!filenameOrName || typeof filenameOrName !== 'string') return '';
+  const lastDot = filenameOrName.lastIndexOf('.');
+  if (lastDot <= 0) return '';
+  return filenameOrName.slice(lastDot + 1);
 }
 
 // Get icon for file type

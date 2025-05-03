@@ -32,6 +32,10 @@
   // Handle menu item clicks
   function handleOpen() {
     if (item) {
+      // Also call fileSystem.openItem if available
+      if (typeof fileSystem.openItem === 'function') {
+        fileSystem.openItem(item.path);
+      }
       dispatch('open', { item });
     }
     closeMenu();
