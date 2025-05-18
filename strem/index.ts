@@ -1,6 +1,8 @@
 import { InferenceClient } from "@huggingface/inference";
 
-const client = new InferenceClient(process.env.HUGGINGFACE_ACCESS_TOKEN);
+// Initialize with your Hugging Face token
+const hf = new InferenceClient(process.env.HUGGINGFACE_ACCESS_TOKEN);
+const MODEL_NAME = "meta-llama/Llama-3.3-70B-Instruct";
 
 // Language map with common language codes and their display names
 const LANGUAGE_MAP = {
@@ -25,7 +27,7 @@ function isValidLanguageCode(code: string): code is LanguageCode {
   return code in LANGUAGE_MAP;
 }
 
-// Translation function with multi-language support
+// Translation function using Llama 3.3 70B Instruct
 async function streamTranslation(
   text: string,
   targetLanguage: LanguageCode = "fr"
@@ -36,97 +38,71 @@ async function streamTranslation(
     );
   }
 
-  // Map language codes to their respective models
-  const modelMap = {
-    fr: "Helsinki-NLP/opus-mt-en-fr",
-    es: "Helsinki-NLP/opus-mt-en-es"
-  } as const;
-  
-  type SupportedLanguage = keyof typeof modelMap;
-  
-  // Check if the target language is supported
-  if (!(targetLanguage in modelMap)) {
-    throw new Error(`Unsupported target language: ${targetLanguage}. Supported languages: ${Object.keys(modelMap).join(', ')}`);
-  }
-  
-  const modelName = modelMap[targetLanguage as SupportedLanguage];
+  const targetLanguageName = LANGUAGE_MAP[targetLanguage];
+  const prompt = `Translate the following text to ${targetLanguageName}. Only respond with the translation, nothing else.\n\nText: ${text}`;
 
-  console.log(`Translating to ${LANGUAGE_MAP[targetLanguage]}...`);
+  console.log(`Translating to ${targetLanguageName} using ${MODEL_NAME}...`);
   
   try {
-    const response = await fetch(
-      `https://api-inference.huggingface.co/models/${modelName}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.HUGGINGFACE_ACCESS_TOKEN}`,
-          "Content-Type": "application/json",
+    // Using chat API for the model
+    const response = await hf.chatCompletion({
+      model: MODEL_NAME,
+      messages: [
+        {
+          role: "system",
+          content: "You are a helpful translation assistant. You only respond with the translated text, append pronunciation in brackets."
         },
-        body: JSON.stringify({
-          inputs: text,
-          options: {
-            wait_for_model: true,
-          },
-        }),
-      }
-    );
+        {
+          role: "user",
+          content: `Translate the following text to ${targetLanguageName}: ${text}`
+        }
+      ],
+      max_tokens: 1000,
+      temperature: 0.7,
+    });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API Error:', errorText);
-      throw new Error(`Translation failed with status ${response.status}: ${errorText}`);
+    const translatedText = response.choices?.[0]?.message?.content?.trim();
+    if (!translatedText) {
+      throw new Error('No translation was generated');
     }
 
-    const result = await response.json();
-    
-    // Handle array response with translation_text field
-    if (Array.isArray(result) && result.length > 0) {
-      if (result[0].translation_text) {
-        return result[0].translation_text.trim();
-      }
-      if (result[0].generated_text) {
-        return result[0].generated_text.trim();
-      }
-    }
-    
-    // Handle direct object response
-    if (result.translation_text) {
-      return result.translation_text.trim();
-    }
-    if (result.generated_text) {
-      return result.generated_text.trim();
-    }
-    
-    // If the response is just a string
-    if (typeof result === 'string') {
-      return result.trim();
-    }
-    
-    console.error('Unexpected response format:', JSON.stringify(result, null, 2));
-    throw new Error('Unexpected response format from translation service');
+    return translatedText;
   } catch (error) {
     console.error('Translation error:', error);
-    throw error;
+    throw new Error(`Translation failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
-// Example usage with multiple languages
+// Example usage with all available languages
 async function runExamples() {
-  const text = "Hello world, how are you today?";
+  const text = "today is a good day";
   
   try {
-    // Translate to French
-    console.log("\nTranslating to French:");
-    const french = await streamTranslation(text, "fr");
+    console.log("\nTranslating to all available languages:");
+    const results: Record<string, string> = {};
     
-    // Translate to Spanish
-    console.log("\n\nTranslating to Spanish:");
-    const spanish = await streamTranslation(text, "es");
+    // Get all available language codes
+    const languageCodes = Object.keys(LANGUAGE_MAP) as LanguageCode[];
     
+    // Translate to all available languages
+    for (const lang of languageCodes) {
+      try {
+        const langName = LANGUAGE_MAP[lang];
+        console.log(`\nTranslating to ${langName} (${lang}):`);
+        results[lang] = await streamTranslation(text, lang);
+      } catch (error) {
+        console.error(`Error translating to ${lang}:`, error instanceof Error ? error.message : 'Unknown error');
+        results[lang] = 'Translation failed';
+      }
+    }
+    
+    // Display all results
     console.log("\n\nTranslation Results:");
     console.log(`Original: ${text}`);
-    console.log(`French: ${french}`);
-    console.log(`Spanish: ${spanish}`);
+    for (const [lang, translation] of Object.entries(results)) {
+      const langName = LANGUAGE_MAP[lang as LanguageCode] || lang;
+      console.log(`${langName} (${lang}): ${translation}`);
+    }
     
   } catch (error) {
     console.error("Translation error:", error);
