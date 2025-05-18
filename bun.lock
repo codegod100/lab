@@ -1,0 +1,17 @@
+{
+  "lockfileVersion": 1,
+  "workspaces": {
+    "": {
+      "dependencies": {
+        "@huggingface/inference": "^3.13.1",
+      },
+    },
+  },
+  "packages": {
+    "@huggingface/inference": ["@huggingface/inference@3.13.1", "", { "dependencies": { "@huggingface/jinja": "^0.5.0", "@huggingface/tasks": "^0.19.5" } }, "sha512-RIFaC295cL/0tco+HboS8abeApfn01/tWFgjYwLo6vRYGkuQBSzwgHuAdouOZu62UQYwrWA4Eyv1e+4zBxc+dQ=="],
+
+    "@huggingface/jinja": ["@huggingface/jinja@0.5.0", "", {}, "sha512-Ptc03/jGRiYRoi0bUYKZ14MkDslsBRT24oxmsvUlfYrvQMldrxCevhPnT+hfX8awKTT8/f/0ZBBWldoeAcMHdQ=="],
+
+    "@huggingface/tasks": ["@huggingface/tasks@0.19.5", "", {}, "sha512-WEwM/tZsRqw0TinTkQwqPsK5pdaGffAV6Nu6xxSTSZUsBvkDJxE9kTiMNSwvjeHvt9/MYAJKjZ+CMSo6Rugs4g=="],
+  }
+}

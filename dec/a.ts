@@ -1,15 +1,15 @@
-function bar<T extends new (...args: any[]) => any>(targetClass: T) {
-  return class extends targetClass {
-    foo() {
-      console.log("foo");
-    }
-  } as T & { new (...args: any[]): { foo(): void } };
+// biome-ignore lint/suspicious/noExplicitAny: Any is required for mixins.
+function bar<T extends new (...args: any[]) => any>(target: T) {
+	return class extends target {
+		foo(str: string) {
+			return `hello ${str}`;
+		}
+	};
 }
 
 @bar
 class A {}
-interface A {
-  foo(): void;
-}
-const a = new A();
-a.foo();
+
+const a = new A() as A & { foo(str: string): string };
+const str = a.foo("world");
+console.dir(str);
