@@ -1,0 +1,12 @@
+[tasks.test]
+run = "echo test"
+
+[tools]
+age = "latest"
+go = "latest"
+pnpm = "latest"
+sops = "latest"
+
+[env]
+SOPS_AGE_KEY_FILE = "~/.config/mise/age.txt"
+_.file = ".env.json"
