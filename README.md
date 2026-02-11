@@ -36,7 +36,7 @@ echo 'Welcome to devbox!' > /dev/null
 
 ### devbox run test
 ```sh
-echo "Error: no test specified" && exit 1
+npm test
 ```
 &ensp;
 

@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "test": "vitest run"
+  },
   "dependencies": {
     "vitest": "^3.1.1"
   },
