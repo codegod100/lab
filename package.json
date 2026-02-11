@@ -1,4 +1,7 @@
 {
+	"scripts": {
+		"test": "npm --prefix types install --no-save && npm --prefix types test"
+	},
 	"dependencies": {
 		"@huggingface/inference": "^3.13.1",
 		"blessed": "^0.1.81",
